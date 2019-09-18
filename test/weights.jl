@@ -1,7 +1,7 @@
-using StatsBase
+using Statistics
 using LinearAlgebra, Random, SparseArrays, Test
 
-@testset "StatsBase.Weights" begin
+@testset "Weights" begin
 weight_funcs = (weights, aweights, fweights, pweights)
 
 # Construction
@@ -28,12 +28,6 @@ weight_funcs = (weights, aweights, fweights, pweights)
     @test values(bv) === b
     @test sum(bv)    === 3
     @test !isempty(bv)
-
-    ba = BitArray([true, false, true])
-    sa = sparsevec([1., 0., 2.])
-
-    @test sum(ba, wv) === 4.0
-    @test sum(sa, wv) === 7.0
 end
 
 @testset "$f, setindex!" for f in weight_funcs
@@ -96,140 +90,19 @@ end
     @test x == y
 end
 
-## wsum
-x = [6., 8., 9.]
-w = [2., 3., 4.]
-p = [1. 2. ; 3. 4.]
-q = [1., 2., 3., 4.]
-
-@test wsum(Float64[], Float64[]) === 0.0
-@test wsum(x, w) === 72.0
-@test wsum(p, q) === 29.0
-
-## wsum along dimension
-@test wsum(x, w, 1) == [72.0]
-
-x  = rand(6, 8)
-w1 = rand(6)
-w2 = rand(8)
-
-@test size(wsum(x, w1, 1)) == (1, 8)
-@test size(wsum(x, w2, 2)) == (6, 1)
-
-@test wsum(x, w1, 1) ≈ sum(x .* w1, dims = 1)
-@test wsum(x, w2, 2) ≈ sum(x .* w2', dims = 2)
-
-x = rand(6, 5, 4)
-w1 = rand(6)
-w2 = rand(5)
-w3 = rand(4)
-
-@test size(wsum(x, w1, 1)) == (1, 5, 4)
-@test size(wsum(x, w2, 2)) == (6, 1, 4)
-@test size(wsum(x, w3, 3)) == (6, 5, 1)
-
-@test wsum(x, w1, 1) ≈ sum(x .* w1, dims = 1)
-@test wsum(x, w2, 2) ≈ sum(x .* w2', dims = 2)
-@test wsum(x, w3, 3) ≈ sum(x .* reshape(w3, 1, 1, 4), dims = 3)
-
-v = view(x, 2:4, :, :)
-
-@test wsum(v, w1[1:3], 1) ≈ sum(v .* w1[1:3], dims = 1)
-@test wsum(v, w2, 2)      ≈ sum(v .* w2', dims = 2)
-@test wsum(v, w3, 3)      ≈ sum(v .* reshape(w3, 1, 1, 4), dims = 3)
-
-## wsum for Arrays with non-BlasReal elements
-x = rand(1:100, 6, 8)
-w1 = rand(6)
-w2 = rand(8)
-
-@test wsum(x, w1, 1) ≈ sum(x .* w1, dims = 1)
-@test wsum(x, w2, 2) ≈ sum(x .* w2', dims = 2)
-
-## wsum!
-x = rand(6)
-w = rand(6)
-
-r = ones(1)
-@test wsum!(r, x, w, 1; init=true) === r
-@test r ≈ [dot(x, w)]
-
-r = ones(1)
-@test wsum!(r, x, w, 1; init=false) === r
-@test r ≈ [dot(x, w) + 1.0]
-
-x = rand(6, 8)
-w1 = rand(6)
-w2 = rand(8)
-
-r = ones(1, 8)
-@test wsum!(r, x, w1, 1; init=true) === r
-@test r ≈ sum(x .* w1, dims = 1)
-
-r = ones(1, 8)
-@test wsum!(r, x, w1, 1; init=false) === r
-@test r ≈ sum(x .* w1, dims = 1) .+ 1.0
-
-r = ones(6)
-@test wsum!(r, x, w2, 2; init=true) === r
-@test r ≈ sum(x .* w2', dims = 2)
-
-r = ones(6)
-@test wsum!(r, x, w2, 2; init=false) === r
-@test r ≈ sum(x .* w2', dims = 2) .+ 1.0
-
-x = rand(8, 6, 5)
-w1 = rand(8)
-w2 = rand(6)
-w3 = rand(5)
-
-r = ones(1, 6, 5)
-@test wsum!(r, x, w1, 1; init=true) === r
-@test r ≈ sum(x .* w1, dims = 1)
-
-r = ones(1, 6, 5)
-@test wsum!(r, x, w1, 1; init=false) === r
-@test r ≈ sum(x .* w1, dims = 1) .+ 1.0
-
-r = ones(8, 1, 5)
-@test wsum!(r, x, w2, 2; init=true) === r
-@test r ≈ sum(x .* w2', dims = 2)
-
-r = ones(8, 1, 5)
-@test wsum!(r, x, w2, 2; init=false) === r
-@test r ≈ sum(x .* w2', dims = 2) .+ 1.0
-
-r = ones(8, 6)
-@test wsum!(r, x, w3, 3; init=true) === r
-@test r ≈ sum(x .* reshape(w3, (1, 1, 5)), dims = 3)
-
-r = ones(8, 6)
-@test wsum!(r, x, w3, 3; init=false) === r
-@test r ≈ sum(x .* reshape(w3, (1, 1, 5)), dims = 3) .+ 1.0
-
-## the sum and mean syntax
-a = reshape(1.0:27.0, 3, 3, 3)
-
-@testset "Sum $f" for f in weight_funcs
-    @test sum([1.0, 2.0, 3.0], f([1.0, 0.5, 0.5])) ≈ 3.5
-    @test sum(1:3, f([1.0, 1.0, 0.5]))             ≈ 4.5
-
-    for wt in ([1.0, 1.0, 1.0], [1.0, 0.2, 0.0], [0.2, 0.0, 1.0])
-        @test sum(a, f(wt), 1)  ≈ sum(a.*reshape(wt, length(wt), 1, 1), dims = 1)
-        @test sum(a, f(wt), 2)  ≈ sum(a.*reshape(wt, 1, length(wt), 1), dims = 2)
-        @test sum(a, f(wt), 3)  ≈ sum(a.*reshape(wt, 1, 1, length(wt)), dims = 3)
-    end
-end
-
 @testset "Mean $f" for f in weight_funcs
-    @test mean([1:3;], f([1.0, 1.0, 0.5])) ≈ 1.8
-    @test mean(1:3, f([1.0, 1.0, 0.5]))    ≈ 1.8
+    @test mean([1:3;], weights=f([1.0, 1.0, 0.5])) ≈ 1.8
+    @test mean(1:3, weights=f([1.0, 1.0, 0.5]))    ≈ 1.8
 
+    a = reshape(1.0:27.0, 3, 3, 3)
     for wt in ([1.0, 1.0, 1.0], [1.0, 0.2, 0.0], [0.2, 0.0, 1.0])
-        @test mean(a, f(wt), dims=1) ≈ sum(a.*reshape(wt, length(wt), 1, 1), dims=1)/sum(wt)
-        @test mean(a, f(wt), dims=2) ≈ sum(a.*reshape(wt, 1, length(wt), 1), dims=2)/sum(wt)
-        @test mean(a, f(wt), dims=3) ≈ sum(a.*reshape(wt, 1, 1, length(wt)), dims=3)/sum(wt)
-        @test_throws ErrorException mean(a, f(wt), dims=4)
+        @test mean(a, weights=f(wt), dims=1) ≈
+            sum(a.*reshape(wt, :, 1, 1), dims=1)/sum(wt)
+        @test mean(a, weights=f(wt), dims=2) ≈
+            sum(a.*reshape(wt, 1, :, 1), dims=2)/sum(wt)
+        @test mean(a, weights=f(wt), dims=3) ≈
+            sum(a.*reshape(wt, 1, 1, :), dims=3)/sum(wt)
+        @test_throws DimensionMismatch mean(a, weights=f(wt), dims=4)
     end
 end
 
@@ -293,24 +166,27 @@ end
     end
     # quantile with fweights is the same as repeated vectors
     for i = 1:length(data)
-        @test quantile(data[i], fweights(wt[i]), p) ≈ quantile(_rep(data[i], wt[i]), p)
+        @test quantile(data[i], p, weights=fweights(wt[i])) ≈
+            quantile(_rep(data[i], wt[i]), p)
     end
     # quantile with fweights = 1  is the same as quantile
     for i = 1:length(data)
-        @test quantile(data[i], fweights(fill!(similar(wt[i]), 1)), p) ≈ quantile(data[i], p)
+        @test quantile(data[i], p, weights=fweights(fill!(similar(wt[i]), 1))) ≈ quantile(data[i], p)
     end
 
-    # Issue #313
-    @test quantile([1, 2, 3, 4, 5], fweights([0,1,2,1,0]), p) ≈ quantile([2, 3, 3, 4], p)
-    @test quantile([1, 2], fweights([1, 1]), 0.25) ≈ 1.25
-    @test quantile([1, 2], fweights([2, 2]), 0.25) ≈ 1.0
+    # Issue JuliaStats/StatsBase#313
+    @test quantile([1, 2, 3, 4, 5], p, weights=fweights([0,1,2,1,0])) ≈
+        quantile([2, 3, 3, 4], p)
+    @test quantile([1, 2], 0.25, weights=fweights([1, 1])) ≈ 1.25
+    @test quantile([1, 2], 0.25, weights=fweights([2, 2])) ≈ 1.0
 
     # test non integer frequency weights
-    quantile([1, 2], fweights([1.0, 2.0]), 0.25) == quantile([1, 2], fweights([1, 2]), 0.25)
-    @test_throws ArgumentError quantile([1, 2], fweights([1.5, 2.0]), 0.25)
+    quantile([1, 2], 0.25, weights=fweights([1.0, 2.0])) ==
+        quantile([1, 2], 0.25, weights=fweights([1, 2]))
+    @test_throws ArgumentError quantile([1, 2], 0.25, weights=fweights([1.5, 2.0]))
 
-    @test_throws ArgumentError quantile([1, 2], fweights([1, 2]), nextfloat(1.0))
-    @test_throws ArgumentError quantile([1, 2], fweights([1, 2]), prevfloat(0.0))
+    @test_throws ArgumentError quantile([1, 2], nextfloat(1.0), weights=fweights([1, 2]))
+    @test_throws ArgumentError quantile([1, 2], prevfloat(0.0), weights=fweights([1, 2]))
 end
 
 @testset "Quantile aweights, pweights and weights" for f in (aweights, pweights, weights)
@@ -381,70 +257,70 @@ end
 
     Random.seed!(10)
     for i = 1:length(data)
-        @test quantile(data[i], f(wt[i]), p) ≈ quantile_answers[i] atol = 1e-5
+        @test quantile(data[i], p, weights=f(wt[i])) ≈ quantile_answers[i] atol = 1e-5
         for j = 1:10
             # order of p does not matter
             reorder = sortperm(rand(length(p)))
-            @test quantile(data[i], f(wt[i]), p[reorder]) ≈ quantile_answers[i][reorder] atol = 1e-5
+            @test quantile(data[i], p[reorder], weights=f(wt[i])) ≈
+                quantile_answers[i][reorder] atol = 1e-5
         end
         for j = 1:10
             # order of w does not matter
             reorder = sortperm(rand(length(data[i])))
-            @test quantile(data[i][reorder], f(wt[i][reorder]), p) ≈ quantile_answers[i] atol = 1e-5
+            @test quantile(data[i][reorder], p, weights=f(wt[i][reorder])) ≈
+                quantile_answers[i] atol = 1e-5
         end
     end
     # All equal weights corresponds to base quantile
     for v in (1, 2, 345)
         for i = 1:length(data)
             w = f(fill(v, length(data[i])))
-            @test quantile(data[i], w, p) ≈ quantile(data[i], p) atol = 1e-5
+            @test quantile(data[i], p, weights=w) ≈ quantile(data[i], p) atol = 1e-5
             for j = 1:10
                 prandom = rand(4)
-                @test quantile(data[i], w,  prandom) ≈ quantile(data[i], prandom) atol = 1e-5
+                @test quantile(data[i], prandom, weights=w) ≈
+                    quantile(data[i], prandom) atol = 1e-5
             end
         end
     end
     # test zeros are removed
     for i = 1:length(data)
-        @test quantile(vcat(1.0, data[i]), f(vcat(0.0, wt[i])), p) ≈ quantile_answers[i] atol = 1e-5
+        @test quantile(vcat(1.0, data[i]), p, weights=f(vcat(0.0, wt[i]))) ≈
+            quantile_answers[i] atol = 1e-5
     end
     # Syntax
     v = [7, 1, 2, 4, 10]
     w = [1, 1/3, 1/3, 1/3, 1]
     answer = 6.0
-    @test quantile(data[1], f(w), 0.5)    ≈  answer atol = 1e-5
+    @test quantile(data[1], 0.5, weights=f(w)) ≈  answer atol = 1e-5
 end
 
 
 @testset "Median $f" for f in weight_funcs
     data = [4, 3, 2, 1]
     wt = [0, 0, 0, 0]
-    @test_throws ArgumentError median(data, f(wt))
-    @test_throws ArgumentError median(Float64[], f(Float64[]))
+    @test_throws ArgumentError median(data, weights=f(wt))
+    @test_throws ArgumentError median(Float64[], weights=f(Float64[]))
     wt = [1, 2, 3, 4, 5]
-    @test_throws ArgumentError median(data, f(wt))
-    if VERSION >= v"1.0"
-        @test_throws MethodError median([4 3 2 1 0], f(wt))
-        @test_throws MethodError median([[1 2] ; [4 5] ; [7 8] ; [10 11] ; [13 14]], f(wt))
-    end
+    @test_throws ArgumentError median(data, weights=f(wt))
+    @test_throws ArgumentError median([4 3 2 1 0], weights=f(wt))
+    @test_throws ArgumentError median([1 2; 4 5; 7 8; 10 11; 13 14],
+                                      weights=f(wt))
     data = [1, 3, 2, NaN, 2]
-    @test isnan(median(data, f(wt)))
+    @test isnan(median(data, weights=f(wt)))
     wt = [1, 2, NaN, 4, 5]
-    @test_throws ArgumentError median(data, f(wt))
+    @test_throws ArgumentError median(data, weights=f(wt))
     data = [1, 3, 2, 1, 2]
-    @test_throws ArgumentError median(data, f(wt))
+    @test_throws ArgumentError median(data, weights=f(wt))
     wt = [-1, -1, -1, -1, -1]
-    @test_throws ArgumentError median(data, f(wt))
+    @test_throws ArgumentError median(data, weights=f(wt))
     wt = [-1, -1, -1, 0, 0]
-    @test_throws ArgumentError median(data, f(wt))
+    @test_throws ArgumentError median(data, weights=f(wt))
 
     data = [4, 3, 2, 1]
     wt = [1, 2, 3, 4]
-    @test median(data, f(wt)) ≈ quantile(data, f(wt), 0.5) atol = 1e-5
+    @test median(data, weights=f(wt)) ≈
+        quantile(data, 0.5, weights=f(wt)) atol = 1e-5
 end
 
-@testset "Mismatched eltypes" begin
-    @test round(mean(Union{Int,Missing}[1,2], weights([1,2])), digits=3) ≈ 1.667
-end
-
-end # @testset StatsBase.Weights
+end # @testset Weights
