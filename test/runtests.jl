@@ -3,8 +3,6 @@
 using Statistics, Test, Random, LinearAlgebra, SparseArrays
 using Test: guardseed
 
-Random.seed!(123)
-
 @testset "middle" begin
     @test middle(3) === 3.0
     @test middle(2, 3) === 2.5
@@ -83,14 +81,6 @@ end
     @test mean(i->i+1, 0:2) === 2.
     @test mean(isodd, [3]) === 1.
     @test mean(x->3x, (1,1)) === 3.
-
-    # mean of iterables:
-    n = 10; a = randn(n); b = randn(n)
-    @test mean(Tuple(a)) ≈ mean(a)
-    @test mean(Tuple(a + b*im)) ≈ mean(a + b*im)
-    @test mean(cos, Tuple(a)) ≈ mean(cos, a)
-    @test mean(x->x/2, a + b*im) ≈ mean(a + b*im) / 2.
-    @test ismissing(mean(Tuple((1, 2, missing, 4, 5))))
 
     @test isnan(mean([NaN]))
     @test isnan(mean([0.0,NaN]))
@@ -470,8 +460,6 @@ end
     @test cor(repeat(1:17, 1, 17))[2] <= 1.0
     @test cor(1:17, 1:17) <= 1.0
     @test cor(1:17, 18:34) <= 1.0
-    @test cor(Any[1, 2], Any[1, 2]) == 1.0
-    @test isnan(cor([0], Int8[81]))
     let tmp = range(1, stop=85, length=100)
         tmp2 = Vector(tmp)
         @test cor(tmp, tmp) <= 1.0
@@ -530,10 +518,6 @@ end
             @inferred quantile(T[1, 2, 3], (S(0.5), S(0.6)))
         end
     end
-    x = [3; 2; 1]
-    y = zeros(3)
-    @test quantile!(y, x, [0.1, 0.5, 0.9]) === y
-    @test y == [1.2, 2.0, 2.8]
 end
 
 # StatsBase issue 164
@@ -736,3 +720,7 @@ end
         @test isfinite.(cov_sparse) == isfinite.(cov_dense)
     end
 end
+
+include("weights.jl")
+include("wsum.jl")
+include("moments.jl")
