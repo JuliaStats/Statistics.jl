@@ -172,16 +172,17 @@ Return the `p`th percentile of a collection `x`, i.e. `quantile(x, p / 100)`.
 """
 percentile(x, p) = quantile(x, p * 0.01)
 
+# TODO: move to same place as other quantile methods
 """
-    nquantile(x, n::Integer)
+    quantile(x, n::Integer)
 
 Return the n-quantiles of collection `x`, i.e. the values which
 partition `v` into `n` subsets of nearly equal size.
 
-Equivalent to `quantile(x, [0:n]/n)`. For example, `nquantiles(x, 5)`
+Equivalent to `quantile(x, [0:n]/n)`. For example, `quantile(x, 5)`
 returns a vector of quantiles, respectively at `[0.0, 0.2, 0.4, 0.6, 0.8, 1.0]`.
 """
-nquantile(x, n::Integer) = quantile(x, (0:n)/n)
+quantile(x, n::Integer) = quantile(x, (0:n)/n)
 
 
 #############################
@@ -199,7 +200,7 @@ The minimum and maximum of `x` are computed in one pass using `extrema`.
 """
 span(x) = ((a, b) = extrema(x); a:b)
 
-# Variation coefficient: std / mean
+# Coefficient of variation: std / mean
 """
     variation(x, m=mean(x))
 
@@ -207,8 +208,7 @@ Return the coefficient of variation of collection `x`, optionally specifying
 a precomputed mean `m`. The coefficient of variation is the ratio of the
 standard deviation to the mean.
 """
-variation(x, m) = stdm(x, m) / m
-variation(x) = ((m, s) = mean_and_std(x); s/m)
+variation(x, m=mean(x)) = std(x, mean=m) / m
 
 # Standard error of the mean: std / sqrt(len)
 # Code taken from var in the Statistics stdlib module
@@ -221,34 +221,13 @@ realXcY(x::Complex, y::Complex) = real(x)*real(y) + imag(x)*imag(y)
     sem(x)
 
 Return the standard error of the mean of collection `x`,
-i.e. `sqrt(var(x, corrected=true) / length(x))`.
+i.e. `std(x, corrected=true) / sqrt(length(x))`.
 """
 function sem(x)
-    y = iterate(x)
-    if y === nothing
-        T = eltype(x)
-        # Return the NaN of the type that we would get, had this collection
-        # contained any elements (this is consistent with std)
-        return oftype(sqrt((abs2(zero(T)) + abs2(zero(T)))/2), NaN)
-    end
-    count = 1
-    value, state = y
-    y = iterate(x, state)
-    # Use Welford algorithm as seen in (among other places)
-    # Knuth's TAOCP, Vol 2, page 232, 3rd edition.
-    M = value / 1
-    S = real(zero(M))
-    while y !== nothing
-        value, state = y
-        y = iterate(x, state)
-        count += 1
-        new_M = M + (value - M) / count
-        S = S + realXcY(value - M, value - new_M)
-        M = new_M
-    end
-    var = S / (count - 1)
-    return sqrt(var/count)
+    s, count = _sumsq(iterable, mean)
+    sqrt((s / (count - 1)) / count)
 end
+sem(x::AbstractArray) = sqrt(var(x, corrected=true) / length(x))
 
 # Median absolute deviation
 @irrational mad_constant 1.4826022185056018 BigFloat("1.482602218505601860547076529360423431326703202590312896536266275245674447622701")
@@ -355,7 +334,7 @@ matrix of `X`.
 genvar(X::AbstractMatrix) = size(X, 2) == 1 ? var(vec(X)) : det(cov(X))
 genvar(itr) = var(itr)
 
-# Total variation
+# Total variance
 """
     totalvar(X)
 
@@ -366,114 +345,6 @@ of the covariance matrix of `X`.
 """
 totalvar(X::AbstractMatrix) = sum(var(X, dims=1))
 totalvar(itr) = var(itr)
-
-#############################
-#
-#   Z-scores
-#
-#############################
-
-function _zscore!(Z::AbstractArray, X::AbstractArray, μ::Real, σ::Real)
-    # Z and X are assumed to have the same size
-    iσ = inv(σ)
-    if μ == zero(μ)
-        for i = 1 : length(X)
-            @inbounds Z[i] = X[i] * iσ
-        end
-    else
-        for i = 1 : length(X)
-            @inbounds Z[i] = (X[i] - μ) * iσ
-        end
-    end
-    return Z
-end
-
-@generated function _zscore!(Z::AbstractArray{S,N}, X::AbstractArray{T,N},
-                             μ::AbstractArray, σ::AbstractArray) where {S,T,N}
-    quote
-        # Z and X are assumed to have the same size
-        # μ and σ are assumed to have the same size, that is compatible with size(X)
-        siz1 = size(X, 1)
-        @nextract $N ud d->size(μ, d)
-        if size(μ, 1) == 1 && siz1 > 1
-            @nloops $N i d->(d>1 ? (1:size(X,d)) : (1:1)) d->(j_d = ud_d ==1 ? 1 : i_d) begin
-                v = (@nref $N μ j)
-                c = inv(@nref $N σ j)
-                for i_1 = 1:siz1
-                    (@nref $N Z i) = ((@nref $N X i) - v) * c
-                end
-            end
-        else
-            @nloops $N i X d->(j_d = ud_d ==1 ? 1 : i_d) begin
-                (@nref $N Z i) = ((@nref $N X i) - (@nref $N μ j)) / (@nref $N σ j)
-            end
-        end
-        return Z
-    end
-end
-
-function _zscore_chksize(X::AbstractArray, μ::AbstractArray, σ::AbstractArray)
-    size(μ) == size(σ) || throw(DimensionMismatch("μ and σ should have the same size."))
-    for i=1:ndims(X)
-        dμ_i = size(μ,i)
-        (dμ_i == 1 || dμ_i == size(X,i)) || throw(DimensionMismatch("X and μ have incompatible sizes."))
-    end
-end
-
-
-"""
-    zscore!([Z], X, μ, σ)
-
-Compute the z-scores of an array `X` with mean `μ` and standard deviation `σ`.
-z-scores are the signed number of standard deviations above the mean that an
-observation lies, i.e. ``(x - μ) / σ``.
-
-If a destination array `Z` is provided, the scores are stored
-in `Z` and it must have the same shape as `X`. Otherwise `X` is overwritten.
-"""
-function zscore!(Z::AbstractArray{ZT}, X::AbstractArray{T}, μ::Real, σ::Real) where {ZT<:AbstractFloat,T<:Real}
-    size(Z) == size(X) || throw(DimensionMismatch("Z and X must have the same size."))
-    _zscore!(Z, X, μ, σ)
-end
-
-function zscore!(Z::AbstractArray{<:AbstractFloat}, X::AbstractArray{<:Real},
-                 μ::AbstractArray{<:Real}, σ::AbstractArray{<:Real})
-    size(Z) == size(X) || throw(DimensionMismatch("Z and X must have the same size."))
-    _zscore_chksize(X, μ, σ)
-    _zscore!(Z, X, μ, σ)
-end
-
-zscore!(X::AbstractArray{<:AbstractFloat}, μ::Real, σ::Real) = _zscore!(X, X, μ, σ)
-
-zscore!(X::AbstractArray{<:AbstractFloat}, μ::AbstractArray{<:Real}, σ::AbstractArray{<:Real}) =
-    (_zscore_chksize(X, μ, σ); _zscore!(X, X, μ, σ))
-
-
-"""
-    zscore(X, [μ, σ])
-
-Compute the z-scores of `X`, optionally specifying a precomputed mean `μ` and
-standard deviation `σ`. z-scores are the signed number of standard deviations
-above the mean that an observation lies, i.e. ``(x - μ) / σ``.
-
-`μ` and `σ` should be both scalars or both arrays. The computation is broadcasting.
-In particular, when `μ` and `σ` are arrays, they should have the same size, and
-`size(μ, i) == 1  || size(μ, i) == size(X, i)` for each dimension.
-"""
-function zscore(X::AbstractArray{T}, μ::Real, σ::Real) where T<:Real
-    ZT = typeof((zero(T) - zero(μ)) / one(σ))
-    _zscore!(Array{ZT}(undef, size(X)), X, μ, σ)
-end
-
-function zscore(X::AbstractArray{T}, μ::AbstractArray{U}, σ::AbstractArray{S}) where {T<:Real,U<:Real,S<:Real}
-    _zscore_chksize(X, μ, σ)
-    ZT = typeof((zero(T) - zero(U)) / one(S))
-    _zscore!(Array{ZT}(undef, size(X)), X, μ, σ)
-end
-
-zscore(X::AbstractArray{<:Real}) = ((μ, σ) = mean_and_std(X); zscore(X, μ, σ))
-zscore(X::AbstractArray{<:Real}, dim::Int) = ((μ, σ) = mean_and_std(X, dim); zscore(X, μ, σ))
-
 
 
 #############################
@@ -521,7 +392,7 @@ function renyientropy(p::AbstractArray{T}, α::Real) where T<:Real
             end
         end
         s = s / scale
-    elseif (isinf(α))
+    elseif isinf(α)
         s = -log(maximum(p))
     else # a normal Rényi entropy
         for i = 1:length(p)
@@ -586,7 +457,7 @@ kldivergence(p::AbstractArray{T}, q::AbstractArray{T}, b::Real) where {T<:Real} 
 
 #############################
 #
-#   summary
+#   Summary Statistics
 #
 #############################
 
@@ -599,17 +470,18 @@ struct SummaryStats{T<:Union{AbstractFloat,Missing}}
     max::T
     nobs::Int
     nmiss::Int
+    isnumeric::Bool
 end
 
 
 """
-    summarystats(a)
+    describe(a)
 
 Compute summary statistics for a real-valued array `a`. Returns a
 `SummaryStats` object containing the mean, minimum, 25th percentile,
 median, 75th percentile, and maxmimum.
 """
-function summarystats(a::AbstractArray{T}) where T<:Union{Real,Missing}
+function describe(a::AbstractArray{T}) where T<:Union{Real,Missing}
     # `mean` doesn't fail on empty input but rather returns `NaN`, so we can use the
     # return type to populate the `SummaryStats` structure.
     s = T >: Missing ? collect(skipmissing(a)) : a
@@ -624,14 +496,20 @@ function summarystats(a::AbstractArray{T}) where T<:Union{Real,Missing}
     else
         quantile(s, [0.00, 0.25, 0.50, 0.75, 1.00])
     end
-    SummaryStats{R}(m, qs..., n, n - ns)
+    SummaryStats{R}(m, qs..., n, n - ns, true)
+end
+
+function describe(a::AbstractArray{T}) where T
+    nmiss = T >: Missing ? count(ismissing, a) : 0
+    SummaryStats{R}(NaN, NaN, NaN, NaN, NaN, length(a), nmiss, false)
 end
 
 function Base.show(io::IO, ss::SummaryStats)
-    println(io, "Summary Stats:")
+    println(io, "Summary Statistics:")
     @printf(io, "Length:         %i\n", ss.nobs)
     ss.nobs > 0 || return
     @printf(io, "Missing Count:  %i\n", ss.nmiss)
+    ss.isnumeric || return
     @printf(io, "Mean:           %.6f\n", ss.mean)
     @printf(io, "Minimum:        %.6f\n", ss.min)
     @printf(io, "1st Quartile:   %.6f\n", ss.q25)

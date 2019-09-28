@@ -48,35 +48,12 @@ using DelimitedFiles
 @test_throws ArgumentError mode(Any[])
 @test_throws ArgumentError modes(Any[])
 
-## zscores
-
-@test zscore([-3:3;], 1.5, 0.5) == [-9.0:2.0:3.0;]
-
-a = [3 4 5 6; 7 8 1 2; 6 9 3 0]
-z1 = [4. 6. 8. 10.; 5. 6. -1. 0.; 1.5 3.0 0.0 -1.5]
-z2 = [8. 2. 3. 1.; 24. 10. -1. -1.; 20. 12. 1. -2.]
-
-@test zscore(a, [1, 2, 3], [0.5, 1.0, 2.0])    ≈ z1
-@test zscore(a, [1 3 2 4], [0.25 0.5 1.0 2.0]) ≈ z2
-
-@test zscore!(collect(-3.0:3.0), 1.5, 0.5) == [-9.0:2.0:3.0;]
-@test zscore!(float(a), [1, 2, 3], [0.5, 1.0, 2.0])    ≈ z1
-@test zscore!(float(a), [1 3 2 4], [0.25 0.5 1.0 2.0]) ≈ z2
-
-@test zscore!(zeros(7), [-3:3;], 1.5, 0.5) == [-9.0:2.0:3.0;]
-@test zscore!(zeros(size(a)), a, [1, 2, 3], [0.5, 1.0, 2.0])    ≈ z1
-@test zscore!(zeros(size(a)), a, [1 3 2 4], [0.25 0.5 1.0 2.0]) ≈ z2
-
-@test zscore(a)    ≈ zscore(a, mean(a), std(a))
-@test zscore(a, 1) ≈ zscore(a, mean(a, dims=1), std(a, dims=1))
-@test zscore(a, 2) ≈ zscore(a, mean(a, dims=2), std(a, dims=2))
-
 
 ###### quantile & friends
 
-@test nquantile(1:5, 2) ≈ [1, 3, 5]
-@test nquantile(1:5, 4) ≈ [1:5;]
-@test nquantile(skipmissing([missing, 2, 5, missing]), 2) ≈ [2.0, 3.5, 5.0]
+@test quantile(1:5, 2) ≈ [1, 3, 5]
+@test quantile(1:5, 4) ≈ [1:5;]
+@test quantile(skipmissing([missing, 2, 5, missing]), 2) ≈ [2.0, 3.5, 5.0]
 
 @test percentile([1:5;], 25)           ≈  2.0
 @test percentile([1:5;], [25, 50, 75]) ≈ [2.0, 3.0, 4.0]
@@ -192,9 +169,9 @@ scale = rand()
 @test kldivergence([0.2, 0.3, 0.5], [0.3, 0.4, 0.3])    ≈ 0.08801516852582819
 @test kldivergence([0.2, 0.3, 0.5], [0.3, 0.4, 0.3], 2) ≈ 0.12697904715521868
 
-##### summarystats
+##### describe
 
-s = summarystats(1:5)
+s = describe(1:5)
 @test isa(s, StatsBase.SummaryStats)
 @test s.min == 1.0
 @test s.max == 5.0
@@ -202,3 +179,43 @@ s = summarystats(1:5)
 @test s.median ≈ 3.0
 @test s.q25    ≈ 2.0
 @test s.q75    ≈ 4.0
+@test s.nobs   = 5
+@test s.nmiss  = 0
+@test s.isnumeric
+
+@test sprint(show, StatsBase.describe(1:5)) == """
+     Summary Stats:
+     Length:         5
+     Missing Count:  0
+     Mean:           3.000000
+     Minimum:        1.000000
+     1st Quartile:   2.000000
+     Median:         3.000000
+     3rd Quartile:   4.000000
+     Maximum:        5.000000
+     Type:           Int64
+     """
+
+s = describe([1:5; missing])
+@test isa(s, StatsBase.SummaryStats)
+@test s.min == 1.0
+@test s.max == 5.0
+@test s.mean   ≈ 3.0
+@test s.median ≈ 3.0
+@test s.q25    ≈ 2.0
+@test s.q75    ≈ 4.0
+@test s.nobs   == 5
+@test s.nmiss  == 1
+@test s.isnumeric
+
+s = describe(["a", "b"])
+@test isa(s, StatsBase.SummaryStats)
+@test s.min    === NaN
+@test s.max    === NaN
+@test s.mean   === NaN
+@test s.median === NaN
+@test s.q25    === NaN
+@test s.q75    === NaN
+@test s.nobs   == 2
+@test s.nmiss  == 0
+@test !s.isnumeric

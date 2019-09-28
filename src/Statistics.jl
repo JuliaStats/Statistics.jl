@@ -211,13 +211,16 @@ _mean(A::AbstractArray, dims, w::AbstractArray) =
 realXcY(x::Real, y::Real) = x*y
 realXcY(x::Complex, y::Complex) = real(x)*real(y) + imag(x)*imag(y)
 
-var(iterable; corrected::Bool=true, mean=nothing) = _var(iterable, corrected, mean)
+function var(iterable; corrected::Bool=true, mean=nothing)
+    s, count = _sumsq(iterable, mean)
+    s / (count - Int(corrected))
+end
 
-function _var(iterable, corrected::Bool, mean)
+function _sumsq(iterable, mean)
     y = iterate(iterable)
     if y === nothing
         T = eltype(iterable)
-        return oftype((abs2(zero(T)) + abs2(zero(T)))/2, NaN)
+        return oftype(abs2(zero(T)) + abs2(zero(T)), NaN), 0
     end
     count = 1
     value, state = y
@@ -235,7 +238,7 @@ function _var(iterable, corrected::Bool, mean)
             S = S + realXcY(value - M, value - new_M)
             M = new_M
         end
-        return S / (count - Int(corrected))
+        return S, count
     elseif isa(mean, Number) # mean provided
         # Cannot use a compensated version, e.g. the one from
         # "Updating Formulae and a Pairwise Algorithm for Computing Sample Variances."
@@ -249,7 +252,7 @@ function _var(iterable, corrected::Bool, mean)
             count += 1
             sum2 += abs2(value - mean)
         end
-        return sum2 / (count - Int(corrected))
+        return sum2, count
     else
         throw(ArgumentError("invalid value of mean, $(mean)::$(typeof(mean))"))
     end
@@ -356,7 +359,7 @@ varm(A::AbstractArray, m; corrected::Bool=true, dims=:,
     _varm(A, m, corrected, dims, weights)
 
 varm(iterable, m; corrected::Bool=true) =
-    _var(iterable, corrected, m)
+    var(iterable, mean=m, corrected=corrected)
 
 _varm(A::AbstractArray, m, corrected::Bool, dims, w::Nothing) =
     varm!(Base.reducedim_init(t -> abs2(t)/2, +, A, dims), A, m, w, corrected=corrected)

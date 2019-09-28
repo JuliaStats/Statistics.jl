@@ -11,10 +11,11 @@ notifications:
 # Work around a Travis bug
 git:
   depth: 999999
-# Uncomment the following lines to override the default test script
-#script:
-#  - if [[ -a .git/shallow ]]; then git fetch --unshallow; fi
-#  - julia -e 'Pkg.clone(pwd()); Pkg.build("StatsBase"); Pkg.test("StatsBase"; coverage=true)'
+script:
+  - if [[ -a .git/shallow ]]; then git fetch --unshallow; fi
+  # Needed to take precedence on Julia's version of Statistics
+  - julia -e 'using UUIDs; write("Project.toml", replace(read("Project.toml", String), r"uuid = .*?\n" =>"uuid = \"$(uuid4())\"\n"))'
+  - julia --project --check-bounds=yes -e 'import Pkg; Pkg.build(); Pkg.test(; coverage=true)'
 after_success:
   - julia -e 'using Pkg; Pkg.add("Coverage"); using Coverage; Coveralls.submit(process_folder()); Codecov.submit(process_folder())';
 jobs:
