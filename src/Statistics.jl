@@ -220,7 +220,7 @@ function _sumsq(iterable, mean)
     y = iterate(iterable)
     if y === nothing
         T = eltype(iterable)
-        return oftype(abs2(zero(T)) + abs2(zero(T)), NaN), 0
+        return oftype((abs2(zero(T)) + abs2(zero(T)))/2, NaN), 0
     end
     count = 1
     value, state = y
