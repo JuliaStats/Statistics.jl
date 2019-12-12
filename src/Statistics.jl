@@ -195,7 +195,7 @@ function _var(iterable, corrected::Bool, ::Nothing)
         S = S + realXcY(value - M, value - new_M)
         M = new_M
     end
-    return S / (count - Int(corrected))
+    return S / (count - corrected)
 end
 
 function _var(iterable, corrected::Bool, mean::Number)
@@ -212,14 +212,14 @@ function _var(iterable, corrected::Bool, mean::Number)
     count = 1
     value, state = y
     y = iterate(iterable, state)
-    sum2 = abs2(value - mean::Number)
+    sum2 = abs2(value - mean)
     while y !== nothing
         value, state = y
         y = iterate(iterable, state)
         count += 1
         sum2 += abs2(value - mean)
     end
-    return sum2 / (count - Int(corrected))
+    return sum2 / (count - corrected)
 end
 
 centralizedabs2fun(m) = x -> abs2.(x - m)
