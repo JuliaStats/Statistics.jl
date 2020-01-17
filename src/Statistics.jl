@@ -968,6 +968,60 @@ quantile(itr, p; sorted::Bool=false) = quantile!(collect(itr), p, sorted=sorted)
 quantile(v::AbstractVector, p; sorted::Bool=false) =
     quantile!(sorted ? v : Base.copymutable(v), p; sorted=sorted)
 
+"""
+    quantile!(v:: AbstractVector, p:: Real, α:: Real, β:: Real; sorted:: Bool=false)
+
+Compute the quantile(s) of a vector `v` at a specified probability `p` on the interval [0,1].
+The keyword argument `sorted` indicates whether `v` can be assumed to be sorted; if
+`false` (the default), then the elements of `v` will be partially sorted in-place.
+The parameters `α` and `β` correspond to the parameters in Hyndman and Fan (1996)
+and allow calculation of quantiles for all estimators given in Table 3 of this paper
+(definitions 4-9).
+
+This method corresponds to SciPy's scipy.stats.mstats.mquantiles method (but being a bit less generic).
+For α = β = 1, this method corresponds to the quantile method without α and β parameters.
+Usage of the latter is encouraged in this case because it is more performant.
+
+* Hyndman, R.J and Fan, Y. (1996) "Sample Quantiles in Statistical Packages",
+*The American Statistician*, Vol. 50, No. 4, pp. 361-365
+"""
+function quantile!(v:: AbstractVector, p:: Real, α:: Real, β:: Real; sorted:: Bool=false)
+    0 <= p <= 1 || throw(ArgumentError("input probability out of [0,1] range"))
+    0 <= α <= 1 || throw(ArgumentError("α parameter out of [0,1] range"))
+    0 <= β <= 1 || throw(ArgumentError("β parameter out of [0,1] range"))
+    require_one_based_indexing(v)
+
+    if !sorted
+        sort!(v)
+    end
+    n = length(v)
+    m = α + p * (one(α) - α - β)
+    aleph = (n * p + m)
+    k = min(max(Int(trunc(aleph)), 1), n - 1)
+    gamma = min(max(aleph - k, zero(aleph)), one(aleph))
+    return @inbounds (one(gamma) - gamma) * v[k] + gamma * v[k+1]
+end
+
+"""
+    quantile(v:: AbstractVector, p:: Real, α:: Real, β:: Real; sorted:: Bool=false)
+
+Compute the quantile(s) of a vector `v` at a specified probability `p` on the interval [0,1].
+The keyword argument `sorted` indicates whether `v` can be assumed to be sorted; if
+`false` (the default), then the elements of `v` will be copied and sorted.
+The parameters `α` and `β` correspond to the parameters in Hyndman and Fan (1996)
+and allow calculation of quantiles for all estimators given in Table 3 of this paper
+(definitions 4-9).
+
+This method corresponds to SciPy's scipy.stats.mstats.mquantiles method (but being a bit less generic).
+For α = β = 1, this method corresponds to the quantile method without α and β parameters.
+Usage of the latter is encouraged in this case because it is more performant.
+
+* Hyndman, R.J and Fan, Y. (1996) "Sample Quantiles in Statistical Packages",
+*The American Statistician*, Vol. 50, No. 4, pp. 361-365
+"""
+quantile(v:: AbstractVector, p:: Real, α:: Real, β:: Real; sorted:: Bool=false) =
+    quantile!(sorted ? v : Base.copymutable(v), p, α, β; sorted=sorted)
+
 
 ##### SparseArrays optimizations #####
 
