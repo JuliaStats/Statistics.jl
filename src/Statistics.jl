@@ -835,7 +835,7 @@ By default (`α = β = 1`), quantiles are computed via linear interpolation betw
 for `k = 1:n` where `n = length(v)`. This corresponds to Definition 7 of Hyndman and Fan
 (1996), and is the same as the R default.
 
-The keyword parameters α and β correspond to the same parameters in Hyndman and Fan,
+The keyword arguments `α` and `β` correspond to the same parameters as in Hyndman and Fan,
 setting them to different values allows to calculate quantiles with any of the methods 4-9
 defined in this paper:
 
