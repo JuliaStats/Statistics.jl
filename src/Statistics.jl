@@ -881,7 +881,7 @@ julia> y
 ```
 """
 function quantile!(q::AbstractArray, v::AbstractVector, p::AbstractArray;
-                   sorted::Bool=false, α=1, β=α)
+                   sorted::Bool=false, α::Real=1, β::Real=α)
     require_one_based_indexing(q, v, p)
     if size(p) != size(q)
         throw(DimensionMismatch("size of p, $(size(p)), must equal size of q, $(size(q))"))
