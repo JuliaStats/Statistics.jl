@@ -839,7 +839,7 @@ The keyword arguments `α` and `β` correspond to the same parameters as in Hynd
 setting them to different values allows to calculate quantiles with any of the methods 4-9
 defined in this paper:
 
-Def. 4: α=0, β=1
+- Def. 4: `α=0`, `β=1`
 Def. 5: α=0.5, β=0.5
 Def. 6: α=0, β=0 (Excel PERCENTILE.EXC, Python exclusive-method)
 Def. 7: α=1, β=1 (Julia default, Excel PERCENTILE.INC, Python inclusive-method)
