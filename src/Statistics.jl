@@ -818,7 +818,7 @@ _median(v::AbstractArray{T}, ::Colon) where {T} = median!(copyto!(Array{T,1}(und
 # for now, use the R/S definition of quantile; may want variants later
 # see ?quantile in R -- this is type 7
 """
-    quantile!([q::AbstractArray, ] v::AbstractVector, p; sorted=false, α=1, β=α)
+    quantile!([q::AbstractArray, ] v::AbstractVector, p; sorted=false, α::Real=1, β::Real=α)
 
 Compute the quantile(s) of a vector `v` at a specified probability or vector or tuple of
 probabilities `p` on the interval [0,1]. If `p` is a vector, an optional
@@ -840,11 +840,11 @@ setting them to different values allows to calculate quantiles with any of the m
 defined in this paper:
 
 - Def. 4: `α=0`, `β=1`
-Def. 5: α=0.5, β=0.5
+- Def. 5: `α=0.5`, `β=0.5`
 - Def. 6: `α=0`, `β=0` (Excel `PERCENTILE.EXC`, Python default, Stata `altdef`)
-Def. 7: α=1, β=1 (Julia, R and NumPy default, Excel `PERCENTILE` and `PERCENTILE.INC`, Python `'inclusive'`)
-Def. 8: α=1//3, β=1//3
-Def. 9: α=3//8, β=3//8
+- Def. 7: `α=1`, `β=1` (Julia, R and NumPy default, Excel `PERCENTILE` and `PERCENTILE.INC`, Python `'inclusive'`)
+- Def. 8: `α=1/3`, `β=1/3`
+- Def. 9: `α=3/8`, `β=3/8`
 
 !!! note
     An `ArgumentError` is thrown if `v` contains `NaN` or [`missing`](@ref) values.
@@ -898,7 +898,7 @@ function quantile!(q::AbstractArray, v::AbstractVector, p::AbstractArray;
 end
 
 function quantile!(v::AbstractVector, p::Union{AbstractArray, Tuple{Vararg{Real}}};
-                   sorted::Bool=false, α=1, β=α)
+                   sorted::Bool=false, α::Real=1, β::Real=α)
     if !isempty(p)
         minp, maxp = extrema(p)
         _quantilesort!(v, sorted, minp, maxp)
@@ -906,7 +906,7 @@ function quantile!(v::AbstractVector, p::Union{AbstractArray, Tuple{Vararg{Real}
     return map(x->_quantile(v, x, α=α, β=β), p)
 end
 
-quantile!(v::AbstractVector, p::Real; sorted::Bool=false, α=1, β=α) =
+quantile!(v::AbstractVector, p::Real; sorted::Bool=false, α::Real=1, β::Real=α) =
     _quantile(_quantilesort!(v, sorted, p, p), p, α=α, β=β)
 
 # Function to perform partial sort of v for quantiles in given range
@@ -930,7 +930,7 @@ function _quantilesort!(v::AbstractArray, sorted::Bool, minp::Real, maxp::Real)
 end
 
 # Core quantile lookup function: assumes `v` sorted
-@inline function _quantile(v::AbstractVector, p::Real; α=1, β=α)
+@inline function _quantile(v::AbstractVector, p::Real; α::Real=1, β::Real=α)
     0 <= p <= 1 || throw(ArgumentError("input probability out of [0,1] range"))
     0 <= α <= 1 || throw(ArgumentError("α parameter out of [0,1] range"))
     0 <= β <= 1 || throw(ArgumentError("β parameter out of [0,1] range"))
@@ -963,7 +963,7 @@ end
 end
 
 """
-    quantile(itr, p; sorted=false, α=1, β=α)
+    quantile(itr, p; sorted=false, α::Real=1, β::Real=α)
 
 Compute the quantile(s) of a collection `itr` at a specified probability or vector or tuple of
 probabilities `p` on the interval [0,1]. The keyword argument `sorted` indicates whether
@@ -982,12 +982,12 @@ The keyword parameters α and β correspond to the same parameters in Hyndman an
 setting them to different values allows to calculate quantiles with any of the methods 4-9
 defined in this paper:
 
-Def. 4: α=0, β=1
-Def. 5: α=0.5, β=0.5
-Def. 6: α=0, β=0 (Excel PERCENTILE.EXC, Python exclusive-method)
-Def. 7: α=1, β=1 (Julia default, Excel PERCENTILE.INC, Python inclusive-method)
-Def. 8: α=1//3, β=1//3
-Def. 9: α=3//8, β=3//8
+- Def. 4: `α=0`, `β=1`
+- Def. 5: `α=0.5`, `β=0.5`
+- Def. 6: `α=0`, `β=0` (Excel `PERCENTILE.EXC`, Python default, Stata `altdef`)
+- Def. 7: `α=1`, `β=1` (Julia, R and NumPy default, Excel `PERCENTILE` and `PERCENTILE.INC`, Python `'inclusive'`)
+- Def. 8: `α=1/3`, `β=1/3`
+- Def. 9: `α=3/8`, `β=3/8`
 
 !!! note
     An `ArgumentError` is thrown if `v` contains `NaN` or [`missing`](@ref) values.
@@ -1010,9 +1010,9 @@ julia> quantile(skipmissing([1, 10, missing]), 0.5)
 5.5
 ```
 """
-quantile(itr, p; sorted::Bool=false, α=1, β=α) = quantile!(collect(itr), p, sorted=sorted, α=α, β=β)
+quantile(itr, p; sorted::Bool=false, α::Real=1, β::Real=α) = quantile!(collect(itr), p, sorted=sorted, α=α, β=β)
 
-quantile(v::AbstractVector, p; sorted::Bool=false, α=1, β=α) =
+quantile(v::AbstractVector, p; sorted::Bool=false, α::Real=1, β::Real=α) =
     quantile!(sorted ? v : Base.copymutable(v), p; sorted=sorted, α=α, β=β)
 
 
