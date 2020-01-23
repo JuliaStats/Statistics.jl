@@ -842,7 +842,7 @@ defined in this paper:
 - Def. 4: `α=0`, `β=1`
 Def. 5: α=0.5, β=0.5
 Def. 6: α=0, β=0 (Excel PERCENTILE.EXC, Python exclusive-method)
-Def. 7: α=1, β=1 (Julia default, Excel PERCENTILE.INC, Python inclusive-method)
+Def. 7: α=1, β=1 (Julia, R and NumPy default, Excel `PERCENTILE` and `PERCENTILE.INC`, Python `'inclusive'`)
 Def. 8: α=1//3, β=1//3
 Def. 9: α=3//8, β=3//8
 
