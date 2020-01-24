@@ -1000,11 +1000,13 @@ defined in this paper:
 ```jldoctest
 julia> quantile(0:20, 0.5)
 10.0
+
 julia> quantile(0:20, [0.1, 0.5, 0.9])
 3-element Array{Float64,1}:
   2.0
  10.0
  18.0
+ 
 julia> quantile(skipmissing([1, 10, missing]), 0.5)
 5.5
 ```
