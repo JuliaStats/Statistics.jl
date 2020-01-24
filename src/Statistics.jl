@@ -826,19 +826,18 @@ output array `q` may also be specified. (If not provided, a new output array is 
 The keyword argument `sorted` indicates whether `v` can be assumed to be sorted; if
 `false` (the default), then the elements of `v` will be partially sorted in-place.
 
-Samples quantile are defined by ``Q(p) = (1-γ)*x[j] + γ*x[j+1]``,
-where ``x[j]`` is the j-th order statistic, and γ is a function of
-``j = floor(n*p + m)``, ``m = α + p*(1 - α - β)`` and
-``g = n*p + m - j``.
+Samples quantile are defined by `Q(p) = (1-γ)*x[j] + γ*x[j+1]`,
+where `x[j]` is the j-th order statistic, and `γ` is a function of
+`j = floor(n*p + m)`, `m = α + p*(1 - α - β)` and
+`g = n*p + m - j`.
 
-By default (`α = β = 1`), quantiles are computed via linear interpolation between the points `((k-1)/(n-1), v[k])`,
-for `k = 1:n` where `n = length(v)`. This corresponds to Definition 7 of Hyndman and Fan
-(1996), and is the same as the R default.
+By default (`α = β = 1`), quantiles are computed via linear interpolation between the points
+`((k-1)/(n-1), v[k])`, for `k = 1:n` where `n = length(v)`. This corresponds to Definition 7
+of Hyndman and Fan (1996), and is the same as the R and NumPy default.
 
 The keyword arguments `α` and `β` correspond to the same parameters as in Hyndman and Fan,
 setting them to different values allows to calculate quantiles with any of the methods 4-9
 defined in this paper:
-
 - Def. 4: `α=0`, `β=1`
 - Def. 5: `α=0.5`, `β=0.5`
 - Def. 6: `α=0`, `β=0` (Excel `PERCENTILE.EXC`, Python default, Stata `altdef`)
@@ -849,11 +848,11 @@ defined in this paper:
 !!! note
     An `ArgumentError` is thrown if `v` contains `NaN` or [`missing`](@ref) values.
 
-* Hyndman, R.J and Fan, Y. (1996) "Sample Quantiles in Statistical Packages",
+# References
+- Hyndman, R.J and Fan, Y. (1996) "Sample Quantiles in Statistical Packages",
   *The American Statistician*, Vol. 50, No. 4, pp. 361-365
 
-* [Quantile on Wikipedia](https://en.m.wikipedia.org/wiki/Quantile) details the different quantile definitions
-
+- [Quantile on Wikipedia](https://en.m.wikipedia.org/wiki/Quantile) details the different quantile definitions
 
 # Examples
 ```jldoctest
@@ -969,19 +968,18 @@ Compute the quantile(s) of a collection `itr` at a specified probability or vect
 probabilities `p` on the interval [0,1]. The keyword argument `sorted` indicates whether
 `itr` can be assumed to be sorted.
 
-Samples quantile are defined by ``Q(p) = (1-γ)*x[j] + γ*x[j+1]``,
-where ``x[j]`` is the j-th order statistic, and γ is a function of
-``j = floor(n*p + m)``, ``m = α + p*(1 - α - β)`` and
-``g = n*p + m - j``.
+Samples quantile are defined by `Q(p) = (1-γ)*x[j] + γ*x[j+1]`,
+where ``x[j]`` is the j-th order statistic, and `γ` is a function of
+`j = floor(n*p + m)`, `m = α + p*(1 - α - β)` and
+`g = n*p + m - j`.
 
-As default (α=1, β=α), quantiles are computed via linear interpolation between the points `((k-1)/(n-1), v[k])`,
-for `k = 1:n` where `n = length(itr)`. This corresponds to Definition 7 of Hyndman and Fan
-(1996), and is the same as the R default.
+As default (α=1, β=α), quantiles are computed via linear interpolation between the points
+`((k-1)/(n-1), v[k])`, for `k = 1:n` where `n = length(itr)`. This corresponds to Definition 7
+ of Hyndman and Fan (1996), and is the same as the R and NumPy default.
 
 The keyword parameters α and β correspond to the same parameters in Hyndman and Fan,
 setting them to different values allows to calculate quantiles with any of the methods 4-9
 defined in this paper:
-
 - Def. 4: `α=0`, `β=1`
 - Def. 5: `α=0.5`, `β=0.5`
 - Def. 6: `α=0`, `β=0` (Excel `PERCENTILE.EXC`, Python default, Stata `altdef`)
@@ -992,10 +990,11 @@ defined in this paper:
 !!! note
     An `ArgumentError` is thrown if `v` contains `NaN` or [`missing`](@ref) values.
 
-* Hyndman, R.J and Fan, Y. (1996) "Sample Quantiles in Statistical Packages",
+# References
+- Hyndman, R.J and Fan, Y. (1996) "Sample Quantiles in Statistical Packages",
   *The American Statistician*, Vol. 50, No. 4, pp. 361-365
 
-* https://en.m.wikipedia.org/wiki/Quantile
+- [Quantile on Wikipedia](https://en.m.wikipedia.org/wiki/Quantile) details the different quantile definitions
 
 # Examples
 ```jldoctest
