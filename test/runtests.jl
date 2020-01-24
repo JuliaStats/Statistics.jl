@@ -1,6 +1,7 @@
 # This file is a part of Julia. License is MIT: https://julialang.org/license
 
-using Statistics, Test, Random, LinearAlgebra, SparseArrays
+using Statistics,
+using Test, Random, LinearAlgebra, SparseArrays
 using Test: guardseed
 
 Random.seed!(123)
@@ -480,29 +481,30 @@ end
 end
 
 @testset "quantile" begin
-    @test quantile([1,2,3,4],0.5) == 2.5
-    @test quantile([1,2,3,4],[0.5]) == [2.5]
-    @test quantile([1., 3],[.25,.5,.75])[2] == median([1., 3])
-    @test quantile(100.0:-1.0:0.0, 0.0:0.1:1.0) == 0.0:10.0:100.0
-    @test quantile(0.0:100.0, 0.0:0.1:1.0, sorted=true) == 0.0:10.0:100.0
-    @test quantile(100f0:-1f0:0.0, 0.0:0.1:1.0) == 0f0:10f0:100f0
+    @test quantile([1,2,3,4],0.5) ≈ 2.5
+    @test quantile([1,2,3,4],[0.5]) ≈ [2.5]
+    @test quantile([1., 3],[.25,.5,.75])[2] ≈ median([1., 3])
+    @test quantile(100.0:-1.0:0.0, 0.0:0.1:1.0) ≈ 0.0:10.0:100.0
+    @test quantile(0.0:100.0, 0.0:0.1:1.0, sorted=true) ≈ 0.0:10.0:100.0
+    @test quantile(100f0:-1f0:0.0, 0.0:0.1:1.0) ≈ 0f0:10f0:100f0
     @test quantile([Inf,Inf],0.5) == Inf
     @test quantile([-Inf,1],0.5) == -Inf
-    @test quantile([0,1],1e-18) == 1e-18
+    # here it is required to introduce an absolute tolerance because the calculated value is 0 in the method with parameters α and β
+    @test quantile([0,1],1e-18) ≈ 1e-18 atol=1e-18
     @test quantile([1, 2, 3, 4],[]) == []
     @test quantile([1, 2, 3, 4], (0.5,)) == (2.5,)
     @test quantile([4, 9, 1, 5, 7, 8, 2, 3, 5, 17, 11],
                    (0.1, 0.2, 0.4, 0.9)) == (2.0, 3.0, 5.0, 11.0)
     @test quantile(Union{Int, Missing}[4, 9, 1, 5, 7, 8, 2, 3, 5, 17, 11],
-                   [0.1, 0.2, 0.4, 0.9]) == [2.0, 3.0, 5.0, 11.0]
+                   [0.1, 0.2, 0.4, 0.9]) ≈ [2.0, 3.0, 5.0, 11.0]
     @test quantile(Any[4, 9, 1, 5, 7, 8, 2, 3, 5, 17, 11],
-                   [0.1, 0.2, 0.4, 0.9]) == [2.0, 3.0, 5.0, 11.0]
+                   [0.1, 0.2, 0.4, 0.9]) ≈ [2.0, 3.0, 5.0, 11.0]
     @test quantile([4, 9, 1, 5, 7, 8, 2, 3, 5, 17, 11],
-                   Any[0.1, 0.2, 0.4, 0.9]) == [2.0, 3.0, 5.0, 11.0]
+                   Any[0.1, 0.2, 0.4, 0.9]) ≈ [2.0, 3.0, 5.0, 11.0]
     @test quantile([4, 9, 1, 5, 7, 8, 2, 3, 5, 17, 11],
                    Any[0.1, 0.2, 0.4, 0.9]) isa Vector{Float64}
     @test quantile(Any[4, 9, 1, 5, 7, 8, 2, 3, 5, 17, 11],
-                   Any[0.1, 0.2, 0.4, 0.9]) == [2, 3, 5, 11]
+                   Any[0.1, 0.2, 0.4, 0.9]) ≈ [2, 3, 5, 11]
     @test quantile(Any[4, 9, 1, 5, 7, 8, 2, 3, 5, 17, 11],
                    Any[0.1, 0.2, 0.4, 0.9]) isa Vector{Float64}
     @test quantile([1, 2, 3, 4], ()) == ()
@@ -533,7 +535,7 @@ end
     x = [3; 2; 1]
     y = zeros(3)
     @test quantile!(y, x, [0.1, 0.5, 0.9]) === y
-    @test y == [1.2, 2.0, 2.8]
+    @test y ≈ [1.2, 2.0, 2.8]
 
     #tests for quantile calculation with configurable α and β parameters
     v = [2, 3, 4, 6, 9, 2, 6, 2, 21, 17]

@@ -936,24 +936,14 @@ end
     require_one_based_indexing(v)
 
     n = length(v)
+    m = α + p * (one(α) - α - β)
+    aleph = (n*p + m)
+    j = clamp(trunc(Int, aleph), 1, n-1)
+    γ = clamp(aleph - j, 0, 1)
 
-    if α==1 && β==1 # kept the specific implementation to avoid changing results on the level of machine precision
-        f0 = (n - 1)*p # 0-based interpolated index
-        t0 = trunc(f0)
-        γ  = f0 - t0
-        j  = trunc(Int,t0) + 1
+    a = v[j]
+    b = v[j + 1]
 
-        a = v[j]
-        b = v[j + (γ > 0)]
-    else # generic implementation
-        m = α + p * (one(α) - α - β)
-        aleph = (n*p + m)
-        j = clamp(trunc(Int, aleph), 1, n-1)
-        γ = clamp(aleph - j, 0, 1)
-
-        a = v[j]
-        b = v[j + 1]
-    end
     if isfinite(a) && isfinite(b)
         return a + γ*(b-a)
     else
@@ -1006,7 +996,7 @@ julia> quantile(0:20, [0.1, 0.5, 0.9])
   2.0
  10.0
  18.0
- 
+
 julia> quantile(skipmissing([1, 10, missing]), 0.5)
 5.5
 ```
