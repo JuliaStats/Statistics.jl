@@ -16,7 +16,10 @@ script:
   - if [[ -a .git/shallow ]]; then git fetch --unshallow; fi
   # Needed to take precedence on Julia's version of Statistics
   - julia -e 'using UUIDs; write("Project.toml", replace(read("Project.toml", String), r"uuid = .*?\n" =>"uuid = \"$(uuid4())\"\n"))'
-  - julia --project --check-bounds=yes -e 'import Pkg; Pkg.build(); Pkg.test(; coverage=true)'
+  - julia --project --check-bounds=yes -e 'import Pkg; Pkg.build();
+                                           using Statistics;
+                                           @assert pathof(Statistics) == joinpath(pwd(), "src", "Statistics.jl");
+                                           Pkg.test(; coverage=true)'
 
 after_success:
   - julia -e 'using Pkg; Pkg.add("Coverage"); using Coverage; Coveralls.submit(Coveralls.process_folder())';
@@ -42,12 +45,16 @@ jobs:
       arch: x86
       julia: nightly
       name: "Julia nightly (32bit)"
-    # documentation build stage
     - stage: "Documentation"
       os: linux
       julia: 1.3
       script:
+        # Needed to take precedence on Julia's version of Statistics
+        - julia -e 'using UUIDs; write("Project.toml", replace(read("Project.toml", String), r"uuid = .*?\n" =>"uuid = \"$(uuid4())\"\n"))'
         - julia --project=docs/ -e 'using Pkg; Pkg.develop(PackageSpec(path=pwd()));
-                                               Pkg.instantiate()'
+                                    Pkg.instantiate();
+                                    using Statistics;
+                                    @assert pathof(Statistics) == joinpath(pwd(), "src", "Statistics.jl");'
         - julia --project=docs/ docs/make.jl
       after_success: skip
+
