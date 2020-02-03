@@ -836,7 +836,7 @@ _median(v::AbstractArray{T}, ::Colon) where {T} = median!(copyto!(Array{T,1}(und
 # for now, use the R/S definition of quantile; may want variants later
 # see ?quantile in R -- this is type 7
 """
-    quantile!([q::AbstractArray, ] v::AbstractVector, p; sorted=false, alpha::Real=1, beta::Real=alpha)
+    quantile!([q::AbstractArray, ] v::AbstractVector, p; sorted=false, alpha::Real=1., beta::Real=alpha)
 
 Compute the quantile(s) of a vector `v` at a specified probability or vector or tuple of
 probabilities `p` on the interval [0,1]. If `p` is a vector, an optional
@@ -900,7 +900,7 @@ julia> y
 ```
 """
 function quantile!(q::AbstractArray, v::AbstractVector, p::AbstractArray;
-                   sorted::Bool=false, alpha::Real=1, beta::Real=alpha)
+                   sorted::Bool=false, alpha::Real=1., beta::Real=alpha)
     require_one_based_indexing(q, v, p)
     if size(p) != size(q)
         throw(DimensionMismatch("size of p, $(size(p)), must equal size of q, $(size(q))"))
@@ -917,7 +917,7 @@ function quantile!(q::AbstractArray, v::AbstractVector, p::AbstractArray;
 end
 
 function quantile!(v::AbstractVector, p::Union{AbstractArray, Tuple{Vararg{Real}}};
-                   sorted::Bool=false, alpha::Real=1, beta::Real=alpha)
+                   sorted::Bool=false, alpha::Real=1., beta::Real=alpha)
     if !isempty(p)
         minp, maxp = extrema(p)
         _quantilesort!(v, sorted, minp, maxp)
@@ -925,7 +925,7 @@ function quantile!(v::AbstractVector, p::Union{AbstractArray, Tuple{Vararg{Real}
     return map(x->_quantile(v, x, alpha=alpha, beta=beta), p)
 end
 
-quantile!(v::AbstractVector, p::Real; sorted::Bool=false, alpha::Real=1, beta::Real=alpha) =
+quantile!(v::AbstractVector, p::Real; sorted::Bool=false, alpha::Real=1., beta::Real=alpha) =
     _quantile(_quantilesort!(v, sorted, p, p), p, alpha=alpha, beta=beta)
 
 # Function to perform partial sort of v for quantiles in given range
@@ -949,7 +949,7 @@ function _quantilesort!(v::AbstractArray, sorted::Bool, minp::Real, maxp::Real)
 end
 
 # Core quantile lookup function: assumes `v` sorted
-@inline function _quantile(v::AbstractVector, p::Real; alpha::Real=1, beta::Real=alpha)
+@inline function _quantile(v::AbstractVector, p::Real; alpha::Real=1., beta::Real=alpha)
     0 <= p <= 1 || throw(ArgumentError("input probability out of [0,1] range"))
     0 <= alpha <= 1 || throw(ArgumentError("alpha parameter out of [0,1] range"))
     0 <= beta <= 1 || throw(ArgumentError("beta parameter out of [0,1] range"))
@@ -972,7 +972,7 @@ end
 end
 
 """
-    quantile(itr, p; sorted=false, alpha::Real=1, beta::Real=alpha)
+    quantile(itr, p; sorted=false, alpha::Real=1., beta::Real=alpha)
 
 Compute the quantile(s) of a collection `itr` at a specified probability or vector or tuple of
 probabilities `p` on the interval [0,1]. The keyword argument `sorted` indicates whether
@@ -1023,9 +1023,9 @@ julia> quantile(skipmissing([1, 10, missing]), 0.5)
 5.5
 ```
 """
-quantile(itr, p; sorted::Bool=false, alpha::Real=1, beta::Real=alpha) = quantile!(collect(itr), p, sorted=sorted, alpha=alpha, beta=beta)
+quantile(itr, p; sorted::Bool=false, alpha::Real=1., beta::Real=alpha) = quantile!(collect(itr), p, sorted=sorted, alpha=alpha, beta=beta)
 
-quantile(v::AbstractVector, p; sorted::Bool=false, alpha::Real=1, beta::Real=alpha) =
+quantile(v::AbstractVector, p; sorted::Bool=false, alpha::Real=1., beta::Real=alpha) =
     quantile!(sorted ? v : Base.copymutable(v), p; sorted=sorted, alpha=alpha, beta=beta)
 
 
