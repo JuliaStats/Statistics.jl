@@ -580,40 +580,6 @@ end
     @test quantile(v, 0.4, α=1.0, β=0.8) ≈ 3.68
     @test quantile(v, 0.4, α=1.0, β=1.0) ≈ 3.6
     @test quantile(v, 0.6, α=0.0, β=0.0) ≈ 6.0
-    @test quantile(v, 0.6, α=0.0, β=0.2) ≈ 6.0
-    @test quantile(v, 0.6, α=0.0, β=0.4) ≈ 6.0
-    @test quantile(v, 0.6, α=0.0, β=0.6) ≈ 6.0
-    @test quantile(v, 0.6, α=0.0, β=0.8) ≈ 6.0
-    @test quantile(v, 0.6, α=0.0, β=1.0) ≈ 6.0
-    @test quantile(v, 0.6, α=0.2, β=0.0) ≈ 6.0
-    @test quantile(v, 0.6, α=0.2, β=0.2) ≈ 6.0
-    @test quantile(v, 0.6, α=0.2, β=0.4) ≈ 6.0
-    @test quantile(v, 0.6, α=0.2, β=0.6) ≈ 6.0
-    @test quantile(v, 0.6, α=0.2, β=0.8) ≈ 6.0
-    @test quantile(v, 0.6, α=0.2, β=1.0) ≈ 6.0
-    @test quantile(v, 0.6, α=0.4, β=0.0) ≈ 6.0
-    @test quantile(v, 0.6, α=0.4, β=0.2) ≈ 6.0
-    @test quantile(v, 0.6, α=0.4, β=0.4) ≈ 6.0
-    @test quantile(v, 0.6, α=0.4, β=0.6) ≈ 6.0
-    @test quantile(v, 0.6, α=0.4, β=0.8) ≈ 6.0
-    @test quantile(v, 0.6, α=0.4, β=1.0) ≈ 6.0
-    @test quantile(v, 0.6, α=0.6, β=0.0) ≈ 6.0
-    @test quantile(v, 0.6, α=0.6, β=0.2) ≈ 6.0
-    @test quantile(v, 0.6, α=0.6, β=0.4) ≈ 6.0
-    @test quantile(v, 0.6, α=0.6, β=0.6) ≈ 6.0
-    @test quantile(v, 0.6, α=0.6, β=0.8) ≈ 6.0
-    @test quantile(v, 0.6, α=0.6, β=1.0) ≈ 6.0
-    @test quantile(v, 0.6, α=0.8, β=0.0) ≈ 6.0
-    @test quantile(v, 0.6, α=0.8, β=0.2) ≈ 6.0
-    @test quantile(v, 0.6, α=0.8, β=0.4) ≈ 6.0
-    @test quantile(v, 0.6, α=0.8, β=0.6) ≈ 6.0
-    @test quantile(v, 0.6, α=0.8, β=0.8) ≈ 6.0
-    @test quantile(v, 0.6, α=0.8, β=1.0) ≈ 6.0
-    @test quantile(v, 0.6, α=1.0, β=0.0) ≈ 6.0
-    @test quantile(v, 0.6, α=1.0, β=0.2) ≈ 6.0
-    @test quantile(v, 0.6, α=1.0, β=0.4) ≈ 6.0
-    @test quantile(v, 0.6, α=1.0, β=0.6) ≈ 6.0
-    @test quantile(v, 0.6, α=1.0, β=0.8) ≈ 6.0
     @test quantile(v, 0.6, α=1.0, β=1.0) ≈ 6.0
     @test quantile(v, 0.8, α=0.0, β=0.0) ≈ 15.4
     @test quantile(v, 0.8, α=0.0, β=0.2) ≈ 14.12
