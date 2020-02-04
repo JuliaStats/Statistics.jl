@@ -712,8 +712,8 @@ end
     @test var(x) === 16.25
     @test var(y) === 65//4
     @test std(x) === sqrt(16.25)
-    @test quantile(x, 0.5)  === 3.0
-    @test quantile(x, 1//2) === 3//1
+    @test quantile(x, 0.5, alpha=1)  === 3.0
+    @test quantile(x, 1//2, alpha=1) === 3//1
 end
 
 @testset "Promotion in covzm. Issue #8080" begin
