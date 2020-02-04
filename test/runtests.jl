@@ -1,7 +1,6 @@
 # This file is a part of Julia. License is MIT: https://julialang.org/license
 
-using Statistics,
-using Test, Random, LinearAlgebra, SparseArrays
+using Statistics, Test, Random, LinearAlgebra, SparseArrays
 using Test: guardseed
 
 Random.seed!(123)
