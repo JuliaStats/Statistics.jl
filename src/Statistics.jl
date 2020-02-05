@@ -966,7 +966,7 @@ end
 end
 
 """
-    quantile(itr, p; sorted=false, alpha::Real=1., beta::Real=alpha)
+    quantile(itr, p; sorted=false, alpha::Real=1.0, beta::Real=alpha)
 
 Compute the quantile(s) of a collection `itr` at a specified probability or vector or tuple of
 probabilities `p` on the interval [0,1]. The keyword argument `sorted` indicates whether
