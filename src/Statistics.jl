@@ -847,7 +847,7 @@ where ``x[j]`` is the j-th order statistic, and `γ` is a function of
 
 By default (`alpha = beta = 1`), quantiles are computed via linear interpolation between the points
 `((k-1)/(n-1), v[k])`, for `k = 1:n` where `n = length(v)`. This corresponds to Definition 7
- of Hyndman and Fan (1996), and is the same as the R and NumPy default.
+of Hyndman and Fan (1996), and is the same as the R and NumPy default.
 
 The keyword parameters alpha and beta correspond to the same parameters in Hyndman and Fan,
 setting them to different values allows to calculate quantiles with any of the methods 4-9
