@@ -849,7 +849,7 @@ By default (`alpha = beta = 1`), quantiles are computed via linear interpolation
 `((k-1)/(n-1), v[k])`, for `k = 1:n` where `n = length(v)`. This corresponds to Definition 7
 of Hyndman and Fan (1996), and is the same as the R and NumPy default.
 
-The keyword parameters alpha and beta correspond to the same parameters in Hyndman and Fan,
+The keyword arguments `alpha` and `beta` correspond to the same parameters in Hyndman and Fan,
 setting them to different values allows to calculate quantiles with any of the methods 4-9
 defined in this paper:
 - Def. 4: `alpha=0`, `beta=1`
