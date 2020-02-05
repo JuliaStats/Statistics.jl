@@ -845,7 +845,7 @@ where ``x[j]`` is the j-th order statistic, and `γ` is a function of
 `j = floor(n*p + m)`, `m = alpha + p*(1 - alpha - beta)` and
 `g = n*p + m - j`.
 
-As default (alpha=1, beta=alpha), quantiles are computed via linear interpolation between the points
+By default (`alpha = beta = 1`), quantiles are computed via linear interpolation between the points
 `((k-1)/(n-1), v[k])`, for `k = 1:n` where `n = length(itr)`. This corresponds to Definition 7
  of Hyndman and Fan (1996), and is the same as the R and NumPy default.
 
