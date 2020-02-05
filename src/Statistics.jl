@@ -836,14 +836,11 @@ _median(v::AbstractArray{T}, ::Colon) where {T} = median!(copyto!(Array{T,1}(und
 """
     quantile!([q::AbstractArray, ] v::AbstractVector, p; sorted=false, alpha::Real=1.0, beta::Real=alpha)
 
-Compute the quantile(s) of a collection `itr` at a specified probability or vector or tuple of
-probabilities `p` on the interval [0,1]. The keyword argument `sorted` indicates whether
-`itr` can be assumed to be sorted.
-
-Samples quantile are defined by `Q(p) = (1-γ)*x[j] + γ*x[j+1]`,
-where ``x[j]`` is the j-th order statistic, and `γ` is a function of
-`j = floor(n*p + m)`, `m = alpha + p*(1 - alpha - beta)` and
-`g = n*p + m - j`.
+Compute the quantile(s) of a vector `v` at a specified probability or vector or tuple of
+probabilities `p` on the interval [0,1]. If `p` is a vector, an optional
+output array `q` may also be specified. (If not provided, a new output array is created.)
+The keyword argument `sorted` indicates whether `v` can be assumed to be sorted; if
+`false` (the default), then the elements of `v` will be partially sorted in-place.
 
 By default (`alpha = beta = 1`), quantiles are computed via linear interpolation between the points
 `((k-1)/(n-1), v[k])`, for `k = 1:n` where `n = length(v)`. This corresponds to Definition 7
@@ -896,7 +893,7 @@ julia> y
 ```
 """
 function quantile!(q::AbstractArray, v::AbstractVector, p::AbstractArray;
-                   sorted::Bool=false, alpha::Real=1., beta::Real=alpha)
+                   sorted::Bool=false, alpha::Real=1.0, beta::Real=alpha)
     require_one_based_indexing(q, v, p)
     if size(p) != size(q)
         throw(DimensionMismatch("size of p, $(size(p)), must equal size of q, $(size(q))"))
@@ -943,7 +940,7 @@ function _quantilesort!(v::AbstractArray, sorted::Bool, minp::Real, maxp::Real)
 end
 
 # Core quantile lookup function: assumes `v` sorted
-@inline function _quantile(v::AbstractVector, p::Real; alpha::Real=1., beta::Real=alpha)
+@inline function _quantile(v::AbstractVector, p::Real; alpha::Real=1.0, beta::Real=alpha)
     0 <= p <= 1 || throw(ArgumentError("input probability out of [0,1] range"))
     0 <= alpha <= 1 || throw(ArgumentError("alpha parameter out of [0,1] range"))
     0 <= beta <= 1 || throw(ArgumentError("beta parameter out of [0,1] range"))
@@ -1017,10 +1014,10 @@ julia> quantile(skipmissing([1, 10, missing]), 0.5)
 5.5
 ```
 """
-quantile(itr, p; sorted::Bool=false, alpha::Real=1., beta::Real=alpha) =
+quantile(itr, p; sorted::Bool=false, alpha::Real=1.0, beta::Real=alpha) =
     quantile!(collect(itr), p, sorted=sorted, alpha=alpha, beta=beta)
 
-quantile(v::AbstractVector, p; sorted::Bool=false, alpha::Real=1., beta::Real=alpha) =
+quantile(v::AbstractVector, p; sorted::Bool=false, alpha::Real=1.0, beta::Real=alpha) =
     quantile!(sorted ? v : Base.copymutable(v), p; sorted=sorted, alpha=alpha, beta=beta)
 
 
