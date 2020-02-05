@@ -951,7 +951,7 @@ end
 
     n = length(v)
     m = alpha + p * (one(alpha) - alpha - beta)
-    aleph = n*p + m
+    aleph = n*p + oftype(p, m)
     j = clamp(trunc(Int, aleph), 1, n-1)
     γ = clamp(aleph - j, 0, 1)
 
