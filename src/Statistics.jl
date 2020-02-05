@@ -834,7 +834,7 @@ _median(v::AbstractArray, dims) = mapslices(median!, v, dims = dims)
 _median(v::AbstractArray{T}, ::Colon) where {T} = median!(copyto!(Array{T,1}(undef, length(v)), v))
 
 """
-    quantile!([q::AbstractArray, ] v::AbstractVector, p; sorted=false, alpha::Real=1., beta::Real=alpha)
+    quantile!([q::AbstractArray, ] v::AbstractVector, p; sorted=false, alpha::Real=1.0, beta::Real=alpha)
 
 Compute the quantile(s) of a collection `itr` at a specified probability or vector or tuple of
 probabilities `p` on the interval [0,1]. The keyword argument `sorted` indicates whether
