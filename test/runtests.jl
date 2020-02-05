@@ -510,12 +510,12 @@ end
     @test isempty(quantile([1, 2, 3, 4], Float64[]))
     @test quantile([1, 2, 3, 4], Float64[]) isa Vector{Float64}
     @test quantile([1, 2, 3, 4], []) isa Vector{Any}
-    @test quantile([1, 2, 3, 4], [0, 1], alpha=1) isa Vector{Int}
+    @test quantile([1, 2, 3, 4], [0, 1]) isa Vector{Int}
 
     @test quantile(Any[1, 2, 3], 0.5) isa Float64
     @test quantile(Any[1, big(2), 3], 0.5) isa BigFloat
-    @test quantile(Any[1, 2, 3], Float16(0.5), alpha=1) isa Float16 # default type of alpha is Float
-    @test quantile(Any[1, Float16(2), 3], Float16(0.5), alpha=1) isa Float16
+    @test quantile(Any[1, 2, 3], Float16(0.5)) isa Float16 # default type of alpha is Float
+    @test quantile(Any[1, Float16(2), 3], Float16(0.5)) isa Float16
     @test quantile(Any[1, big(2), 3], Float16(0.5)) isa BigFloat
 
     @test_throws ArgumentError quantile([1, missing], 0.5)
@@ -712,8 +712,8 @@ end
     @test var(x) === 16.25
     @test var(y) === 65//4
     @test std(x) === sqrt(16.25)
-    @test quantile(x, 0.5, alpha=1)  === 3.0
-    @test quantile(x, 1//2, alpha=1) === 3//1
+    @test quantile(x, 0.5)  === 3.0
+    @test quantile(x, 1//2) === 3//1
 end
 
 @testset "Promotion in covzm. Issue #8080" begin
