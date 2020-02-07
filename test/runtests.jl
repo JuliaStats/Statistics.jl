@@ -539,7 +539,7 @@ end
     #tests for quantile calculation with configurable alpha and beta parameters
     v = [2, 3, 4, 6, 9, 2, 6, 2, 21, 17]
 
-    # tests against SciPy quantile method
+    # tests against scipy.stats.mstats.mquantiles method
     @test quantile(v, 0.0, alpha=0.0, beta=0.0) ≈ 2.0
     @test quantile(v, 0.2, alpha=1.0, beta=1.0) ≈ 2.0
     @test quantile(v, 0.4, alpha=0.0, beta=0.0) ≈ 3.4
