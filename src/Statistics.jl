@@ -887,9 +887,9 @@ true
 
 julia> y
 3-element Array{Float64,1}:
- 1.2
+ 1.2000000000000002
  2.0
- 2.8
+ 2.8000000000000003
 ```
 """
 function quantile!(q::AbstractArray, v::AbstractVector, p::AbstractArray;
@@ -1008,7 +1008,7 @@ julia> quantile(0:20, [0.1, 0.5, 0.9])
 3-element Array{Float64,1}:
   2.0
  10.0
- 18.0
+ 18.000000000000004
 
 julia> quantile(skipmissing([1, 10, missing]), 0.5)
 5.5
