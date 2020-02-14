@@ -833,10 +833,8 @@ _median(v::AbstractArray, dims) = mapslices(median!, v, dims = dims)
 
 _median(v::AbstractArray{T}, ::Colon) where {T} = median!(copyto!(Array{T,1}(undef, length(v)), v))
 
-# for now, use the R/S definition of quantile; may want variants later
-# see ?quantile in R -- this is type 7
 """
-    quantile!([q::AbstractArray, ] v::AbstractVector, p; sorted=false)
+    quantile!([q::AbstractArray, ] v::AbstractVector, p; sorted=false, alpha::Real=1.0, beta::Real=alpha)
 
 Compute the quantile(s) of a vector `v` at a specified probability or vector or tuple of
 probabilities `p` on the interval [0,1]. If `p` is a vector, an optional
@@ -844,15 +842,28 @@ output array `q` may also be specified. (If not provided, a new output array is 
 The keyword argument `sorted` indicates whether `v` can be assumed to be sorted; if
 `false` (the default), then the elements of `v` will be partially sorted in-place.
 
-Quantiles are computed via linear interpolation between the points `((k-1)/(n-1), v[k])`,
-for `k = 1:n` where `n = length(v)`. This corresponds to Definition 7 of Hyndman and Fan
-(1996), and is the same as the R default.
+By default (`alpha = beta = 1`), quantiles are computed via linear interpolation between the points
+`((k-1)/(n-1), v[k])`, for `k = 1:n` where `n = length(v)`. This corresponds to Definition 7
+of Hyndman and Fan (1996), and is the same as the R and NumPy default.
+
+The keyword arguments `alpha` and `beta` correspond to the same parameters in Hyndman and Fan,
+setting them to different values allows to calculate quantiles with any of the methods 4-9
+defined in this paper:
+- Def. 4: `alpha=0`, `beta=1`
+- Def. 5: `alpha=0.5`, `beta=0.5`
+- Def. 6: `alpha=0`, `beta=0` (Excel `PERCENTILE.EXC`, Python default, Stata `altdef`)
+- Def. 7: `alpha=1`, `beta=1` (Julia, R and NumPy default, Excel `PERCENTILE` and `PERCENTILE.INC`, Python `'inclusive'`)
+- Def. 8: `alpha=1/3`, `beta=1/3`
+- Def. 9: `alpha=3/8`, `beta=3/8`
 
 !!! note
     An `ArgumentError` is thrown if `v` contains `NaN` or [`missing`](@ref) values.
 
-* Hyndman, R.J and Fan, Y. (1996) "Sample Quantiles in Statistical Packages",
+# References
+- Hyndman, R.J and Fan, Y. (1996) "Sample Quantiles in Statistical Packages",
   *The American Statistician*, Vol. 50, No. 4, pp. 361-365
+
+- [Quantile on Wikipedia](https://en.m.wikipedia.org/wiki/Quantile) details the different quantile definitions
 
 # Examples
 ```jldoctest
@@ -876,13 +887,13 @@ true
 
 julia> y
 3-element Array{Float64,1}:
- 1.2
+ 1.2000000000000002
  2.0
- 2.8
+ 2.8000000000000003
 ```
 """
 function quantile!(q::AbstractArray, v::AbstractVector, p::AbstractArray;
-                   sorted::Bool=false)
+                   sorted::Bool=false, alpha::Real=1.0, beta::Real=alpha)
     require_one_based_indexing(q, v, p)
     if size(p) != size(q)
         throw(DimensionMismatch("size of p, $(size(p)), must equal size of q, $(size(q))"))
@@ -893,22 +904,22 @@ function quantile!(q::AbstractArray, v::AbstractVector, p::AbstractArray;
     _quantilesort!(v, sorted, minp, maxp)
 
     for (i, j) in zip(eachindex(p), eachindex(q))
-        @inbounds q[j] = _quantile(v,p[i])
+        @inbounds q[j] = _quantile(v,p[i], alpha=alpha, beta=beta)
     end
     return q
 end
 
 function quantile!(v::AbstractVector, p::Union{AbstractArray, Tuple{Vararg{Real}}};
-                   sorted::Bool=false)
+                   sorted::Bool=false, alpha::Real=1., beta::Real=alpha)
     if !isempty(p)
         minp, maxp = extrema(p)
         _quantilesort!(v, sorted, minp, maxp)
     end
-    return map(x->_quantile(v, x), p)
+    return map(x->_quantile(v, x, alpha=alpha, beta=beta), p)
 end
 
-quantile!(v::AbstractVector, p::Real; sorted::Bool=false) =
-    _quantile(_quantilesort!(v, sorted, p, p), p)
+quantile!(v::AbstractVector, p::Real; sorted::Bool=false, alpha::Real=1., beta::Real=alpha) =
+    _quantile(_quantilesort!(v, sorted, p, p), p, alpha=alpha, beta=beta)
 
 # Function to perform partial sort of v for quantiles in given range
 function _quantilesort!(v::AbstractArray, sorted::Bool, minp::Real, maxp::Real)
@@ -917,8 +928,8 @@ function _quantilesort!(v::AbstractArray, sorted::Bool, minp::Real, maxp::Real)
 
     if !sorted
         lv = length(v)
-        lo = floor(Int,1+minp*(lv-1))
-        hi = ceil(Int,1+maxp*(lv-1))
+        lo = floor(Int,minp*(lv))
+        hi = ceil(Int,1+maxp*(lv))
 
         # only need to perform partial sort
         sort!(v, 1, lv, Base.Sort.PartialQuickSort(lo:hi), Base.Sort.Forward)
@@ -929,44 +940,64 @@ function _quantilesort!(v::AbstractArray, sorted::Bool, minp::Real, maxp::Real)
 end
 
 # Core quantile lookup function: assumes `v` sorted
-@inline function _quantile(v::AbstractVector, p::Real)
+@inline function _quantile(v::AbstractVector, p::Real; alpha::Real=1.0, beta::Real=alpha)
     0 <= p <= 1 || throw(ArgumentError("input probability out of [0,1] range"))
+    0 <= alpha <= 1 || throw(ArgumentError("alpha parameter out of [0,1] range"))
+    0 <= beta <= 1 || throw(ArgumentError("beta parameter out of [0,1] range"))
     require_one_based_indexing(v)
 
-    lv = length(v)
-    f0 = (lv - 1)*p # 0-based interpolated index
-    t0 = trunc(f0)
-    h  = f0 - t0
-    i  = trunc(Int,t0) + 1
+    n = length(v)
+    m = alpha + p * (one(alpha) - alpha - beta)
+    aleph = n*p + oftype(p, m)
+    j = clamp(trunc(Int, aleph), 1, n-1)
+    γ = clamp(aleph - j, 0, 1)
 
-    a = v[i]
-    b = v[i + (h > 0)]
+    a = v[j]
+    b = v[j + 1]
+
     if isfinite(a) && isfinite(b)
-        return a + h*(b-a)
+        return a + γ*(b-a)
     else
-        return (1-h)*a + h*b
+        return (1-γ)*a + γ*b
     end
 end
 
-
 """
-    quantile(itr, p; sorted=false)
+    quantile(itr, p; sorted=false, alpha::Real=1.0, beta::Real=alpha)
 
 Compute the quantile(s) of a collection `itr` at a specified probability or vector or tuple of
 probabilities `p` on the interval [0,1]. The keyword argument `sorted` indicates whether
 `itr` can be assumed to be sorted.
 
-Quantiles are computed via linear interpolation between the points `((k-1)/(n-1), v[k])`,
-for `k = 1:n` where `n = length(itr)`. This corresponds to Definition 7 of Hyndman and Fan
-(1996), and is the same as the R default.
+Samples quantile are defined by `Q(p) = (1-γ)*x[j] + γ*x[j+1]`,
+where ``x[j]`` is the j-th order statistic, and `γ` is a function of
+`j = floor(n*p + m)`, `m = alpha + p*(1 - alpha - beta)` and
+`g = n*p + m - j`.
+
+By default (`alpha = beta = 1`), quantiles are computed via linear interpolation between the points
+`((k-1)/(n-1), v[k])`, for `k = 1:n` where `n = length(itr)`. This corresponds to Definition 7
+of Hyndman and Fan (1996), and is the same as the R and NumPy default.
+
+The keyword arguments `alpha` and `beta` correspond to the same parameters in Hyndman and Fan,
+setting them to different values allows to calculate quantiles with any of the methods 4-9
+defined in this paper:
+- Def. 4: `alpha=0`, `beta=1`
+- Def. 5: `alpha=0.5`, `beta=0.5`
+- Def. 6: `alpha=0`, `beta=0` (Excel `PERCENTILE.EXC`, Python default, Stata `altdef`)
+- Def. 7: `alpha=1`, `beta=1` (Julia, R and NumPy default, Excel `PERCENTILE` and `PERCENTILE.INC`, Python `'inclusive'`)
+- Def. 8: `alpha=1/3`, `beta=1/3`
+- Def. 9: `alpha=3/8`, `beta=3/8`
 
 !!! note
-    An `ArgumentError` is thrown if `itr` contains `NaN` or [`missing`](@ref) values.
+    An `ArgumentError` is thrown if `v` contains `NaN` or [`missing`](@ref) values.
     Use the [`skipmissing`](@ref) function to omit `missing` entries and compute the
     quantiles of non-missing values.
 
+# References
 - Hyndman, R.J and Fan, Y. (1996) "Sample Quantiles in Statistical Packages",
   *The American Statistician*, Vol. 50, No. 4, pp. 361-365
+
+- [Quantile on Wikipedia](https://en.m.wikipedia.org/wiki/Quantile) details the different quantile definitions
 
 # Examples
 ```jldoctest
@@ -979,16 +1010,17 @@ julia> quantile(0:20, [0.1, 0.5, 0.9])
 3-element Array{Float64,1}:
   2.0
  10.0
- 18.0
+ 18.000000000000004
 
 julia> quantile(skipmissing([1, 10, missing]), 0.5)
 5.5
 ```
 """
-quantile(itr, p; sorted::Bool=false) = quantile!(collect(itr), p, sorted=sorted)
+quantile(itr, p; sorted::Bool=false, alpha::Real=1.0, beta::Real=alpha) =
+    quantile!(collect(itr), p, sorted=sorted, alpha=alpha, beta=beta)
 
-quantile(v::AbstractVector, p; sorted::Bool=false) =
-    quantile!(sorted ? v : Base.copymutable(v), p; sorted=sorted)
+quantile(v::AbstractVector, p; sorted::Bool=false, alpha::Real=1.0, beta::Real=alpha) =
+    quantile!(sorted ? v : Base.copymutable(v), p; sorted=sorted, alpha=alpha, beta=beta)
 
 
 ##### SparseArrays optimizations #####

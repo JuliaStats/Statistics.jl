@@ -480,29 +480,30 @@ end
 end
 
 @testset "quantile" begin
-    @test quantile([1,2,3,4],0.5) == 2.5
-    @test quantile([1,2,3,4],[0.5]) == [2.5]
-    @test quantile([1., 3],[.25,.5,.75])[2] == median([1., 3])
-    @test quantile(100.0:-1.0:0.0, 0.0:0.1:1.0) == 0.0:10.0:100.0
-    @test quantile(0.0:100.0, 0.0:0.1:1.0, sorted=true) == 0.0:10.0:100.0
-    @test quantile(100f0:-1f0:0.0, 0.0:0.1:1.0) == 0f0:10f0:100f0
+    @test quantile([1,2,3,4],0.5) ≈ 2.5
+    @test quantile([1,2,3,4],[0.5]) ≈ [2.5]
+    @test quantile([1., 3],[.25,.5,.75])[2] ≈ median([1., 3])
+    @test quantile(100.0:-1.0:0.0, 0.0:0.1:1.0) ≈ 0.0:10.0:100.0
+    @test quantile(0.0:100.0, 0.0:0.1:1.0, sorted=true) ≈ 0.0:10.0:100.0
+    @test quantile(100f0:-1f0:0.0, 0.0:0.1:1.0) ≈ 0f0:10f0:100f0
     @test quantile([Inf,Inf],0.5) == Inf
     @test quantile([-Inf,1],0.5) == -Inf
-    @test quantile([0,1],1e-18) == 1e-18
+    # here it is required to introduce an absolute tolerance because the calculated value is 0
+    @test quantile([0,1],1e-18) ≈ 1e-18 atol=1e-18
     @test quantile([1, 2, 3, 4],[]) == []
     @test quantile([1, 2, 3, 4], (0.5,)) == (2.5,)
     @test quantile([4, 9, 1, 5, 7, 8, 2, 3, 5, 17, 11],
                    (0.1, 0.2, 0.4, 0.9)) == (2.0, 3.0, 5.0, 11.0)
     @test quantile(Union{Int, Missing}[4, 9, 1, 5, 7, 8, 2, 3, 5, 17, 11],
-                   [0.1, 0.2, 0.4, 0.9]) == [2.0, 3.0, 5.0, 11.0]
+                   [0.1, 0.2, 0.4, 0.9]) ≈ [2.0, 3.0, 5.0, 11.0]
     @test quantile(Any[4, 9, 1, 5, 7, 8, 2, 3, 5, 17, 11],
-                   [0.1, 0.2, 0.4, 0.9]) == [2.0, 3.0, 5.0, 11.0]
+                   [0.1, 0.2, 0.4, 0.9]) ≈ [2.0, 3.0, 5.0, 11.0]
     @test quantile([4, 9, 1, 5, 7, 8, 2, 3, 5, 17, 11],
-                   Any[0.1, 0.2, 0.4, 0.9]) == [2.0, 3.0, 5.0, 11.0]
+                   Any[0.1, 0.2, 0.4, 0.9]) ≈ [2.0, 3.0, 5.0, 11.0]
     @test quantile([4, 9, 1, 5, 7, 8, 2, 3, 5, 17, 11],
                    Any[0.1, 0.2, 0.4, 0.9]) isa Vector{Float64}
     @test quantile(Any[4, 9, 1, 5, 7, 8, 2, 3, 5, 17, 11],
-                   Any[0.1, 0.2, 0.4, 0.9]) == [2, 3, 5, 11]
+                   Any[0.1, 0.2, 0.4, 0.9]) ≈ [2, 3, 5, 11]
     @test quantile(Any[4, 9, 1, 5, 7, 8, 2, 3, 5, 17, 11],
                    Any[0.1, 0.2, 0.4, 0.9]) isa Vector{Float64}
     @test quantile([1, 2, 3, 4], ()) == ()
@@ -533,7 +534,90 @@ end
     x = [3; 2; 1]
     y = zeros(3)
     @test quantile!(y, x, [0.1, 0.5, 0.9]) === y
-    @test y == [1.2, 2.0, 2.8]
+    @test y ≈ [1.2, 2.0, 2.8]
+
+    #tests for quantile calculation with configurable alpha and beta parameters
+    v = [2, 3, 4, 6, 9, 2, 6, 2, 21, 17]
+
+    # tests against scipy.stats.mstats.mquantiles method
+    @test quantile(v, 0.0, alpha=0.0, beta=0.0) ≈ 2.0
+    @test quantile(v, 0.2, alpha=1.0, beta=1.0) ≈ 2.0
+    @test quantile(v, 0.4, alpha=0.0, beta=0.0) ≈ 3.4
+    @test quantile(v, 0.4, alpha=0.0, beta=0.2) ≈ 3.32
+    @test quantile(v, 0.4, alpha=0.0, beta=0.4) ≈ 3.24
+    @test quantile(v, 0.4, alpha=0.0, beta=0.6) ≈ 3.16
+    @test quantile(v, 0.4, alpha=0.0, beta=0.8) ≈ 3.08
+    @test quantile(v, 0.4, alpha=0.0, beta=1.0) ≈ 3.0
+    @test quantile(v, 0.4, alpha=0.2, beta=0.0) ≈ 3.52
+    @test quantile(v, 0.4, alpha=0.2, beta=0.2) ≈ 3.44
+    @test quantile(v, 0.4, alpha=0.2, beta=0.4) ≈ 3.36
+    @test quantile(v, 0.4, alpha=0.2, beta=0.6) ≈ 3.28
+    @test quantile(v, 0.4, alpha=0.2, beta=0.8) ≈ 3.2
+    @test quantile(v, 0.4, alpha=0.2, beta=1.0) ≈ 3.12
+    @test quantile(v, 0.4, alpha=0.4, beta=0.0) ≈ 3.64
+    @test quantile(v, 0.4, alpha=0.4, beta=0.2) ≈ 3.56
+    @test quantile(v, 0.4, alpha=0.4, beta=0.4) ≈ 3.48
+    @test quantile(v, 0.4, alpha=0.4, beta=0.6) ≈ 3.4
+    @test quantile(v, 0.4, alpha=0.4, beta=0.8) ≈ 3.32
+    @test quantile(v, 0.4, alpha=0.4, beta=1.0) ≈ 3.24
+    @test quantile(v, 0.4, alpha=0.6, beta=0.0) ≈ 3.76
+    @test quantile(v, 0.4, alpha=0.6, beta=0.2) ≈ 3.68
+    @test quantile(v, 0.4, alpha=0.6, beta=0.4) ≈ 3.6
+    @test quantile(v, 0.4, alpha=0.6, beta=0.6) ≈ 3.52
+    @test quantile(v, 0.4, alpha=0.6, beta=0.8) ≈ 3.44
+    @test quantile(v, 0.4, alpha=0.6, beta=1.0) ≈ 3.36
+    @test quantile(v, 0.4, alpha=0.8, beta=0.0) ≈ 3.88
+    @test quantile(v, 0.4, alpha=0.8, beta=0.2) ≈ 3.8
+    @test quantile(v, 0.4, alpha=0.8, beta=0.4) ≈ 3.72
+    @test quantile(v, 0.4, alpha=0.8, beta=0.6) ≈ 3.64
+    @test quantile(v, 0.4, alpha=0.8, beta=0.8) ≈ 3.56
+    @test quantile(v, 0.4, alpha=0.8, beta=1.0) ≈ 3.48
+    @test quantile(v, 0.4, alpha=1.0, beta=0.0) ≈ 4.0
+    @test quantile(v, 0.4, alpha=1.0, beta=0.2) ≈ 3.92
+    @test quantile(v, 0.4, alpha=1.0, beta=0.4) ≈ 3.84
+    @test quantile(v, 0.4, alpha=1.0, beta=0.6) ≈ 3.76
+    @test quantile(v, 0.4, alpha=1.0, beta=0.8) ≈ 3.68
+    @test quantile(v, 0.4, alpha=1.0, beta=1.0) ≈ 3.6
+    @test quantile(v, 0.6, alpha=0.0, beta=0.0) ≈ 6.0
+    @test quantile(v, 0.6, alpha=1.0, beta=1.0) ≈ 6.0
+    @test quantile(v, 0.8, alpha=0.0, beta=0.0) ≈ 15.4
+    @test quantile(v, 0.8, alpha=0.0, beta=0.2) ≈ 14.12
+    @test quantile(v, 0.8, alpha=0.0, beta=0.4) ≈ 12.84
+    @test quantile(v, 0.8, alpha=0.0, beta=0.6) ≈ 11.56
+    @test quantile(v, 0.8, alpha=0.0, beta=0.8) ≈ 10.28
+    @test quantile(v, 0.8, alpha=0.0, beta=1.0) ≈ 9.0
+    @test quantile(v, 0.8, alpha=0.2, beta=0.0) ≈ 15.72
+    @test quantile(v, 0.8, alpha=0.2, beta=0.2) ≈ 14.44
+    @test quantile(v, 0.8, alpha=0.2, beta=0.4) ≈ 13.16
+    @test quantile(v, 0.8, alpha=0.2, beta=0.6) ≈ 11.88
+    @test quantile(v, 0.8, alpha=0.2, beta=0.8) ≈ 10.6
+    @test quantile(v, 0.8, alpha=0.2, beta=1.0) ≈ 9.32
+    @test quantile(v, 0.8, alpha=0.4, beta=0.0) ≈ 16.04
+    @test quantile(v, 0.8, alpha=0.4, beta=0.2) ≈ 14.76
+    @test quantile(v, 0.8, alpha=0.4, beta=0.4) ≈ 13.48
+    @test quantile(v, 0.8, alpha=0.4, beta=0.6) ≈ 12.2
+    @test quantile(v, 0.8, alpha=0.4, beta=0.8) ≈ 10.92
+    @test quantile(v, 0.8, alpha=0.4, beta=1.0) ≈ 9.64
+    @test quantile(v, 0.8, alpha=0.6, beta=0.0) ≈ 16.36
+    @test quantile(v, 0.8, alpha=0.6, beta=0.2) ≈ 15.08
+    @test quantile(v, 0.8, alpha=0.6, beta=0.4) ≈ 13.8
+    @test quantile(v, 0.8, alpha=0.6, beta=0.6) ≈ 12.52
+    @test quantile(v, 0.8, alpha=0.6, beta=0.8) ≈ 11.24
+    @test quantile(v, 0.8, alpha=0.6, beta=1.0) ≈ 9.96
+    @test quantile(v, 0.8, alpha=0.8, beta=0.0) ≈ 16.68
+    @test quantile(v, 0.8, alpha=0.8, beta=0.2) ≈ 15.4
+    @test quantile(v, 0.8, alpha=0.8, beta=0.4) ≈ 14.12
+    @test quantile(v, 0.8, alpha=0.8, beta=0.6) ≈ 12.84
+    @test quantile(v, 0.8, alpha=0.8, beta=0.8) ≈ 11.56
+    @test quantile(v, 0.8, alpha=0.8, beta=1.0) ≈ 10.28
+    @test quantile(v, 0.8, alpha=1.0, beta=0.0) ≈ 17.0
+    @test quantile(v, 0.8, alpha=1.0, beta=0.2) ≈ 15.72
+    @test quantile(v, 0.8, alpha=1.0, beta=0.4) ≈ 14.44
+    @test quantile(v, 0.8, alpha=1.0, beta=0.6) ≈ 13.16
+    @test quantile(v, 0.8, alpha=1.0, beta=0.8) ≈ 11.88
+    @test quantile(v, 0.8, alpha=1.0, beta=1.0) ≈ 10.6
+    @test quantile(v, 1.0, alpha=0.0, beta=0.0) ≈ 21.0
+    @test quantile(v, 1.0, alpha=1.0, beta=1.0) ≈ 21.0
 end
 
 # StatsBase issue 164
