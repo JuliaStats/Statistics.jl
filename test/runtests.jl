@@ -130,6 +130,17 @@ end
         @test mean(identity, x) == mean(identity, g) == typemax(T)
         @test mean(x, dims=2) == [typemax(T)]'
     end
+    # Check that mean of integers does not cause catastrophic loss of accuracy
+    let x = fill(typemax(Int), 10)
+        @test (mean(x) == mean(x, dims=1)[] == mean(float, x)
+               ≈ float(typemax(Int)))  # avoid integer overflow (#22)
+    end
+    let x = rand(10000)  # mean should use sum's accurate pairwise algorithm
+        @test mean(x) == sum(x) / length(x)
+    end
+    @test mean(Number[1, 1.5, 2+3im]) == 1.5+1im # mixed-type array
+    @test isequal(mean(Float64[]), NaN)
+    @test isequal(mean(Int[]), NaN)
 end
 
 @testset "mean/median for ranges" begin
@@ -710,7 +721,7 @@ end
     x = Any[1, 2, 4, 10]
     y = Any[1, 2, 4, 10//1]
     @test var(x) === 16.25
-    @test var(y) === 65//4
+    @test var(y) == 65//4
     @test std(x) === sqrt(16.25)
     @test quantile(x, 0.5)  === 3.0
     @test quantile(x, 1//2) === 3//1
