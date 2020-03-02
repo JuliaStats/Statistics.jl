@@ -163,19 +163,19 @@ julia> mean(A, dims=2)
  1.5
  3.5
 ```
-"""
+""" 
 mean(A::AbstractArray; dims=:) = _mean(A, dims)
 
 _mean(A::AbstractArray{T}, region) where {T} = mean!(Base.reducedim_init(t -> t/2, +, A, region), A)
-_prom(x::Missing, y) = (x,y)
-_prom(x, y::Missing) = (x,y)
-_prom(x::Missing, y::Missing) = (x,y)
-_prom(x,y)=promote(x,y)
 function _mean(A::AbstractArray, ::Colon)
-    isempty(A) && return one(eltype(A))*NaN
+    isempty(A) && return sum(A)/0
     n = length(A)
     x1 = first(A) / n
-    return sum(x -> first(_prom(x,x1)), A) / n
+    _prom(x::T, y::S) where {T,S} = begin
+        R = promote_type(T, S)
+        return convert(R, x)
+    end
+    return sum(x->_prom(x,x1), A) / n
 end
 
 function mean(r::AbstractRange{<:Real})

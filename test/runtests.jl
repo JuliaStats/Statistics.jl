@@ -141,6 +141,9 @@ end
     @test mean(Number[1, 1.5, 2+3im]) == 1.5+1im # mixed-type array
     @test isequal(mean(Float64[]), NaN)
     @test isequal(mean(Int[]), NaN)
+    @inferred(Statistics.mean(Int[]))
+    @inferred(Statistics.mean(Float32[]))
+    @test isequal(typeof(mean(Float32[])), typeof(mean(Float32[1])))
 end
 
 @testset "mean/median for ranges" begin
