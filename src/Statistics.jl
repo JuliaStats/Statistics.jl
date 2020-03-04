@@ -163,7 +163,7 @@ julia> mean(A, dims=2)
  1.5
  3.5
 ```
-""" 
+"""
 mean(A::AbstractArray; dims=:) = _mean(A, dims)
 
 _mean(A::AbstractArray{T}, region) where {T} = mean!(Base.reducedim_init(t -> t/2, +, A, region), A)
