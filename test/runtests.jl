@@ -138,11 +138,11 @@ end
     let x = rand(10000)  # mean should use sum's accurate pairwise algorithm
         @test mean(x) == sum(x) / length(x)
     end
-    @test mean(Number[1, 1.5, 2+3im]) == 1.5+1im # mixed-type array
+    @test mean(Number[1, 1.5, 2+3im]) === 1.5+1im # mixed-type array
     @test isequal(mean(Float64[]), NaN)
     @test isequal(mean(Int[]), NaN)
-    @inferred(Statistics.mean(Int[]))
-    @inferred(Statistics.mean(Float32[]))
+    @inferred mean(Int[])
+    @inferred mean(Float32[])
     @test isequal(typeof(mean(Float32[])), typeof(mean(Float32[1])))
 end
 
@@ -724,7 +724,7 @@ end
     x = Any[1, 2, 4, 10]
     y = Any[1, 2, 4, 10//1]
     @test var(x) === 16.25
-    @test var(y) == 65//4
+    @test var(y) === 16.25
     @test std(x) === sqrt(16.25)
     @test quantile(x, 0.5)  === 3.0
     @test quantile(x, 1//2) === 3//1
