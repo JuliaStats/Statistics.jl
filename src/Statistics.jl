@@ -479,10 +479,13 @@ end
 _vmean(x::AbstractVector, vardim::Int) = mean(x)
 _vmean(x::AbstractMatrix, vardim::Int) = mean(x, dims=vardim)
 
+_abs2(x::Real) = abs2(x)
+_abs2(x)       = x*x'
+
 # core functions
 
-unscaled_covzm(x::AbstractVector{<:Number})    = sum(abs2, x)
-unscaled_covzm(x::AbstractVector)              = sum(t -> t*t', x)
+unscaled_covzm(x::AbstractVector{<:Number})    = sum(_abs2, x)
+unscaled_covzm(x::AbstractVector)              = sum(_abs2, x)
 unscaled_covzm(x::AbstractMatrix, vardim::Int) = (vardim == 1 ? _conj(x'x) : x * x')
 
 unscaled_covzm(x::AbstractVector, y::AbstractVector) = sum(conj(y[i])*x[i] for i in eachindex(y, x))
@@ -494,7 +497,25 @@ unscaled_covzm(x::AbstractMatrix, y::AbstractMatrix, vardim::Int) =
     (vardim == 1 ? *(transpose(x), _conj(y)) : *(x, adjoint(y)))
 
 # covzm (with centered data)
-
+function covzm(itr::Any; corrected::Bool=true)
+    y = iterate(itr)
+    if y === nothing
+        return Base.mapreduce_empty_iter(_abs2, Base.add_sum, itr,
+                                         Base.IteratorEltype(itr)) / 0
+    end
+    count = 1
+    value, state = y
+    f_value = _abs2(value)
+    total = Base.reduce_first(Base.add_sum, f_value)
+    y = iterate(itr, state)
+    while y !== nothing 
+        value, state = y
+        total += _abs2(value)
+        count += 1
+        y = iterate(itr, state)
+    end
+    return total / (count - Int(corrected))
+end
 covzm(x::AbstractVector; corrected::Bool=true) = unscaled_covzm(x) / (length(x) - Int(corrected))
 function covzm(x::AbstractMatrix, vardim::Int=1; corrected::Bool=true)
     C = unscaled_covzm(x, vardim)
@@ -503,6 +524,28 @@ function covzm(x::AbstractMatrix, vardim::Int=1; corrected::Bool=true)
     b = 1//(size(x, vardim) - corrected)
     A .= A .* b
     return A
+end
+function covzm(x::Any, y::Any; corrected::Bool=true)
+    z = zip(x, y)
+    z_itr = iterate(z)
+    if z_itr === nothing
+        # TODO: Understand how to improve this error.
+        #return Base.mapreduce_empty_iter(t -> _conj(t[2])*t[1]', Base.add_sum, itr,
+        #                                 Base.IteratorEltype(x)) / 0
+        return NaN
+    end
+    count = 1
+    value, state = z_itr
+    f_value = conj(value[2])*value[1]'
+    total = Base.reduce_first(Base.add_sum, f_value)
+    z_itr = iterate(z, state)
+    while z_itr !== nothing 
+        value, state = z_itr
+        total += conj(value[2])*value[1]'
+        count += 1
+        z_itr = iterate(z, state)
+    end
+    return total ./ (count - Int(corrected))
 end
 covzm(x::AbstractVector, y::AbstractVector; corrected::Bool=true) =
     unscaled_covzm(x, y) / (length(x) - Int(corrected))
@@ -517,17 +560,75 @@ end
 
 # covm (with provided mean)
 ## Use map(t -> t - xmean, x) instead of x .- xmean to allow for Vector{Vector}
-## which can't be handled by broadcast
+## which can't be handled by broadcastz
+function covm(itr::Any, itrmean; corrected::Bool=true)
+    y = iterate(itr)
+    f = let itrmean = itrmean
+        x -> _abs2(x-itrmean)
+    end
+    if y === nothing
+        return Base.mapreduce_empty_iter(f, Base.add_sum, itr,
+                                         Base.IteratorEltype(itr)) / 0
+    end
+    count = 1
+    value, state = y
+    f_value = f(value)
+    total = Base.reduce_first(Base.add_sum, f_value)
+    y = iterate(itr, state)
+    while y !== nothing 
+        value, state = y
+        total += f(value)
+        count += 1
+        y = iterate(itr, state)
+    end
+    return total / (count - Int(corrected))
+end
 covm(x::AbstractVector, xmean; corrected::Bool=true) =
     covzm(map(t -> t - xmean, x); corrected=corrected)
 covm(x::AbstractMatrix, xmean, vardim::Int=1; corrected::Bool=true) =
     covzm(x .- xmean, vardim; corrected=corrected)
+function covm(x::Any, xmean, y::Any, ymean; corrected::Bool=true)
+    z = zip(x, y)
+    z_itr = iterate(z)
+    if z_itr === nothing
+        # TODO: Understand how to improve this error.
+        #return Base.mapreduce_empty_iter(t -> _conj(t[2])*t[1]', Base.add_sum, itr,
+        #                                 Base.IteratorEltype(x)) / 0
+        return NaN
+    end
+    f = let xmean = xmean, ymean = ymean
+        t -> conj(t[2]-ymean)*(t[1]-xmean)
+    end
+    count = 1
+    value, state = z_itr
+    f_value = f(value)
+    total = Base.reduce_first(Base.add_sum, f_value)
+    z_itr = iterate(z, state)
+    while z_itr !== nothing 
+        value, state = z_itr
+        total += f(value)
+        count += 1
+        z_itr = iterate(z, state)
+    end
+    return total ./ (count - Int(corrected))
+end
 covm(x::AbstractVector, xmean, y::AbstractVector, ymean; corrected::Bool=true) =
     covzm(map(t -> t - xmean, x), map(t -> t - ymean, y); corrected=corrected)
 covm(x::AbstractVecOrMat, xmean, y::AbstractVecOrMat, ymean, vardim::Int=1; corrected::Bool=true) =
     covzm(x .- xmean, y .- ymean, vardim; corrected=corrected)
 
 # cov (API)
+"""
+    cov(x::Any; corrected::Bool=true)
+
+Compute the variance of the vector `x`. If `corrected` is `true` (the default) then the sum
+is scaled with `n-1`, whereas the sum is scaled with `n` if `corrected` is `false` where `n`
+is the number of elements in the iterator, which is not necessarily known. 
+"""
+function cov(x::Any, corrected::Bool=true)
+    covm(x, mean(x); corrected=corrected)
+end
+
 """
     cov(x::AbstractVector; corrected::Bool=true)
 
@@ -545,6 +646,18 @@ if `corrected` is `false` where `n = size(X, dims)`.
 """
 cov(X::AbstractMatrix; dims::Int=1, corrected::Bool=true) =
     covm(X, _vmean(X, dims), dims; corrected=corrected)
+
+"""
+    cov(x::Any, y::Any; corrected::Bool=true)
+
+Compute the covariance between the iterators `x` and `y`. If `corrected` is `true` (the
+default), computes ``\\frac{1}{n-1}\\sum_{i=1}^n (x_i-\\bar x) (y_i-\\bar y)^*`` where
+``*`` denotes the complex conjugate and `n` is the number of elements in `x` which must equal 
+the number of elements in `y`. If `corrected` is `false`, computes ``\\frac{1}{n}\\sum_{i=1}^n 
+(x_i-\\bar x) (y_i-\\bar y)^*``.
+"""
+cov(x::Any, y::Any; corrected::Bool=true) =
+    covm(x, mean(x), y, mean(y); corrected=corrected)
 
 """
     cov(x::AbstractVector, y::AbstractVector; corrected::Bool=true)
