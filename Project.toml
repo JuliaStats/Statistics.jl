@@ -2,7 +2,6 @@ name = "Statistics"
 
 [deps]
 LinearAlgebra = "37e2e46d-f89d-539d-b4ee-838fcccc9c8e"
-OhMyREPL = "5fb14364-9ced-5910-84b2-373655c76a03"
 SparseArrays = "2f01184e-e22b-5df5-ae63-d93ebab69eaf"
 
 [extras]
