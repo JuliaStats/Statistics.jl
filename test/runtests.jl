@@ -314,6 +314,7 @@ Y = [6.0  2.0;
      5.0  8.0;
      3.0  4.0;
      2.0  3.0]
+X_gen = ([X[i,1], X[i,2]] for i in 1:size(X, 1))
 
 @testset "covariance" begin
     for vd in [1, 2], zm in [true, false], cr in [true, false]
@@ -328,6 +329,8 @@ Y = [6.0  2.0;
             end
             x1 = vec(X[:,1])
             y1 = vec(Y[:,1])
+            x1_gen = (x for x in x1)
+            y1_gen = (y for y in y1)
         else
             k = size(X, 1)
             Cxx = zeros(k, k)
@@ -338,6 +341,8 @@ Y = [6.0  2.0;
             end
             x1 = vec(X[1,:])
             y1 = vec(Y[1,:])
+            x1_gen = (x for x in x1)
+            y1_gen = (y for y in y1)
         end
 
         c = zm ? Statistics.covm(x1, 0, corrected=cr) :
@@ -346,14 +351,14 @@ Y = [6.0  2.0;
         @test c ≈ Cxx[1,1]
         @inferred cov(x1, corrected=cr)
 
-        @test cov(X) == Statistics.covm(X, mean(X, dims=1))
+        @test cov(X) == cov(X_gen) == Statistics.covm(X, mean(X, dims=1))
         C = zm ? Statistics.covm(X, 0, vd, corrected=cr) :
                  cov(X, dims=vd, corrected=cr)
         @test size(C) == (k, k)
         @test C ≈ Cxx
         @inferred cov(X, dims=vd, corrected=cr)
 
-        @test cov(x1, y1) == Statistics.covm(x1, mean(x1), y1, mean(y1))
+        @test cov(x1, y1) == cov(x1_gen, y1_gen) == Statistics.covm(x1, mean(x1), y1, mean(y1))
         c = zm ? Statistics.covm(x1, 0, y1, 0, corrected=cr) :
                  cov(x1, y1, corrected=cr)
         @test isa(c, Float64)

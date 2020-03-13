@@ -479,7 +479,7 @@ end
 _vmean(x::AbstractVector, vardim::Int) = mean(x)
 _vmean(x::AbstractMatrix, vardim::Int) = mean(x, dims=vardim)
 
-_abs2(x::Real) = abs2(x)
+_abs2(x::Number) = abs2(x)
 _abs2(x)       = x*x'
 
 # core functions
@@ -597,7 +597,7 @@ function covm(x::Any, xmean, y::Any, ymean; corrected::Bool=true)
         return NaN
     end
     f = let xmean = xmean, ymean = ymean
-        t -> conj(t[2]-ymean)*(t[1]-xmean)
+        t -> conj(t[2]-ymean)*(t[1]-xmean)'
     end
     count = 1
     value, state = z_itr
