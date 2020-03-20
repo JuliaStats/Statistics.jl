@@ -171,11 +171,8 @@ function _mean(A::AbstractArray, ::Colon)
     isempty(A) && return sum(A)/0
     n = length(A)
     x1 = first(A) / n
-    _prom(x::T, y::S) where {T,S} = begin
-        R = promote_type(T, S)
-        return convert(R, x)
-    end
-    return sum(x->_prom(x,x1), A) / n
+    _prom(x::T, y::S) where {T,S} = convert(promote_type(T, S), x)
+    return sum(x -> _prom(x, x1), A) / n
 end
 
 function mean(r::AbstractRange{<:Real})
