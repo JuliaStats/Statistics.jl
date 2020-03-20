@@ -139,9 +139,9 @@ end
         @test mean(x) == sum(x) / length(x)
     end
     @test mean(Number[1, 1.5, 2+3im]) === 1.5+1im # mixed-type array
-    @test @inferred mean(Int[]) === 0.0/0
-    @test @inferred mean(Float64[]) === 0.0/0
-    @test @inferred mean(Float32[]) === 0.0f0/0
+    @test (@inferred mean(Int[])) === 0.0/0
+    @test (@inferred mean(Float64[])) === 0.0/0
+    @test (@inferred mean(Float32[])) === 0.0f0/0
 end
 
 @testset "mean/median for ranges" begin
