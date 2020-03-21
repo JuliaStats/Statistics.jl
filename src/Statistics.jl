@@ -41,7 +41,15 @@ julia> mean(skipmissing([1, missing, 3]))
 2.0
 ```
 """
-mean(itr) = mean(identity, itr)
+_mean_promote(x::T, y::S) where {T,S} = convert(promote_type(T, S), x)
+
+function mean(itr)
+    if isempty(itr)
+        return mean(identity, itr)
+    end
+    x1 = first(itr)/1
+    return mean(x -> _mean_promote(x, x1), itr)
+end
 
 """
     mean(f::Function, itr)
@@ -167,12 +175,12 @@ julia> mean(A, dims=2)
 mean(A::AbstractArray; dims=:) = _mean(A, dims)
 
 _mean(A::AbstractArray{T}, region) where {T} = mean!(Base.reducedim_init(t -> t/2, +, A, region), A)
+
 function _mean(A::AbstractArray, ::Colon)
     isempty(A) && return sum(A)/0
     n = length(A)
     x1 = first(A) / n
-    _prom(x::T, y::S) where {T,S} = convert(promote_type(T, S), x)
-    return sum(x -> _prom(x, x1), A) / n
+    return sum(x -> _mean_promote(x, x1), A) / n
 end
 
 function mean(r::AbstractRange{<:Real})
