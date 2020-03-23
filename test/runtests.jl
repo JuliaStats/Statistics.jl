@@ -131,9 +131,9 @@ end
         @test mean(x, dims=2) == [typemax(T)]'
     end
     # Check that mean of integers does not cause catastrophic loss of accuracy
-    let x = fill(typemax(Int), 10)
+    let x = fill(typemax(Int), 10),a=tuple(x...)
         @test (mean(x) == mean(x, dims=1)[] == mean(float, x)
-               ≈ float(typemax(Int)))  # avoid integer overflow (#22)
+               == mean(a) ≈ float(typemax(Int)))  # avoid integer overflow (#22)
     end
     let x = rand(10000)  # mean should use sum's accurate pairwise algorithm
         @test mean(x) == sum(x) / length(x)
