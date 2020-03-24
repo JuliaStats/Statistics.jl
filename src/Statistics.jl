@@ -66,12 +66,12 @@ function mean(f, itr)
     end
     count = 1
     value, state = y
-    f_value = f(value)/1.0
+    f_value = f(value)/1
     total = Base.reduce_first(Base.add_sum, f_value)
     y = iterate(itr, state)
     while y !== nothing
         value, state = y
-        total += f(value)
+        total += _mean_promote(total, f(value))
         count += 1
         y = iterate(itr, state)
     end
@@ -101,7 +101,7 @@ julia> mean(√, [1 2 3; 4 5 6], dims=2)
  2.2285192400943226
 ```
 """
-mean(f, A::AbstractArray; dims=:) = _mean_promote(A, map_funct=f, dims=dims)
+mean(f, A::AbstractArray; dims=:) = _mean(f, A, dims)
 
 """
     mean!(r, v)
@@ -161,22 +161,23 @@ julia> mean(A, dims=2)
  3.5
 ```
 """
+#mean(A::AbstractArray; dims=:) = _mean(identity, A, dims)
 mean(A::AbstractArray; dims=:) = _mean(A, dims)
-# mean(A::AbstractArray; dims=:) = _mean_promote(A, dims=dims)
-
 _mean(A::AbstractArray{T}, region) where {T} = mean!(Base.reducedim_init(t -> t/2, +, A, region), A)
 
-_mean(A::AbstractArray, ::Colon) = _mean_promote(A)
-function _mean_promote(A::AbstractArray; map_funct=identity, dims=:)
-    isempty(A) && return sum(map_funct.(A))/0
+_mean(A::AbstractArray, ::Colon) = _mean(identity, A)
+
+_mean_promote(x::T, y::S) where {T,S} = convert(promote_type(T, S), y)
+
+function _mean(f, A::AbstractArray, dims=:)
+    isempty(A) && return sum(f, A, dims=dims)/0
     if dims == Colon()
         n =length(A)
     else
         n = mapreduce(i -> size(A, i), *, unique(dims); init=1)
     end
-    x1 = map_funct(first(A)) / n
-    _prom(x::T, y::S) where {T,S} = convert(promote_type(T, S), map_funct(x))
-    return sum(x -> _prom(x, x1), A, dims=dims) / n
+    x1 = f(first(A)) / n
+    return sum(x -> _mean_promote(x1, f(x)), A, dims=dims) / n
 end
 
 function mean(r::AbstractRange{<:Real})
