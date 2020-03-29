@@ -165,24 +165,6 @@ end
 #
 #############################
 
-"""
-    percentile(x, p)
-
-Return the `p`th percentile of a collection `x`, i.e. `quantile(x, p / 100)`.
-"""
-percentile(x, p) = quantile(x, p * 0.01)
-
-# TODO: move to same place as other quantile methods
-"""
-    quantile(x, n::Integer)
-
-Return the n-quantiles of collection `x`, i.e. the values which
-partition `v` into `n` subsets of nearly equal size.
-
-Equivalent to `quantile(x, [0:n]/n)`. For example, `quantile(x, 5)`
-returns a vector of quantiles, respectively at `[0.0, 0.2, 0.4, 0.6, 0.8, 1.0]`.
-"""
-quantile(x, n::Integer) = quantile(x, (0:n)/n)
 
 
 #############################
@@ -230,7 +212,7 @@ end
 sem(x::AbstractArray) = sqrt(var(x, corrected=true) / length(x))
 
 # Median absolute deviation
-@irrational mad_constant 1.4826022185056018 BigFloat("1.482602218505601860547076529360423431326703202590312896536266275245674447622701")
+Base.@irrational mad_constant 1.4826022185056018 BigFloat("1.482602218505601860547076529360423431326703202590312896536266275245674447622701")
 
 """
     mad(x; center=median(x), normalize=true)

@@ -11,15 +11,21 @@ using LinearAlgebra, SparseArrays
 
 using Base: has_offset_axes, require_one_based_indexing
 
+using Printf: @printf
+
 export cor, cov, std, stdm, var, varm, mean!, mean,
     median!, median, middle, quantile!, quantile,
     skewness, kurtosis,
     AbstractWeights, Weights, AnalyticWeights, FrequencyWeights, ProbabilityWeights,
-    weights, aweights, fweights, pweights
-
+    weights, aweights, fweights, pweights,
+    # scalarstats.jl
+    geomean, harmmean, genmean, mode, modes, percentile, span, variation, sem, mad, mad!,
+    iqr, genvar, totalvar, entropy, renyientropy, crossentropy, kldivergence, describe
+    
 include("weights.jl")
 include("wsum.jl")
 include("moments.jl")
+include("scalarstats.jl")
 
 ##### mean #####
 
@@ -1193,6 +1199,17 @@ julia> quantile(skipmissing([1, 10, missing]), 0.5)
 quantile(itr, p; sorted::Bool=false, weights::Union{AbstractArray,Nothing}=nothing) =
     _quantile(itr, p, sorted, weights)
 
+"""
+    quantile(x, n::Integer)
+
+Return the n-quantiles of collection `x`, i.e. the values which
+partition `v` into `n` subsets of nearly equal size.
+
+Equivalent to `quantile(x, [0:n]/n)`. For example, `quantile(x, 5)`
+returns a vector of quantiles, respectively at `[0.0, 0.2, 0.4, 0.6, 0.8, 1.0]`.
+"""
+quantile(x, n::Integer) = quantile(x, (0:n)/n)
+
 _quantile(itr, p, sorted::Bool, weights::Nothing) =
     quantile!(collect(itr), p, sorted=sorted)
 
@@ -1271,6 +1288,13 @@ _quantile(v::AbstractArray, p::Real, sorted::Bool, w::AbstractArray) =
 
 _quantile(itr, p, sorted::Bool, weights) =
     throw(ArgumentError("weights are only supported with AbstractArrays inputs"))
+
+"""
+    percentile(x, p)
+
+Return the `p`th percentile of a collection `x`, i.e. `quantile(x, p / 100)`.
+"""
+percentile(x, p) = quantile(x, p * 0.01)
 
 ##### SparseArrays optimizations #####
 

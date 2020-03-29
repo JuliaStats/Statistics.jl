@@ -48,19 +48,6 @@ using DelimitedFiles
 @test_throws ArgumentError mode(Any[])
 @test_throws ArgumentError modes(Any[])
 
-
-###### quantile & friends
-
-@test quantile(1:5, 2) ≈ [1, 3, 5]
-@test quantile(1:5, 4) ≈ [1:5;]
-@test quantile(skipmissing([missing, 2, 5, missing]), 2) ≈ [2.0, 3.5, 5.0]
-
-@test percentile([1:5;], 25)           ≈  2.0
-@test percentile([1:5;], [25, 50, 75]) ≈ [2.0, 3.0, 4.0]
-@test percentile(skipmissing([missing, 2, 5, missing]), 25) ≈ 2.75
-@test percentile(skipmissing([missing, 2, 5, missing]), [25, 50, 75]) ≈ [2.75, 3.5, 4.25]
-
-
 ##### Dispersion
 
 @test span([3, 4, 5, 6, 2]) == (2:6)

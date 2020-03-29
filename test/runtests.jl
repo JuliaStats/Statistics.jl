@@ -509,6 +509,15 @@ end
     @test_throws ArgumentError quantile([1, NaN], 0.5)
     @test quantile(skipmissing([1, missing, 2]), 0.5) === 1.5
 
+    @test quantile(1:5, 2) ≈ [1, 3, 5]
+    @test quantile(1:5, 4) ≈ [1:5;]
+    @test quantile(skipmissing([missing, 2, 5, missing]), 2) ≈ [2.0, 3.5, 5.0]
+    
+    @test percentile([1:5;], 25)           ≈  2.0
+    @test percentile([1:5;], [25, 50, 75]) ≈ [2.0, 3.0, 4.0]
+    @test percentile(skipmissing([missing, 2, 5, missing]), 25) ≈ 2.75
+    @test percentile(skipmissing([missing, 2, 5, missing]), [25, 50, 75]) ≈ [2.75, 3.5, 4.25]
+
     # make sure that type inference works correctly in normal cases
     for T in [Int, BigInt, Float64, Float16, BigFloat, Rational{Int}, Rational{BigInt}]
         for S in [Float64, Float16, BigFloat, Rational{Int}, Rational{BigInt}]
@@ -724,3 +733,4 @@ end
 include("weights.jl")
 include("wsum.jl")
 include("moments.jl")
+include("scalarstats.jl")
