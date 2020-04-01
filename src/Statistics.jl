@@ -163,8 +163,6 @@ julia> mean(A, dims=2)
 """
 mean(A::AbstractArray; dims=:) = _mean(identity, A, dims)
 
-_mean(A::AbstractArray, ::Colon) = _mean(identity, A)
-
 _mean_promote(x::T, y::S) where {T,S} = convert(promote_type(T, S), y)
 
 function _mean(f, A::AbstractArray, dims=:)
