@@ -161,9 +161,7 @@ julia> mean(A, dims=2)
  3.5
 ```
 """
-#mean(A::AbstractArray; dims=:) = _mean(identity, A, dims)
-mean(A::AbstractArray; dims=:) = _mean(A, dims)
-_mean(A::AbstractArray{T}, region) where {T} = mean!(Base.reducedim_init(t -> t/2, +, A, region), A)
+mean(A::AbstractArray; dims=:) = _mean(identity, A, dims)
 
 _mean(A::AbstractArray, ::Colon) = _mean(identity, A)
 
@@ -172,7 +170,7 @@ _mean_promote(x::T, y::S) where {T,S} = convert(promote_type(T, S), y)
 function _mean(f, A::AbstractArray, dims=:)
     isempty(A) && return sum(f, A, dims=dims)/0
     if dims == Colon()
-        n =length(A)
+        n = length(A)
     else
         n = mapreduce(i -> size(A, i), *, unique(dims); init=1)
     end
