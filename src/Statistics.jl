@@ -167,12 +167,12 @@ _mean_promote(x::T, y::S) where {T,S} = convert(promote_type(T, S), y)
 
 function _mean(f, A::AbstractArray, dims=:)
     isempty(A) && return sum(f, A, dims=dims)/0
-    if dims == Colon()
+    if dims === (:)
         n = length(A)
     else
         n = mapreduce(i -> size(A, i), *, unique(dims); init=1)
     end
-    x1 = f(first(A)) / n
+    x1 = f(first(A)) / 1
     return sum(x -> _mean_promote(x1, f(x)), A, dims=dims) / n
 end
 
