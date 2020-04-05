@@ -235,6 +235,11 @@ centralize_sumabs2(A::AbstractArray, m, ifirst::Int, ilast::Int) =
 function centralize_sumabs2!(R::AbstractArray{S}, A::AbstractArray, means::AbstractArray) where S
     # following the implementation of _mapreducedim! at base/reducedim.jl
     lsiz = Base.check_reducedims(R,A)
+    for i in 1:ndims(R)
+        if axes(means, i) != axes(R, i)
+            throw(DimensionMismatch("dimension $i of `mean` should have indices $(axes(R, i)), but got $(axes(means, i))"))
+        end
+    end
     isempty(R) || fill!(R, zero(S))
     isempty(A) && return R
 
@@ -283,9 +288,9 @@ function varm!(R::AbstractArray{S}, A::AbstractArray, m::AbstractArray; correcte
 end
 
 """
-    varm(itr, m; dims, corrected::Bool=true)
+    varm(itr, mean; dims, corrected::Bool=true)
 
-Compute the sample variance of collection `itr`, with known mean(s) `m`.
+Compute the sample variance of collection `itr`, with known mean(s) `mean`.
 
 The algorithm returns an estimator of the generative distribution's variance
 under the assumption that each entry of `itr` is an IID drawn from that generative
@@ -296,7 +301,8 @@ whereas the sum is scaled with `n` if `corrected` is
 `false` with `n` the number of elements in `itr`.
 
 If `itr` is an `AbstractArray`, `dims` can be provided to compute the variance
-over dimensions, and `m` may contain means for each dimension of `itr`.
+over dimensions. In that case, `mean` must be an array with the same shape as
+`mean(itr, dims=dims)` (additional trailing singleton dimensions are allowed).
 
 !!! note
     If array contains `NaN` or [`missing`](@ref) values, the result is also
@@ -319,7 +325,7 @@ end
 
 
 """
-    var(itr; dims, corrected::Bool=true, mean=nothing)
+    var(itr; corrected::Bool=true, mean=nothing[, dims])
 
 Compute the sample variance of collection `itr`.
 
@@ -331,10 +337,12 @@ If `corrected` is `true`, then the sum is scaled with `n-1`,
 whereas the sum is scaled with `n` if `corrected` is
 `false` with `n` the number of elements in `itr`.
 
-A pre-computed `mean` may be provided.
-
 If `itr` is an `AbstractArray`, `dims` can be provided to compute the variance
-over dimensions, and `mean` may contain means for each dimension of `itr`.
+over dimensions.
+
+A pre-computed `mean` may be provided. When `dims` is specified, `mean` must be
+an array with the same shape as `mean(itr, dims=dims)` (additional trailing
+singleton dimensions are allowed).
 
 !!! note
     If array contains `NaN` or [`missing`](@ref) values, the result is also
@@ -404,10 +412,12 @@ If `corrected` is `true`, then the sum is scaled with `n-1`,
 whereas the sum is scaled with `n` if `corrected` is
 `false` with `n` the number of elements in `itr`.
 
-A pre-computed `mean` may be provided.
-
 If `itr` is an `AbstractArray`, `dims` can be provided to compute the standard deviation
 over dimensions, and `means` may contain means for each dimension of `itr`.
+
+A pre-computed `mean` may be provided. When `dims` is specified, `mean` must be
+an array with the same shape as `mean(itr, dims=dims)` (additional trailing
+singleton dimensions are allowed).
 
 !!! note
     If array contains `NaN` or [`missing`](@ref) values, the result is also
@@ -433,9 +443,9 @@ std(iterable; corrected::Bool=true, mean=nothing) =
     sqrt(var(iterable, corrected=corrected, mean=mean))
 
 """
-    stdm(itr, m; corrected::Bool=true)
+    stdm(itr, mean; corrected::Bool=true)
 
-Compute the sample standard deviation of collection `itr`, with known mean(s) `m`.
+Compute the sample standard deviation of collection `itr`, with known mean(s) `mean`.
 
 The algorithm returns an estimator of the generative distribution's standard
 deviation under the assumption that each entry of `itr` is an IID drawn from that generative
@@ -445,10 +455,9 @@ If `corrected` is `true`, then the sum is scaled with `n-1`,
 whereas the sum is scaled with `n` if `corrected` is
 `false` with `n` the number of elements in `itr`.
 
-A pre-computed `mean` may be provided.
-
 If `itr` is an `AbstractArray`, `dims` can be provided to compute the standard deviation
-over dimensions, and `m` may contain means for each dimension of `itr`.
+over dimensions. In that case, `mean` must be an array with the same shape as
+`mean(itr, dims=dims)` (additional trailing singleton dimensions are allowed).
 
 !!! note
     If array contains `NaN` or [`missing`](@ref) values, the result is also
@@ -1053,7 +1062,11 @@ end
 function centralize_sumabs2!(R::AbstractArray{S}, A::SparseMatrixCSC{Tv,Ti}, means::AbstractArray) where {S,Tv,Ti}
     require_one_based_indexing(R, A, means)
     lsiz = Base.check_reducedims(R,A)
-    size(means) == size(R) || error("size of means must match size of R")
+    for i in 1:ndims(R)
+        if axes(means, i) != axes(R, i)
+            throw(DimensionMismatch("dimension $i of `mean` should have indices $(axes(R, i)), but got $(axes(means, i))"))
+        end
+    end
     isempty(R) || fill!(R, zero(S))
     isempty(A) && return R
 

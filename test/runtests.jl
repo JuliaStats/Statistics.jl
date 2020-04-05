@@ -294,6 +294,21 @@ end
     @test var(Int[]) isa Float64
     @test isequal(var(skipmissing(Int[])), NaN)
     @test var(skipmissing(Int[])) isa Float64
+
+    # over dimensions with provided means
+    for x in ([1 2 3; 4 5 6], sparse([1 2 3; 4 5 6]))
+        @test var(x, dims=1, mean=mean(x, dims=1)) == var(x, dims=1)
+        @test var(x, dims=1, mean=reshape(mean(x, dims=1), 1, :, 1)) == var(x, dims=1)
+        @test var(x, dims=2, mean=mean(x, dims=2)) == var(x, dims=2)
+        @test var(x, dims=2, mean=reshape(mean(x, dims=2), :)) == var(x, dims=2)
+        @test var(x, dims=2, mean=reshape(mean(x, dims=2), :, 1, 1)) == var(x, dims=2)
+        @test_throws DimensionMismatch var(x, dims=1, mean=reshape(mean(x, dims=1), :))
+        @test_throws DimensionMismatch var(x, dims=1, mean=reshape(mean(x, dims=1), :, 1))
+        @test_throws DimensionMismatch var(x, dims=2, mean=reshape(mean(x, dims=2), 1, :))
+        @test_throws DimensionMismatch var(x, dims=1, mean=reshape(mean(x, dims=1), 1, 1, :))
+        @test_throws DimensionMismatch var(x, dims=2, mean=reshape(mean(x, dims=2), 1, :, 1))
+        @test_throws DimensionMismatch var(x, dims=2, mean=reshape(mean(x, dims=2), 1, 1, :))
+    end
 end
 
 function safe_cov(x, y, zm::Bool, cr::Bool)
