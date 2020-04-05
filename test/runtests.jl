@@ -302,12 +302,13 @@ end
         @test var(x, dims=2, mean=mean(x, dims=2)) == var(x, dims=2)
         @test var(x, dims=2, mean=reshape(mean(x, dims=2), :)) == var(x, dims=2)
         @test var(x, dims=2, mean=reshape(mean(x, dims=2), :, 1, 1)) == var(x, dims=2)
-        @test_throws DimensionMismatch var(x, dims=1, mean=reshape(mean(x, dims=1), :))
-        @test_throws DimensionMismatch var(x, dims=1, mean=reshape(mean(x, dims=1), :, 1))
-        @test_throws DimensionMismatch var(x, dims=2, mean=reshape(mean(x, dims=2), 1, :))
-        @test_throws DimensionMismatch var(x, dims=1, mean=reshape(mean(x, dims=1), 1, 1, :))
-        @test_throws DimensionMismatch var(x, dims=2, mean=reshape(mean(x, dims=2), 1, :, 1))
-        @test_throws DimensionMismatch var(x, dims=2, mean=reshape(mean(x, dims=2), 1, 1, :))
+        @test_throws DimensionMismatch var(x, dims=1, mean=ones(size(x, 1)))
+        @test_throws DimensionMismatch var(x, dims=1, mean=ones(size(x, 1), 1))
+        @test_throws DimensionMismatch var(x, dims=2, mean=ones(1, size(x, 2)))
+        @test_throws DimensionMismatch var(x, dims=1, mean=ones(1, 1, size(x, 2)))
+        @test_throws DimensionMismatch var(x, dims=2, mean=ones(1, size(x, 2), 1))
+        @test_throws DimensionMismatch var(x, dims=2, mean=ones(size(x, 1), 1, 5))
+        @test_throws DimensionMismatch var(x, dims=1, mean=ones(1, size(x, 2), 5))
     end
 end
 

@@ -235,7 +235,7 @@ centralize_sumabs2(A::AbstractArray, m, ifirst::Int, ilast::Int) =
 function centralize_sumabs2!(R::AbstractArray{S}, A::AbstractArray, means::AbstractArray) where S
     # following the implementation of _mapreducedim! at base/reducedim.jl
     lsiz = Base.check_reducedims(R,A)
-    for i in 1:ndims(R)
+    for i in 1:max(ndims(R), ndims(means))
         if axes(means, i) != axes(R, i)
             throw(DimensionMismatch("dimension $i of `mean` should have indices $(axes(R, i)), but got $(axes(means, i))"))
         end
@@ -1062,7 +1062,7 @@ end
 function centralize_sumabs2!(R::AbstractArray{S}, A::SparseMatrixCSC{Tv,Ti}, means::AbstractArray) where {S,Tv,Ti}
     require_one_based_indexing(R, A, means)
     lsiz = Base.check_reducedims(R,A)
-    for i in 1:ndims(R)
+    for i in 1:max(ndims(R), ndims(means))
         if axes(means, i) != axes(R, i)
             throw(DimensionMismatch("dimension $i of `mean` should have indices $(axes(R, i)), but got $(axes(means, i))"))
         end
