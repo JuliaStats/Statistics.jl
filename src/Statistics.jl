@@ -613,7 +613,7 @@ covm(x::AbstractVecOrMat, xmean, y::AbstractVecOrMat, ymean, vardim::Int=1; corr
 """
     cov(x::Any; corrected::Bool=true)
 
-Compute the variance of the vector `x`. If `corrected` is `true` (the default) then the sum
+Compute the variance of the iterator `x`. If `corrected` is `true` (the default) then the sum
 is scaled with `n-1`, whereas the sum is scaled with `n` if `corrected` is `false` where `n`
 is the number of elements in the iterator, which is not necessarily known. 
 """
@@ -624,7 +624,8 @@ end
 """
     cov(x::AbstractVector; corrected::Bool=true)
 
-Compute the variance of the vector `x`. If `corrected` is `true` (the default) then the sum
+Compute the variance of the vector `x`. If `x` is a vector of vectors, returns the estimated
+variance-covariance matrix of elements in `x`. If `corrected` is `true` (the default) then the sum
 is scaled with `n-1`, whereas the sum is scaled with `n` if `corrected` is `false` where `n = length(x)`.
 """
 cov(x::AbstractVector; corrected::Bool=true) = covm(x, mean(x); corrected=corrected)
@@ -645,8 +646,9 @@ cov(X::AbstractMatrix; dims::Int=1, corrected::Bool=true) =
 Compute the covariance between the iterators `x` and `y`. If `corrected` is `true` (the
 default), computes ``\\frac{1}{n-1}\\sum_{i=1}^n (x_i-\\bar x) (y_i-\\bar y)^*`` where
 ``*`` denotes the complex conjugate and `n` is the number of elements in `x` which must equal 
-the number of elements in `y`. If `corrected` is `false`, computes ``\\frac{1}{n}\\sum_{i=1}^n 
-(x_i-\\bar x) (y_i-\\bar y)^*``.
+the number of elements in `y`. If `x` and `y` are both vectors of vectors, computes the analagous
+estimator for the covariance matrix for `xi` and `yi. If `corrected` is `false`, computes 
+``\\frac{1}{n}\\sum_{i=1}^n (x_i-\\bar x) (y_i-\\bar y)^*``.
 """
 cov(x::Any, y::Any; corrected::Bool=true) =
     covm(x, mean(x), y, mean(y); corrected=corrected)
