@@ -487,7 +487,6 @@ _conjmul(x, y) = x * _conj(y)'
 
 # core functions
 
-unscaled_covzm(x::AbstractVector{<:Number})    = sum(_abs2, x)
 unscaled_covzm(x::AbstractVector)              = sum(_abs2, x)
 unscaled_covzm(x::AbstractMatrix, vardim::Int) = (vardim == 1 ? _conj(x'x) : x * x')
 
@@ -503,13 +502,13 @@ unscaled_covzm(x::AbstractMatrix, y::AbstractMatrix, vardim::Int) =
 function covzm(itr::Any; corrected::Bool=true)
     y = iterate(itr)
     if y === nothing
-        return Base.mapreduce_empty_iter(_abs2, Base.add_sum, itr,
-                                         Base.IteratorEltype(itr)) / 0
+        v = _abs2(zero(eltype(itr)))
+        return (v + v) / 0
     end
     count = 1
     value, state = y
     f_value = _abs2(value)
-    total = Base.reduce_first(Base.add_sum, f_value)
+    total = Base.reduce_first(+, f_value)
     y = iterate(itr, state)
     while y !== nothing 
         value, state = y
@@ -532,23 +531,21 @@ function covzm(x::Any, y::Any; corrected::Bool=true)
     z = zip(x, y)
     z_itr = iterate(z)
     if z_itr === nothing
-        # TODO: Understand how to improve this error.
-        #return Base.mapreduce_empty_iter(t -> _conj(t[2])*t[1]', Base.add_sum, itr,
-        #                                 Base.IteratorEltype(x)) / 0
-        return NaN
+        v = _conjmul(zero(eltype(x)), zero(eltype(y)))
+        return (v + v) / 0
     end
     count = 1
-    value, state = z_itr
-    f_value = _conjmul(value[1], value[2])
-    total = Base.reduce_first(Base.add_sum, f_value)
+    (xi, yi), state = z_itr
+    f_value = _conjmul(xi, yi)
+    total = Base.reduce_first(+, f_value)
     z_itr = iterate(z, state)
     while z_itr !== nothing 
-        value, state = z_itr
-        total += _conjmul(value[1], value[2])
+        (xi, yi), state = z_itr
+        total += _conjmul(xi, yi)
         count += 1
         z_itr = iterate(z, state)
     end
-    return total ./ (count - Int(corrected))
+    return total / (count - Int(corrected))
 end
 covzm(x::AbstractVector, y::AbstractVector; corrected::Bool=true) =
     unscaled_covzm(x, y) / (length(x) - Int(corrected))
@@ -563,24 +560,21 @@ end
 
 # covm (with provided mean)
 ## Use map(t -> t - xmean, x) instead of x .- xmean to allow for Vector{Vector}
-## which can't be handled by broadcastz
+## which can't be handled by broadcast
 function covm(itr::Any, itrmean; corrected::Bool=true)
     y = iterate(itr)
-    f = let itrmean = itrmean
-        x -> _abs2(x-itrmean)
-    end
     if y === nothing
-        return Base.mapreduce_empty_iter(f, Base.add_sum, itr,
-                                         Base.IteratorEltype(itr)) / 0
+        v = _abs2(zero(eltype(itr - itrmean)))
+        return (v + v) / 0
     end
     count = 1
-    value, state = y
-    f_value = f(value)
-    total = Base.reduce_first(Base.add_sum, f_value)
+    itri, state = y
+    first_value = _abs2(itri - itrmean)
+    total = Base.reduce_first(+, first_value)
     y = iterate(itr, state)
     while y !== nothing 
-        value, state = y
-        total += f(value)
+        itri, state = y
+        total += _abs2(itri - itrmean)
         count += 1
         y = iterate(itr, state)
     end
@@ -594,26 +588,21 @@ function covm(x::Any, xmean, y::Any, ymean; corrected::Bool=true)
     z = zip(x, y)
     z_itr = iterate(z)
     if z_itr === nothing
-        # TODO: Understand how to improve this error.
-        #return Base.mapreduce_empty_iter(t -> _conj(t[2])*t[1]', Base.add_sum, itr,
-        #                                 Base.IteratorEltype(x)) / 0
-        return NaN
-    end
-    f = let xmean = xmean, ymean = ymean
-        t -> conj(t[2]-ymean)*(t[1]-xmean)'
+        v = _conjmul(zero(eltype(x)), zero(eltype(y)))
+        return (v + v) / 0
     end
     count = 1
-    value, state = z_itr
-    f_value = f(value)
-    total = Base.reduce_first(Base.add_sum, f_value)
+    (xi, yi), state = z_itr
+    first_value = _conjmul(xi-xmean, yi-ymean)
+    total = Base.reduce_first(+, first_value)
     z_itr = iterate(z, state)
     while z_itr !== nothing 
-        value, state = z_itr
-        total += f(value)
+        (xi, yi), state = z_itr
+        total += _conjmul(xi-xmean, yi-ymean)
         count += 1
         z_itr = iterate(z, state)
     end
-    return total ./ (count - Int(corrected))
+    return total / (count - Int(corrected))
 end
 covm(x::AbstractVector, xmean, y::AbstractVector, ymean; corrected::Bool=true) =
     covzm(map(t -> t - xmean, x), map(t -> t - ymean, y); corrected=corrected)

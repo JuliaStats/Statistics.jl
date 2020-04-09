@@ -314,7 +314,10 @@ Y = [6.0  2.0;
      5.0  8.0;
      3.0  4.0;
      2.0  3.0]
+X_vec = [[X[i,1], X[i,2]] for i in 1:size(X, 1)]
 X_gen = ([X[i,1], X[i,2]] for i in 1:size(X, 1))
+Y_vec = [[Y[i,1], Y[i,2]] for i in 1:size(Y, 1)]
+Y_gen = ([Y[i,1], Y[i,2]] for i in 1:size(Y, 1))
 
 @testset "covariance" begin
     for vd in [1, 2], zm in [true, false], cr in [true, false]
@@ -351,7 +354,7 @@ X_gen = ([X[i,1], X[i,2]] for i in 1:size(X, 1))
         @test c ≈ Cxx[1,1]
         @inferred cov(x1, corrected=cr)
 
-        @test cov(X) == cov(X_gen) == Statistics.covm(X, mean(X, dims=1))
+        @test cov(X) == cov(X_vec) == cov(X_gen) == Statistics.covm(X, mean(X, dims=1))
         C = zm ? Statistics.covm(X, 0, vd, corrected=cr) :
                  cov(X, dims=vd, corrected=cr)
         @test size(C) == (k, k)
@@ -383,7 +386,10 @@ X_gen = ([X[i,1], X[i,2]] for i in 1:size(X, 1))
         @test vec(C) ≈ Cxy[:,1]
         @inferred cov(X, y1, dims=vd, corrected=cr)
 
-        @test cov(X, Y) == Statistics.covm(X, mean(X, dims=1), Y, mean(Y, dims=1))
+        # Separate tests for equality and approximation
+        C = cov(X, Y)
+        @test C == Statistics.covm(X, mean(X, dims=1), Y, mean(Y, dims=1))
+        @test C ≈ cov(X_vec, Y_vec) ≈ cov(X_gen, Y_gen) 
         C = zm ? Statistics.covm(X, 0, Y, 0, vd, corrected=cr) :
                  cov(X, Y, dims=vd, corrected=cr)
         @test size(C) == (k, k)
@@ -649,12 +655,15 @@ end
 @testset "cov and cor of complex arrays (issue #21093)" begin
     x = [2.7 - 3.3im, 0.9 + 5.4im, 0.1 + 0.2im, -1.7 - 5.8im, 1.1 + 1.9im]
     y = [-1.7 - 1.6im, -0.2 + 6.5im, 0.8 - 10.0im, 9.1 - 3.4im, 2.7 - 5.5im]
-    @test cov(x, y) ≈ 4.8365 - 12.119im
-    @test cov(y, x) ≈ 4.8365 + 12.119im
+    x_gen = (i for i in x)
+    y_gen = (i for i in y)
+    xy_vec = [[x[i], y[i]] for i in 1:length(x)]
+    @test cov(x, y) ≈ cov(x_gen, y_gen) ≈4.8365 - 12.119im
+    @test cov(y, x) ≈ cov(y_gen, x_gen) ≈ 4.8365 + 12.119im
     @test cov(x, reshape(y, :, 1)) ≈ reshape([4.8365 - 12.119im], 1, 1)
     @test cov(reshape(x, :, 1), y) ≈ reshape([4.8365 - 12.119im], 1, 1)
     @test cov(reshape(x, :, 1), reshape(y, :, 1)) ≈ reshape([4.8365 - 12.119im], 1, 1)
-    @test cov([x y]) ≈ [21.779 4.8365-12.119im;
+    @test cov([x y]) ≈ cov(xy_vec) ≈ cov((i for i in xy_vec)) ≈ [21.779 4.8365-12.119im;
                         4.8365+12.119im 54.548]
     @test cor(x, y) ≈ 0.14032104449218274 - 0.35160772008699703im
     @test cor(y, x) ≈ 0.14032104449218274 + 0.35160772008699703im
