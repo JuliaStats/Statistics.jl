@@ -482,13 +482,16 @@ _vmean(x::AbstractMatrix, vardim::Int) = mean(x, dims=vardim)
 _abs2(x::Number) = abs2(x)
 _abs2(x)       = x*x'
 
+_conjmul(x::Number, y::Number) = x * conj(y)
+_conjmul(x, y) = x * _conj(y)'  
+
 # core functions
 
 unscaled_covzm(x::AbstractVector{<:Number})    = sum(_abs2, x)
 unscaled_covzm(x::AbstractVector)              = sum(_abs2, x)
 unscaled_covzm(x::AbstractMatrix, vardim::Int) = (vardim == 1 ? _conj(x'x) : x * x')
 
-unscaled_covzm(x::AbstractVector, y::AbstractVector) = sum(conj(y[i])*x[i] for i in eachindex(y, x))
+unscaled_covzm(x::AbstractVector, y::AbstractVector) = sum(_conjmul(x[i], y[i]) for i in eachindex(y, x))
 unscaled_covzm(x::AbstractVector, y::AbstractMatrix, vardim::Int) =
     (vardim == 1 ? *(transpose(x), _conj(y)) : *(transpose(x), transpose(_conj(y))))
 unscaled_covzm(x::AbstractMatrix, y::AbstractVector, vardim::Int) =
@@ -536,12 +539,12 @@ function covzm(x::Any, y::Any; corrected::Bool=true)
     end
     count = 1
     value, state = z_itr
-    f_value = conj(value[2])*value[1]'
+    f_value = _conjmul(value[1], value[2])
     total = Base.reduce_first(Base.add_sum, f_value)
     z_itr = iterate(z, state)
     while z_itr !== nothing 
         value, state = z_itr
-        total += conj(value[2])*value[1]'
+        total += _conjmul(value[1], value[2])
         count += 1
         z_itr = iterate(z, state)
     end
