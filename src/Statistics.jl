@@ -67,7 +67,7 @@ function mean(f, itr)
     count = 1
     value, state = y
     f_value = f(value)/1
-    total = Base.reduce_first(Base.add_sum, f_value)
+    total = Base.reduce_first(+, f_value)
     y = iterate(itr, state)
     while y !== nothing
         value, state = y
