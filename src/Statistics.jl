@@ -1,4 +1,5 @@
 # This file is a part of Julia. License is MIT: https://julialang.org/license
+
 """
     Statistics
 
@@ -14,7 +15,9 @@ using Printf: @printf
 
 export cor, cov, std, stdm, var, varm, mean!, mean,
     median!, median, middle, quantile!, quantile,
+    # moments.jl
     skewness, kurtosis,
+    # weights.jl
     AbstractWeights, Weights, AnalyticWeights, FrequencyWeights, ProbabilityWeights,
     weights, aweights, fweights, pweights,
     # scalarstats.jl
