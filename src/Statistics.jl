@@ -61,7 +61,7 @@ julia> mean([√1, √2, √3])
 function mean(f, itr)
     y = iterate(itr)
     if y === nothing
-        return Base.mapreduce_empty_iter(f, Base.add_sum, itr,
+        return Base.mapreduce_empty_iter(f, +, itr,
                                          Base.IteratorEltype(itr)) / 0
     end
     count = 1
