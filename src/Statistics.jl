@@ -175,9 +175,9 @@ function _mean(f, A::AbstractArray, dims=:)
     x1 = f(first(A)) / 1
     result = sum(x -> _mean_promote(x1, f(x)), A, dims=dims)
     if dims === (:)
-        result /= n
+        return result / n
     else
-        result ./= n
+        return result ./= n
     end
 end
 

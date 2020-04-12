@@ -144,9 +144,9 @@ end
     @test (@inferred mean(Int[])) === 0/0
     @test (@inferred mean(Float32[])) === 0.f0/0    
     @test (@inferred mean(Float64[])) === 0/0
-    @test (@inferred mean(filter(x -> true, Int[]))) === 0/0
-    @test (@inferred mean(filter(x -> true, Float32[]))) === 0.f0/0
-    @test (@inferred mean(filter(x -> true, Float64[]))) === 0/0
+    @test (@inferred mean(Iterators.filter(x -> true, Int[]))) === 0/0
+    @test (@inferred mean(Iterators.filter(x -> true, Float32[]))) === 0.f0/0
+    @test (@inferred mean(Iterators.filter(x -> true, Float64[]))) === 0/0
 end
 
 @testset "mean/median for ranges" begin
