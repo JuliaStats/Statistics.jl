@@ -173,7 +173,12 @@ function _mean(f, A::AbstractArray, dims=:)
         n = mapreduce(i -> size(A, i), *, unique(dims); init=1)
     end
     x1 = f(first(A)) / 1
-    return sum(x -> _mean_promote(x1, f(x)), A, dims=dims) / n
+    result = sum(x -> _mean_promote(x1, f(x)), A, dims=dims)
+    if dims === (:)
+        result /= n
+    else
+        result ./= n
+    end
 end
 
 function mean(r::AbstractRange{<:Real})
