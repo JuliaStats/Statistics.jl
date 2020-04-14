@@ -499,25 +499,7 @@ unscaled_covzm(x::AbstractMatrix, y::AbstractMatrix, vardim::Int) =
     (vardim == 1 ? *(transpose(x), _conj(y)) : *(x, adjoint(y)))
 
 # covzm (with centered data)
-function covzm(itr::Any; corrected::Bool=true)
-    y = iterate(itr)
-    if y === nothing
-        v = _abs2(zero(eltype(itr)))
-        return (v + v) / 0
-    end
-    count = 1
-    value, state = y
-    f_value = _abs2(value)
-    total = Base.reduce_first(+, f_value)
-    y = iterate(itr, state)
-    while y !== nothing 
-        value, state = y
-        total += _abs2(value)
-        count += 1
-        y = iterate(itr, state)
-    end
-    return total / (count - Int(corrected))
-end
+covzm(itr::Any; corrected::Bool=true) = covm(itr, 0; corrected = corrected)
 covzm(x::AbstractVector; corrected::Bool=true) = unscaled_covzm(x) / (length(x) - Int(corrected))
 function covzm(x::AbstractMatrix, vardim::Int=1; corrected::Bool=true)
     C = unscaled_covzm(x, vardim)
@@ -527,26 +509,7 @@ function covzm(x::AbstractMatrix, vardim::Int=1; corrected::Bool=true)
     A .= A .* b
     return A
 end
-function covzm(x::Any, y::Any; corrected::Bool=true)
-    z = zip(x, y)
-    z_itr = iterate(z)
-    if z_itr === nothing
-        v = _conjmul(zero(eltype(x)), zero(eltype(y)))
-        return (v + v) / 0
-    end
-    count = 1
-    (xi, yi), state = z_itr
-    f_value = _conjmul(xi, yi)
-    total = Base.reduce_first(+, f_value)
-    z_itr = iterate(z, state)
-    while z_itr !== nothing 
-        (xi, yi), state = z_itr
-        total += _conjmul(xi, yi)
-        count += 1
-        z_itr = iterate(z, state)
-    end
-    return total / (count - Int(corrected))
-end
+covzm(x::Any, y::Any; corrected::Bool=true) = covm(x, 0, y, 0; corrected = corrected)
 covzm(x::AbstractVector, y::AbstractVector; corrected::Bool=true) =
     unscaled_covzm(x, y) / (length(x) - Int(corrected))
 function covzm(x::AbstractVecOrMat, y::AbstractVecOrMat, vardim::Int=1; corrected::Bool=true)
