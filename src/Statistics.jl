@@ -61,17 +61,17 @@ julia> mean([√1, √2, √3])
 function mean(f, itr)
     y = iterate(itr)
     if y === nothing
-        return Base.mapreduce_empty_iter(f, Base.add_sum, itr,
+        return Base.mapreduce_empty_iter(f, +, itr,
                                          Base.IteratorEltype(itr)) / 0
     end
     count = 1
     value, state = y
-    f_value = f(value)
-    total = Base.reduce_first(Base.add_sum, f_value)
+    f_value = f(value)/1
+    total = Base.reduce_first(+, f_value)
     y = iterate(itr, state)
     while y !== nothing
         value, state = y
-        total += f(value)
+        total += _mean_promote(total, f(value))
         count += 1
         y = iterate(itr, state)
     end
@@ -102,9 +102,6 @@ julia> mean(√, [1 2 3; 4 5 6], dims=2)
 ```
 """
 mean(f, A::AbstractArray; dims=:) = _mean(f, A, dims)
-
-_mean(f, A::AbstractArray, ::Colon) = sum(f, A) / length(A)
-_mean(f, A::AbstractArray, dims) = sum(f, A, dims=dims) / mapreduce(i -> size(A, i), *, unique(dims); init=1)
 
 """
     mean!(r, v)
@@ -164,10 +161,25 @@ julia> mean(A, dims=2)
  3.5
 ```
 """
-mean(A::AbstractArray; dims=:) = _mean(A, dims)
+mean(A::AbstractArray; dims=:) = _mean(identity, A, dims)
 
-_mean(A::AbstractArray{T}, region) where {T} = mean!(Base.reducedim_init(t -> t/2, +, A, region), A)
-_mean(A::AbstractArray, ::Colon) = sum(A) / length(A)
+_mean_promote(x::T, y::S) where {T,S} = convert(promote_type(T, S), y)
+
+function _mean(f, A::AbstractArray, dims=:)
+    isempty(A) && return sum(f, A, dims=dims)/0
+    if dims === (:)
+        n = length(A)
+    else
+        n = mapreduce(i -> size(A, i), *, unique(dims); init=1)
+    end
+    x1 = f(first(A)) / 1
+    result = sum(x -> _mean_promote(x1, f(x)), A, dims=dims)
+    if dims === (:)
+        return result / n
+    else
+        return result ./= n
+    end
+end
 
 function mean(r::AbstractRange{<:Real})
     isempty(r) && return oftype((first(r) + last(r)) / 2, NaN)

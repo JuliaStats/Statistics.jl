@@ -130,6 +130,23 @@ end
         @test mean(identity, x) == mean(identity, g) == typemax(T)
         @test mean(x, dims=2) == [typemax(T)]'
     end
+    # Check that mean avoids integer overflow (#22)
+    let x = fill(typemax(Int), 10), a = tuple(x...)
+        @test (mean(x) == mean(x, dims=1)[] == mean(float, x)
+               == mean(a) == mean(v for v in x)  == mean(v for v in a)
+               ≈ float(typemax(Int)))
+    end
+    let x = rand(10000)  # mean should use sum's accurate pairwise algorithm
+        @test mean(x) == sum(x) / length(x)
+    end
+    @test mean(Number[1, 1.5, 2+3im]) === 1.5+1im # mixed-type array
+    @test mean(v for v in Number[1, 1.5, 2+3im]) === 1.5+1im
+    @test (@inferred mean(Int[])) === 0/0
+    @test (@inferred mean(Float32[])) === 0.f0/0    
+    @test (@inferred mean(Float64[])) === 0/0
+    @test (@inferred mean(Iterators.filter(x -> true, Int[]))) === 0/0
+    @test (@inferred mean(Iterators.filter(x -> true, Float32[]))) === 0.f0/0
+    @test (@inferred mean(Iterators.filter(x -> true, Float64[]))) === 0/0
 end
 
 @testset "mean/median for ranges" begin
@@ -710,7 +727,7 @@ end
     x = Any[1, 2, 4, 10]
     y = Any[1, 2, 4, 10//1]
     @test var(x) === 16.25
-    @test var(y) === 65//4
+    @test var(y) === 16.25
     @test std(x) === sqrt(16.25)
     @test quantile(x, 0.5)  === 3.0
     @test quantile(x, 1//2) === 3//1
