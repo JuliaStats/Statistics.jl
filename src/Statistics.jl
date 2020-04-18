@@ -486,10 +486,11 @@ _conjmul(x::Number, y::Number) = x * conj(y)
 _conjmul(x, y) = x * _conj(y)'  
 
 # core functions
-
+unscaled_covzm(itr) = sum(_abs2, itr)
 unscaled_covzm(x::AbstractVector)              = sum(_abs2, x)
 unscaled_covzm(x::AbstractMatrix, vardim::Int) = (vardim == 1 ? _conj(x'x) : x * x')
 
+unscaled_covzm(x, y) = sum(t -> _conjmul(first(t), last(t)), zip(x, y))
 unscaled_covzm(x::AbstractVector, y::AbstractVector) = sum(_conjmul(x[i], y[i]) for i in eachindex(y, x))
 unscaled_covzm(x::AbstractVector, y::AbstractMatrix, vardim::Int) =
     (vardim == 1 ? *(transpose(x), _conj(y)) : *(transpose(x), transpose(_conj(y))))
@@ -499,7 +500,7 @@ unscaled_covzm(x::AbstractMatrix, y::AbstractMatrix, vardim::Int) =
     (vardim == 1 ? *(transpose(x), _conj(y)) : *(x, adjoint(y)))
 
 # covzm (with centered data)
-covzm(itr::Any; corrected::Bool=true) = covm(itr, 0; corrected = corrected)
+covzm(itr::Any; corrected::Bool=true) = covm(itr, zero(first(itr)); corrected = corrected)
 covzm(x::AbstractVector; corrected::Bool=true) = unscaled_covzm(x) / (length(x) - Int(corrected))
 function covzm(x::AbstractMatrix, vardim::Int=1; corrected::Bool=true)
     C = unscaled_covzm(x, vardim)
@@ -509,7 +510,7 @@ function covzm(x::AbstractMatrix, vardim::Int=1; corrected::Bool=true)
     A .= A .* b
     return A
 end
-covzm(x::Any, y::Any; corrected::Bool=true) = covm(x, 0, y, 0; corrected = corrected)
+covzm(x::Any, y::Any; corrected::Bool=true) = covm(x, zero(first(x)), y, zero(first(y)); corrected = corrected)
 covzm(x::AbstractVector, y::AbstractVector; corrected::Bool=true) =
     unscaled_covzm(x, y) / (length(x) - Int(corrected))
 function covzm(x::AbstractVecOrMat, y::AbstractVecOrMat, vardim::Int=1; corrected::Bool=true)
@@ -701,7 +702,20 @@ end
 
 # corzm (non-exported, with centered data)
 
-corzm(x::AbstractVector{T}) where {T} = one(real(T))
+function corzm(itr)
+    T = eltype(itr)
+    if T <: Number
+        return one(real(T))
+    else 
+        c = unscaled_covzm(itr)
+        return cov2cor!(c, collect(sqrt(c[i,i]) for i in 1:min(size(c)...)))
+    end
+end
+corzm(x::AbstractVector{T}) where {T<:Number} = one(real(T))
+function corzm(x::AbstractVector{T}) where {T}
+    c = unscaled_covzm(x)
+    return cov2cor!(c, collect(sqrt(c[i,i]) for i in 1:min(size(c)...)))
+end
 function corzm(x::AbstractMatrix, vardim::Int=1)
     c = unscaled_covzm(x, vardim)
     return cov2cor!(c, collect(sqrt(c[i,i]) for i in 1:min(size(c)...)))
@@ -714,8 +728,20 @@ corzm(x::AbstractMatrix, y::AbstractMatrix, vardim::Int=1) =
     cov2cor!(unscaled_covzm(x, y, vardim), sqrt!(sum(abs2, x, dims=vardim)), sqrt!(sum(abs2, y, dims=vardim)))
 
 # corm
-
-corm(x::AbstractVector{T}, xmean) where {T} = one(real(T))
+function corm(itr::Any, itrmean)
+    T = eltype(itr)
+    if T <: Number
+        return one(real(T))
+    else
+        c = sum(x -> _abs2(x - itrmean), itr)
+        return cov2cor!(c, collect(sqrt(c[i,i]) for i in 1:min(size(c)...)))
+    end
+end
+corm(x::AbstractVector{T}, xmean) where {T<:Number} = one(real(T))
+function corzm(x::AbstractVector{T}, xmean) where {T}
+    c = unscaled_covzm(x .- xmean)
+    return cov2cor!(c, collect(sqrt(c[i,i]) for i in 1:min(size(c)...)))
+end
 corm(x::AbstractMatrix, xmean, vardim::Int=1) = corzm(x .- xmean, vardim)
 function corm(x::AbstractVector, mx, y::AbstractVector, my)
     require_one_based_indexing(x, y)

@@ -439,17 +439,18 @@ end
         end
 
         c = zm ? Statistics.corm(x1, 0) : cor(x1)
+        c_gen  = zm ? Statistics.corm((xi for xi in x1), 0) : cor(xi for xi in x1)
         @test isa(c, Float64)
-        @test c ≈ Cxx[1,1]
+        @test c ≈ c_gen ≈ Cxx[1,1]
         @inferred cor(x1)
 
-        @test cor(X) == Statistics.corm(X, mean(X, dims=1))
+        @test cor(X) == cor(X_vec) == cor(X_gen) == Statistics.corm(X, mean(X, dims=1))
         C = zm ? Statistics.corm(X, 0, vd) : cor(X, dims=vd)
         @test size(C) == (k, k)
         @test C ≈ Cxx
         @inferred cor(X, dims=vd)
 
-        @test cor(x1, y1) == Statistics.corm(x1, mean(x1), y1, mean(y1))
+        @test cor(x1, y1) == cor((ix for ix in x1), (iy for iy in y1)) == Statistics.corm(x1, mean(x1), y1, mean(y1))
         c = zm ? Statistics.corm(x1, 0, y1, 0) : cor(x1, y1)
         @test isa(c, Float64)
         @test c ≈ Cxy[1,1]
@@ -471,7 +472,8 @@ end
         @test vec(C) ≈ Cxy[:,1]
         @inferred cor(X, y1, dims=vd)
 
-        @test cor(X, Y) == Statistics.corm(X, mean(X, dims=1), Y, mean(Y, dims=1))
+        @test cor(X, Y) == cor(X_vec, Y_vec) == cor(X_gen, Y_gen) == 
+            Statistics.corm(X, mean(X, dims=1), Y, mean(Y, dims=1))
         C = zm ? Statistics.corm(X, 0, Y, 0, vd) : cor(X, Y, dims=vd)
         @test size(C) == (k, k)
         @test C ≈ Cxy
