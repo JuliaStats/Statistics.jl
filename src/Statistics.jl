@@ -738,12 +738,36 @@ function corm(itr::Any, itrmean)
     end
 end
 corm(x::AbstractVector{T}, xmean) where {T<:Number} = one(real(T))
-function corzm(x::AbstractVector{T}, xmean) where {T}
+function corm(x::AbstractVector{T}, xmean) where {T}
     c = unscaled_covzm(x .- xmean)
     return cov2cor!(c, collect(sqrt(c[i,i]) for i in 1:min(size(c)...)))
 end
 corm(x::AbstractMatrix, xmean, vardim::Int=1) = corzm(x .- xmean, vardim)
-function corm(x::AbstractVector, mx, y::AbstractVector, my)
+
+function corm(x::Any, xm, y::Any, ym)
+    if first(x) isa Number
+
+    else
+        z = zip(x, y)
+        x1, y1 = first(z)
+        nx = length(x1)
+        c = zero(_conjmul(x1 - xm, y1 - ym))
+        sx = zero(abs2.(x1))
+        sy = zero(abs2.(y1))
+        for (xi, yi) in z
+            c += _conjmul(xi - xm, yi - ym)
+            for j in 1:nx
+                sx[j] += abs2(xi[j] - xm[j])
+                sy[j] += abs2(yi[j] - ym[j])
+            end
+        end
+        return cov2cor!(c, sqrt!(sx), sqrt!(sy))
+    end
+end
+function corm(x::AbstractVector, xm, y::AbstractVector, ym)
+    println("Not yet implemented")
+end
+function corm(x::AbstractVector{<:Number}, mx, y::AbstractVector{<:Number}, my)
     require_one_based_indexing(x, y)
     n = length(x)
     length(y) == n || throw(DimensionMismatch("inconsistent lengths"))
