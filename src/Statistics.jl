@@ -388,6 +388,8 @@ function sqrt!(A::AbstractArray)
     A
 end
 
+sqrt!(x::Number) = sqrt(x)
+
 stdm(A::AbstractArray, m; corrected::Bool=true) =
     sqrt.(varm(A, m; corrected=corrected))
 
@@ -729,43 +731,75 @@ corzm(x::AbstractMatrix, y::AbstractMatrix, vardim::Int=1) =
 
 # corm
 function corm(itr::Any, itrmean)
-    T = eltype(itr)
-    if T <: Number
-        return one(real(T))
+    if itrmean isa Number
+        return one(real(typeof(itrmean)))
     else
         c = sum(x -> _abs2(x - itrmean), itr)
         return cov2cor!(c, collect(sqrt(c[i,i]) for i in 1:min(size(c)...)))
     end
 end
-corm(x::AbstractVector{T}, xmean) where {T<:Number} = one(real(T))
-function corm(x::AbstractVector{T}, xmean) where {T}
-    c = unscaled_covzm(x .- xmean)
+corm(x::AbstractVector{<:Number}, xmean) = one(real(eltype(x)))
+function corm(x::AbstractVector, xmean)
+    c = sum(t -> _abs2(t - xmean), x)
     return cov2cor!(c, collect(sqrt(c[i,i]) for i in 1:min(size(c)...)))
 end
 corm(x::AbstractMatrix, xmean, vardim::Int=1) = corzm(x .- xmean, vardim)
-
+_abs2!(x::Number) = abs2(x)
+function _abs2!(x)
+    @inbounds @simd for i in eachindex(x)
+        x[i] = abs2(x[i])
+    end
+    return x
+end
 function corm(x::Any, xm, y::Any, ym)
-    if first(x) isa Number
-
+    z = zip(x, y)
+    z_itr = iterate(z)
+    if z_itr === nothing
+        ArgumentError("correlation only defined for non-empty iterators")
+    end
+    (xi, yi), state = z_itr   
+    zx = xi - xm
+    zy = yi - ym
+    c = Base.reduce_first(+, _conjmul(zx, zy))
+    sx = Base.reduce_first(+, _abs2!(zx))
+    sy = Base.reduce_first(+, _abs2!(zy)) 
+    z_itr = iterate(z, state)
+    while z_itr !== nothing
+        (xi, yi), state = z_itr
+        zx = xi - xm
+        zy = yi - ym
+        c += _conjmul(zx, zy)
+        sx += _abs2!(zx)
+        sy += _abs2!(zy)
+        z_itr = iterate(z, state)
+    end
+    if c isa Number
+        clampcor(c / max(sx, sy) / sqrt(min(sx, sy) / max(sx, sy)))
     else
-        z = zip(x, y)
-        x1, y1 = first(z)
-        nx = length(x1)
-        c = zero(_conjmul(x1 - xm, y1 - ym))
-        sx = zero(abs2.(x1))
-        sy = zero(abs2.(y1))
-        for (xi, yi) in z
-            c += _conjmul(xi - xm, yi - ym)
-            for j in 1:nx
-                sx[j] += abs2(xi[j] - xm[j])
-                sy[j] += abs2(yi[j] - ym[j])
-            end
-        end
-        return cov2cor!(c, sqrt!(sx), sqrt!(sy))
+        cov2cor!(c, sqrt!(sx), sqrt!(sy))
     end
 end
 function corm(x::AbstractVector, xm, y::AbstractVector, ym)
-    println("Not yet implemented")
+    require_one_based_indexing(x, y)
+    n = length(x)
+    length(y) == n || throw(DimensionMismatch("inconsistent lengths"))
+    n > 0 || throw(ArgumentError("correlation only defined for non-empty vectors"))
+
+    @inbounds begin
+        # Initialize the accumulators
+        xx = zero(sqrt!(abs2.(x[1])))
+        yy = zero(sqrt!(abs2.(y[1])))
+        xy = zero(_conjmul(x[1], y[1]))
+
+        @simd for i in eachindex(x, y)
+            xi = x[i] - xm
+            yi = y[i] - ym
+            xy += _conjmul(xi, yi)
+            xx += _abs2!(xi)
+            yy += _abs2!(yi)
+        end
+    end
+    return cov2cor!(xy, sqrt!(xx), sqrt!(yy))
 end
 function corm(x::AbstractVector{<:Number}, mx, y::AbstractVector{<:Number}, my)
     require_one_based_indexing(x, y)
@@ -782,9 +816,9 @@ function corm(x::AbstractVector{<:Number}, mx, y::AbstractVector{<:Number}, my)
         @simd for i in eachindex(x, y)
             xi = x[i] - mx
             yi = y[i] - my
-            xx += abs2(xi)
-            yy += abs2(yi)
-            xy += xi * yi'
+            xx += _abs2(xi)
+            yy += _abs2(yi)
+            xy += _conjmul(xi, yi)
         end
     end
     return clampcor(xy / max(xx, yy) / sqrt(min(xx, yy) / max(xx, yy)))
@@ -795,11 +829,33 @@ corm(x::AbstractVecOrMat, xmean, y::AbstractVecOrMat, ymean, vardim::Int=1) =
 
 # cor
 """
-    cor(x::AbstractVector)
+    cor(itr::Any)
+
+Return the number one if `itr` iterates through scalars. Returns the correlation between
+elements of the iterator otherwise. 
+"""
+function cor(itr::Any) 
+    t = first(itr)
+    if t isa Number 
+        return one(real(typeof(t)))
+    else 
+        return corm(itr, mean(itr))
+    end
+end
+
+"""
+    cor(x::AbstractVector{<:Number})
 
 Return the number one.
 """
-cor(x::AbstractVector) = one(real(eltype(x)))
+cor(x::AbstractVector{<:Number}) = one(real(eltype(x)))
+
+"""
+    cor(x::AbstractVector)
+
+Return the Pearson correlation matrix between elements in `x`.
+"""
+cor(x::AbstractVector) = corm(x, mean(x))
 
 """
     cor(X::AbstractMatrix; dims::Int=1)
@@ -807,6 +863,13 @@ cor(x::AbstractVector) = one(real(eltype(x)))
 Compute the Pearson correlation matrix of the matrix `X` along the dimension `dims`.
 """
 cor(X::AbstractMatrix; dims::Int=1) = corm(X, _vmean(X, dims), dims)
+
+"""
+    cor(x::Any, y::Any)
+
+Compute the Pearson correlation between the iterators `x` and `y`.
+"""
+cor(x::Any, y::Any) = corm(x, mean(x), y, mean(y))
 
 """
     cor(x::AbstractVector, y::AbstractVector)
