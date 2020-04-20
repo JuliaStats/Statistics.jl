@@ -502,7 +502,7 @@ unscaled_covzm(x::AbstractMatrix, y::AbstractMatrix, vardim::Int) =
     (vardim == 1 ? *(transpose(x), _conj(y)) : *(x, adjoint(y)))
 
 # covzm (with centered data)
-covzm(itr::Any; corrected::Bool=true) = covm(itr, zero(first(itr)); corrected = corrected)
+covzm(itr::Any; corrected::Bool=true) = covzm(collect(itr); corrected = corrected)
 covzm(x::AbstractVector; corrected::Bool=true) = unscaled_covzm(x) / (length(x) - Int(corrected))
 function covzm(x::AbstractMatrix, vardim::Int=1; corrected::Bool=true)
     C = unscaled_covzm(x, vardim)
@@ -512,7 +512,7 @@ function covzm(x::AbstractMatrix, vardim::Int=1; corrected::Bool=true)
     A .= A .* b
     return A
 end
-covzm(x::Any, y::Any; corrected::Bool=true) = covm(x, zero(first(x)), y, zero(first(y)); corrected = corrected)
+covzm(x::Any, y::Any; corrected::Bool=true) = covzm(collect(x), collect(y); corrected = corrected)
 covzm(x::AbstractVector, y::AbstractVector; corrected::Bool=true) =
     unscaled_covzm(x, y) / (length(x) - Int(corrected))
 function covzm(x::AbstractVecOrMat, y::AbstractVecOrMat, vardim::Int=1; corrected::Bool=true)
@@ -527,49 +527,14 @@ end
 # covm (with provided mean)
 ## Use map(t -> t - xmean, x) instead of x .- xmean to allow for Vector{Vector}
 ## which can't be handled by broadcast
-function covm(itr::Any, itrmean; corrected::Bool=true)
-    y = iterate(itr)
-    if y === nothing
-        v = _abs2(zero(eltype(itr - itrmean)))
-        return (v + v) / 0
-    end
-    count = 1
-    itri, state = y
-    first_value = _abs2(itri - itrmean)
-    total = Base.reduce_first(+, first_value)
-    y = iterate(itr, state)
-    while y !== nothing 
-        itri, state = y
-        total += _abs2(itri - itrmean)
-        count += 1
-        y = iterate(itr, state)
-    end
-    return total / (count - Int(corrected))
-end
+covm(itr::Any, itrmean; corrected::Bool=true) =
+    covm(map(t -> t - itrmean, x); corrected = corrected)
 covm(x::AbstractVector, xmean; corrected::Bool=true) =
     covzm(map(t -> t - xmean, x); corrected=corrected)
 covm(x::AbstractMatrix, xmean, vardim::Int=1; corrected::Bool=true) =
     covzm(x .- xmean, vardim; corrected=corrected)
-function covm(x::Any, xmean, y::Any, ymean; corrected::Bool=true)
-    z = zip(x, y)
-    z_itr = iterate(z)
-    if z_itr === nothing
-        v = _conjmul(zero(eltype(x)), zero(eltype(y)))
-        return (v + v) / 0
-    end
-    count = 1
-    (xi, yi), state = z_itr
-    first_value = _conjmul(xi-xmean, yi-ymean)
-    total = Base.reduce_first(+, first_value)
-    z_itr = iterate(z, state)
-    while z_itr !== nothing 
-        (xi, yi), state = z_itr
-        total += _conjmul(xi-xmean, yi-ymean)
-        count += 1
-        z_itr = iterate(z, state)
-    end
-    return total / (count - Int(corrected))
-end
+covm(x::Any, xmean, y::Any, ymean; corrected::Bool=true) = 
+    covzm(map(t -> t - xmean, x), map(t -> t - ymean, y); corrected=corrected)
 covm(x::AbstractVector, xmean, y::AbstractVector, ymean; corrected::Bool=true) =
     covzm(map(t -> t - xmean, x), map(t -> t - ymean, y); corrected=corrected)
 covm(x::AbstractVecOrMat, xmean, y::AbstractVecOrMat, ymean, vardim::Int=1; corrected::Bool=true) =
@@ -584,7 +549,8 @@ is scaled with `n-1`, whereas the sum is scaled with `n` if `corrected` is `fals
 is the number of elements in the iterator, which is not necessarily known. 
 """
 function cov(x::Any, corrected::Bool=true)
-    covm(x, mean(x); corrected=corrected)
+    cx = collect(x)
+    covm(cx, mean(cx); corrected=corrected)
 end
 
 """
@@ -616,8 +582,11 @@ the number of elements in `y`. If `x` and `y` are both vectors of vectors, compu
 estimator for the covariance matrix for `xi` and `yi. If `corrected` is `false`, computes 
 ``\\frac{1}{n}\\sum_{i=1}^n (x_i-\\bar x) (y_i-\\bar y)^*``.
 """
-cov(x::Any, y::Any; corrected::Bool=true) =
-    covm(x, mean(x), y, mean(y); corrected=corrected)
+function cov(x::Any, y::Any; corrected::Bool=true)
+    cx = collect(x)
+    cy = collect(y)
+    covm(cx, mean(cx), cy, mean(cy); corrected=corrected)
+end
 
 """
     cov(x::AbstractVector, y::AbstractVector; corrected::Bool=true)
@@ -701,18 +670,14 @@ function cov2cor!(C::AbstractMatrix, xsd::AbstractArray, ysd::AbstractArray)
     end
     return C
 end
-
+function cov2cor!(xy::Number, xsd::Number, ysd::Number)
+    xx = abs2(xsd)
+    yy = abs2(ysd)
+    clampcor(xy / max(xx, yy) / sqrt(min(xx, yy) / max(xx, yy)))
+end
 # corzm (non-exported, with centered data)
 
-function corzm(itr)
-    T = eltype(itr)
-    if T <: Number
-        return one(real(T))
-    else 
-        c = unscaled_covzm(itr)
-        return cov2cor!(c, collect(sqrt(c[i,i]) for i in 1:min(size(c)...)))
-    end
-end
+corzm(itr) = corzm(collect(itr))
 corzm(x::AbstractVector{T}) where {T<:Number} = one(real(T))
 function corzm(x::AbstractVector{T}) where {T}
     c = unscaled_covzm(x)
@@ -730,56 +695,17 @@ corzm(x::AbstractMatrix, y::AbstractMatrix, vardim::Int=1) =
     cov2cor!(unscaled_covzm(x, y, vardim), sqrt!(sum(abs2, x, dims=vardim)), sqrt!(sum(abs2, y, dims=vardim)))
 
 # corm
-function corm(itr::Any, itrmean)
-    if itrmean isa Number
-        return one(real(typeof(itrmean)))
-    else
-        c = sum(x -> _abs2(x - itrmean), itr)
-        return cov2cor!(c, collect(sqrt(c[i,i]) for i in 1:min(size(c)...)))
-    end
-end
+corm(itr::Any, itrmean) = corm(collect(itr), itrmean)
 corm(x::AbstractVector{<:Number}, xmean) = one(real(eltype(x)))
 function corm(x::AbstractVector, xmean)
     c = sum(t -> _abs2(t - xmean), x)
     return cov2cor!(c, collect(sqrt(c[i,i]) for i in 1:min(size(c)...)))
 end
 corm(x::AbstractMatrix, xmean, vardim::Int=1) = corzm(x .- xmean, vardim)
-_abs2!(x::Number) = abs2(x)
-function _abs2!(x)
-    @inbounds @simd for i in eachindex(x)
-        x[i] = abs2(x[i])
-    end
-    return x
-end
-function corm(x::Any, xm, y::Any, ym)
-    z = zip(x, y)
-    z_itr = iterate(z)
-    if z_itr === nothing
-        ArgumentError("correlation only defined for non-empty iterators")
-    end
-    (xi, yi), state = z_itr   
-    zx = xi - xm
-    zy = yi - ym
-    c = Base.reduce_first(+, _conjmul(zx, zy))
-    sx = Base.reduce_first(+, _abs2!(zx))
-    sy = Base.reduce_first(+, _abs2!(zy)) 
-    z_itr = iterate(z, state)
-    while z_itr !== nothing
-        (xi, yi), state = z_itr
-        zx = xi - xm
-        zy = yi - ym
-        c += _conjmul(zx, zy)
-        sx += _abs2!(zx)
-        sy += _abs2!(zy)
-        z_itr = iterate(z, state)
-    end
-    if c isa Number
-        clampcor(c / max(sx, sy) / sqrt(min(sx, sy) / max(sx, sy)))
-    else
-        cov2cor!(c, sqrt!(sx), sqrt!(sy))
-    end
-end
-function corm(x::AbstractVector, xm, y::AbstractVector, ym)
+corm(x::Any, mx, y::Any, my) = corm(collect(x), mx, collect(y), my)
+_one(x) = one(x)
+_one(x::AbstractArray) = fill(one(x[1]), size(x))  
+function corm(x::AbstractVector, mx, y::AbstractVector, my)
     require_one_based_indexing(x, y)
     n = length(x)
     length(y) == n || throw(DimensionMismatch("inconsistent lengths"))
@@ -787,31 +713,9 @@ function corm(x::AbstractVector, xm, y::AbstractVector, ym)
 
     @inbounds begin
         # Initialize the accumulators
-        xx = zero(sqrt!(abs2.(x[1])))
-        yy = zero(sqrt!(abs2.(y[1])))
+        xx = zero(sqrt!(_abs2(_one(x[1]))))
+        yy = zero(sqrt!(_abs2(_one(y[1]))))
         xy = zero(_conjmul(x[1], y[1]))
-
-        @simd for i in eachindex(x, y)
-            xi = x[i] - xm
-            yi = y[i] - ym
-            xy += _conjmul(xi, yi)
-            xx += _abs2!(xi)
-            yy += _abs2!(yi)
-        end
-    end
-    return cov2cor!(xy, sqrt!(xx), sqrt!(yy))
-end
-function corm(x::AbstractVector{<:Number}, mx, y::AbstractVector{<:Number}, my)
-    require_one_based_indexing(x, y)
-    n = length(x)
-    length(y) == n || throw(DimensionMismatch("inconsistent lengths"))
-    n > 0 || throw(ArgumentError("correlation only defined for non-empty vectors"))
-
-    @inbounds begin
-        # Initialize the accumulators
-        xx = zero(sqrt(abs2(one(x[1]))))
-        yy = zero(sqrt(abs2(one(y[1]))))
-        xy = zero(x[1] * y[1]')
 
         @simd for i in eachindex(x, y)
             xi = x[i] - mx
@@ -821,7 +725,12 @@ function corm(x::AbstractVector{<:Number}, mx, y::AbstractVector{<:Number}, my)
             xy += _conjmul(xi, yi)
         end
     end
-    return clampcor(xy / max(xx, yy) / sqrt(min(xx, yy) / max(xx, yy)))
+
+    @show xx
+    @show yy
+    @show xy
+
+    return cov2cor!(xy, xx, yy)
 end
 
 corm(x::AbstractVecOrMat, xmean, y::AbstractVecOrMat, ymean, vardim::Int=1) =
@@ -834,14 +743,7 @@ corm(x::AbstractVecOrMat, xmean, y::AbstractVecOrMat, ymean, vardim::Int=1) =
 Return the number one if `itr` iterates through scalars. Returns the correlation between
 elements of the iterator otherwise. 
 """
-function cor(itr::Any) 
-    t = first(itr)
-    if t isa Number 
-        return one(real(typeof(t)))
-    else 
-        return corm(itr, mean(itr))
-    end
-end
+cor(itr::Any) = cor(collect(itr))
 
 """
     cor(x::AbstractVector{<:Number})
@@ -869,7 +771,12 @@ cor(X::AbstractMatrix; dims::Int=1) = corm(X, _vmean(X, dims), dims)
 
 Compute the Pearson correlation between the iterators `x` and `y`.
 """
-cor(x::Any, y::Any) = corm(x, mean(x), y, mean(y))
+function cor(x::Any, y::Any) 
+    cx = collect(x)
+    cy = collect(y)
+
+    corm(cx, mean(cx), cy, mean(cy))
+end
 
 """
     cor(x::AbstractVector, y::AbstractVector)
