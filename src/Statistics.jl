@@ -519,7 +519,8 @@ end
 # covm (with provided mean)
 ## Use map(t -> t - xmean, x) instead of x .- xmean to allow for Vector{Vector}
 ## which can't be handled by broadcast
-covm(itr::Any, itrmean; corrected::Bool = true) = covm(collect(itr), itrmean)
+covm(itr::Any, itrmean; corrected::Bool=true) = 
+    @show covm(collect(itr), itrmean; corrected=corrected)
 covm(x::AbstractVector, xmean; corrected::Bool=true) =
     covzm(map(t -> t - xmean, x); corrected=corrected)
 covm(x::AbstractMatrix, xmean, vardim::Int=1; corrected::Bool=true) =
@@ -539,9 +540,9 @@ Compute the variance of the iterator `itr`. If `corrected` is `true` (the defaul
 is scaled with `n-1`, whereas the sum is scaled with `n` if `corrected` is `false` where 
 `n = length(collect(itr))`.
 """
-function cov(itr::Any; corrected::Bool = true)
+function cov(itr::Any; corrected::Bool=true)
     x = collect(itr)
-    covm(x, mean(x); corrected = corrected)
+    covm(x, mean(x); corrected=corrected)
 end
 
 """
@@ -571,11 +572,11 @@ default), computes ``\\frac{1}{n-1}\\sum_{i=1}^n (x_i-\\bar x) (y_i-\\bar y)^*``
 ``*`` denotes the complex conjugate and `n = length(collect(x)) = length(collect(y))`. If `corrected` is
 `false`, computes ``\\frac{1}{n}\\sum_{i=1}^n (x_i-\\bar x) (y_i-\\bar y)^*``.
 """
-function cov(x::Any, y::Any; corrected::Bool = true)
+function cov(x::Any, y::Any; corrected::Bool=true)
     cx = collect(x)
     cy = collect(y)
 
-    covm(cx, mean(cx), cy, mean(cy); corrected = corrected)
+    covm(cx, mean(cx), cy, mean(cy); corrected=corrected)
 end
 
 """
@@ -676,7 +677,7 @@ corzm(x::AbstractMatrix, y::AbstractMatrix, vardim::Int=1) =
     cov2cor!(unscaled_covzm(x, y, vardim), sqrt!(sum(abs2, x, dims=vardim)), sqrt!(sum(abs2, y, dims=vardim)))
 
 # corm
-corm(x::Any, xmean) = corzm(collect(x), xmean)
+corm(x::Any, xmean) = corm(collect(x), xmean)
 corm(x::AbstractVector{T}, xmean) where {T} = one(real(T))
 corm(x::AbstractMatrix, xmean, vardim::Int=1) = corzm(x .- xmean, vardim)
 corm(x::Any, mx, y::Any, my) = corm(collect(x), mx, collect(y), my)
@@ -712,7 +713,7 @@ corm(x::AbstractVecOrMat, xmean, y::AbstractVecOrMat, ymean, vardim::Int=1) =
 
 Return the number one.
 """
-cor(itr::Any) = one(real(eltype(collect(x))))
+cor(itr::Any) = one(real(eltype(collect(itr))))
 
 
 """
