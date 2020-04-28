@@ -520,7 +520,7 @@ end
 ## Use map(t -> t - xmean, x) instead of x .- xmean to allow for Vector{Vector}
 ## which can't be handled by broadcast
 covm(itr::Any, itrmean; corrected::Bool=true) = 
-    @show covm(collect(itr), itrmean; corrected=corrected)
+    covm(collect(itr), itrmean; corrected=corrected)
 covm(x::AbstractVector, xmean; corrected::Bool=true) =
     covzm(map(t -> t - xmean, x); corrected=corrected)
 covm(x::AbstractMatrix, xmean, vardim::Int=1; corrected::Bool=true) =
@@ -538,19 +538,13 @@ covm(x::AbstractVecOrMat, xmean, y::AbstractVecOrMat, ymean, vardim::Int=1; corr
 
 Compute the variance of the iterator `itr`. If `corrected` is `true` (the default) then the sum
 is scaled with `n-1`, whereas the sum is scaled with `n` if `corrected` is `false` where 
-`n = length(collect(itr))`.
+``n`` is the number of elements.
 """
 function cov(itr::Any; corrected::Bool=true)
     x = collect(itr)
-    covm(x, mean(x); corrected=corrected)
+    meanx = mean(x)
+    covzm(map!(t -> t - meanx, x, x); corrected=corrected)
 end
-
-"""
-    cov(x::AbstractVector; corrected::Bool=true)
-
-Compute the variance of the vector `x`. If `corrected` is `true` (the default) then the sum
-is scaled with `n-1`, whereas the sum is scaled with `n` if `corrected` is `false` where `n = length(x)`.
-"""
 cov(x::AbstractVector; corrected::Bool=true) = covm(x, mean(x); corrected=corrected)
 
 """
@@ -569,24 +563,18 @@ cov(X::AbstractMatrix; dims::Int=1, corrected::Bool=true) =
 
 Compute the covariance between the iterators `x` and `y`. If `corrected` is `true` (the
 default), computes ``\\frac{1}{n-1}\\sum_{i=1}^n (x_i-\\bar x) (y_i-\\bar y)^*`` where
-``*`` denotes the complex conjugate and `n = length(collect(x)) = length(collect(y))`. If `corrected` is
+``*`` denotes the complex conjugate and ``n`` the number of elements. If `corrected` is
 `false`, computes ``\\frac{1}{n}\\sum_{i=1}^n (x_i-\\bar x) (y_i-\\bar y)^*``.
 """
 function cov(x::Any, y::Any; corrected::Bool=true)
     cx = collect(x)
     cy = collect(y)
-
-    covm(cx, mean(cx), cy, mean(cy); corrected=corrected)
+    meanx = mean(cx)
+    meany = mean(cy)
+    dx = map!(t -> t - meanx, cx, cx)
+    dy = map!(t -> t - meany, cy, cy)
+    covzm(dx, dy; corrected=corrected)
 end
-
-"""
-    cov(x::AbstractVector, y::AbstractVector; corrected::Bool=true)
-
-Compute the covariance between the vectors `x` and `y`. If `corrected` is `true` (the
-default), computes ``\\frac{1}{n-1}\\sum_{i=1}^n (x_i-\\bar x) (y_i-\\bar y)^*`` where
-``*`` denotes the complex conjugate and `n = length(x) = length(y)`. If `corrected` is
-`false`, computes ``\\frac{1}{n}\\sum_{i=1}^n (x_i-\\bar x) (y_i-\\bar y)^*``.
-"""
 cov(x::AbstractVector, y::AbstractVector; corrected::Bool=true) =
     covm(x, mean(x), y, mean(y); corrected=corrected)
 
@@ -663,7 +651,13 @@ function cov2cor!(C::AbstractMatrix, xsd::AbstractArray, ysd::AbstractArray)
 end
 
 # corzm (non-exported, with centered data)
-corzm(x::Any) = corzm(collect(x))
+function corzm(itr::Any) 
+    if Base.IteratorEltype(itr) isa Base.HasEltype && isconcrete(eltype(itr))
+        return one(real(eltype(itr)))
+    else
+        return one(real(eltype(collect(itr))))
+    end
+end
 corzm(x::AbstractVector{T}) where {T} = one(real(T))
 function corzm(x::AbstractMatrix, vardim::Int=1)
     c = unscaled_covzm(x, vardim)
@@ -713,15 +707,14 @@ corm(x::AbstractVecOrMat, xmean, y::AbstractVecOrMat, ymean, vardim::Int=1) =
 
 Return the number one.
 """
-cor(itr::Any) = one(real(eltype(collect(itr))))
-
-
-"""
-    cor(x::AbstractVector)
-
-Return the number one.
-"""
-cor(x::AbstractVector) = one(real(eltype(x)))
+function cor(itr::Any)
+    if Base.IteratorEltype(itr) isa Base.HasEltype && isconcrete(eltype(itr))
+        return one(real(eltype(itr)))
+    else
+        return one(real(eltype(collect(itr))))
+    end
+end
+cor(x::AbstractVector{T}) where {T} = one(real(T))
 
 """
     cor(X::AbstractMatrix; dims::Int=1)
