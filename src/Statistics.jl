@@ -504,7 +504,8 @@ function covzm(x::AbstractMatrix, vardim::Int=1; corrected::Bool=true)
     A .= A .* b
     return A
 end
-covzm(x::Any, y::Any; corrected::Bool = true) = covzm(collect(x), collect(y); corrected = corrected)
+covzm(x::Any, y::Any; corrected::Bool = true) =
+    covzm(collect(x), collect(y); corrected = corrected)
 covzm(x::AbstractVector, y::AbstractVector; corrected::Bool=true) =
     unscaled_covzm(x, y) / (length(x) - Int(corrected))
 function covzm(x::AbstractVecOrMat, y::AbstractVecOrMat, vardim::Int=1; corrected::Bool=true)
@@ -714,7 +715,7 @@ function cor(itr::Any)
         return one(real(eltype(collect(itr))))
     end
 end
-cor(x::AbstractVector{T}) where {T} = one(real(T))
+cor(x::AbstractVector) = one(real(eltype(x)))
 
 """
     cor(X::AbstractMatrix; dims::Int=1)
