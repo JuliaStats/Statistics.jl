@@ -672,7 +672,13 @@ corzm(x::AbstractMatrix, y::AbstractMatrix, vardim::Int=1) =
     cov2cor!(unscaled_covzm(x, y, vardim), sqrt!(sum(abs2, x, dims=vardim)), sqrt!(sum(abs2, y, dims=vardim)))
 
 # corm
-corm(x::Any, xmean) = corm(collect(x), xmean)
+function corm(itr::Any, itrmean) 
+    if Base.IteratorEltype(itr) isa Base.HasEltype && isconcrete(eltype(itr))
+        return one(real(eltype(itr)))
+    else
+        return one(real(eltype(collect(itr))))
+    end
+end
 corm(x::AbstractVector{T}, xmean) where {T} = one(real(T))
 corm(x::AbstractMatrix, xmean, vardim::Int=1) = corzm(x .- xmean, vardim)
 corm(x::Any, mx, y::Any, my) = corm(collect(x), mx, collect(y), my)
