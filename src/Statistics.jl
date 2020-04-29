@@ -528,7 +528,7 @@ covm(x::AbstractVector, xmean; corrected::Bool=true) =
 covm(x::AbstractMatrix, xmean, vardim::Int=1; corrected::Bool=true) =
     covzm(x .- xmean, vardim; corrected=corrected)
 covm(x::Any, xmean, y::Any, ymean; corrected::Bool=true) =
-    covzm(map(t -> t - xmean, x), map(t -> t - ymean, y); corrected=corrected)
+    covzm(x .- xmean, y .- ymean; corrected=corrected)
 covm(x::AbstractVector, xmean, y::AbstractVector, ymean; corrected::Bool=true) =
     covzm(map(t -> t - xmean, x), map(t -> t - ymean, y); corrected=corrected)
 covm(x::AbstractVecOrMat, xmean, y::AbstractVecOrMat, ymean, vardim::Int=1; corrected::Bool=true) =
@@ -571,10 +571,10 @@ default), computes ``\\frac{1}{n-1}\\sum_{i=1}^n (x_i-\\bar x) (y_i-\\bar y)^*``
 function cov(x::Any, y::Any; corrected::Bool=true)
     cx = collect(x)
     cy = collect(y)
-    meanx = mean(cx)
-    meany = mean(cy)
-    dx = map!(t -> t - meanx, cx, cx)
-    dy = map!(t -> t - meany, cy, cy)
+    meanx = _vmean(cx, 1)
+    meany = _vmean(cy, 1)
+    dx = x .- meanx
+    dy = y .- meany
     covzm(dx, dy; corrected=corrected)
 end
 cov(x::AbstractVector, y::AbstractVector; corrected::Bool=true) =
@@ -740,7 +740,7 @@ function cor(x::Any, y::Any)
     cx = collect(x)
     cy = collect(y)
 
-    corm(cx, mean(cx), cy, mean(cy))
+    corm(cx, _vmean(cx, 1), cy, _vmean(cy, 1))
 end
 
 """

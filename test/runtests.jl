@@ -339,7 +339,6 @@ Y = [6.0  2.0;
             x1 = vec(X[1,:])
             y1 = vec(Y[1,:])
         end
-        @show x1
         x1_itr = (x1i for x1i in x1)
         y1_itr = skipmissing(y1)
 
@@ -348,7 +347,7 @@ Y = [6.0  2.0;
         c_itr = zm ? Statistics.covm(x1_itr, 0, corrected=cr) :
                      cov(x1_itr, corrected=cr)
         @test isa(c, Float64)
-        @test c ≈ c_itr ≈ Cxx[1,1]
+        @test c == c_itr == Cxx[1,1]
         @inferred cov(x1, corrected=cr)
 
         @test cov(X) == Statistics.covm(X, mean(X, dims=1))
@@ -363,21 +362,29 @@ Y = [6.0  2.0;
                  cov(x1, y1, corrected=cr)
         c_itr = zm ? Statistics.covm(x1_itr, 0, y1_itr, 0, corrected=cr) :
                      cov(x1_itr, y1_itr, corrected=cr)
+        c_itrx = zm ? Statistics.covm(x1_itr, 0, y1, 0, corrected=cr) :
+                     cov(x1_itr, y1, corrected=cr)
+        c_itry = zm ? Statistics.covm(x1, 0, y1_itr, 0, corrected=cr) :
+                     cov(x1, y1_itr, corrected=cr)
         @test isa(c, Float64)
-        @test c ≈ Cxy[1,1]
+        @test c == c_itr == c_itrx == c_itry == Cxy[1,1]
         @inferred cov(x1, y1, corrected=cr)
 
         if vd == 1
-            @test cov(x1, Y) == Statistics.covm(x1, mean(x1), Y, mean(Y, dims=1))
+            C = cov(x1, Y)
+            C_itr = cov(x1_itr, Y)
+            @test C == C_itr == Statistics.covm(x1, mean(x1), Y, mean(Y, dims=1))
         end
         C = zm ? Statistics.covm(x1, 0, Y, 0, vd, corrected=cr) :
-                 cov(x1, Y, dims=vd, corrected=cr)
+                 cov(x1, Y, dims=vd, corrected=cr) 
         @test size(C) == (1, k)
         @test vec(C) ≈ Cxy[1,:]
         @inferred cov(x1, Y, dims=vd, corrected=cr)
 
         if vd == 1
-            @test cov(X, y1) == Statistics.covm(X, mean(X, dims=1), y1, mean(y1))
+            C = cov(X, y1)
+            C_itr = cov(X, y1_itr)
+            @test C == C_itr == Statistics.covm(X, mean(X, dims=1), y1, mean(y1))
         end
         C = zm ? Statistics.covm(X, 0, y1, 0, vd, corrected=cr) :
                  cov(X, y1, dims=vd, corrected=cr)
@@ -451,12 +458,17 @@ end
         @test cor(x1, y1) == Statistics.corm(x1, mean(x1), y1, mean(y1))
         c = zm ? Statistics.corm(x1, 0, y1, 0) : cor(x1, y1)
         c_itr = zm ? Statistics.corm(x1_itr, 0, y1_itr, 0) : cor(x1_itr, y1_itr)
+        c_itrx = zm ? Statistics.corm(x1_itr, 0, y1, 0) : cor(x1_itr, y1)
+        c_itry = zm ? Statistics.corm(x1, 0, y1_itr, 0) : cor(x1, y1_itr)
+
         @test isa(c, Float64)
-        @test c ≈ c_itr ≈ Cxy[1,1]
+        @test c == c_itr == c_itrx == c_itry ≈ Cxy[1,1]
         @inferred cor(x1, y1)
 
         if vd == 1
-            @test cor(x1, Y) == Statistics.corm(x1, mean(x1), Y, mean(Y, dims=1))
+            C = cor(x1, Y)
+            C_itr = Statistics.corm(x1_itr, mean(x1), Y, mean(Y, dims=1))
+            @test C == C_itr == Statistics.corm(x1, mean(x1), Y, mean(Y, dims=1))
         end
         C = zm ? Statistics.corm(x1, 0, Y, 0, vd) : cor(x1, Y, dims=vd)
         @test size(C) == (1, k)
@@ -464,11 +476,19 @@ end
         @inferred cor(x1, Y, dims=vd)
 
         if vd == 1
-            @test cor(X, y1) == Statistics.corm(X, mean(X, dims=1), y1, mean(y1))
+            C = cor(X, y1)
+            C_itr = cor(X, y1_itr)
+            @test C == C_itr == Statistics.corm(X, mean(X, dims=1), y1, mean(y1))
         end
+        println("zm = $zm")
         C = zm ? Statistics.corm(X, 0, y1, 0, vd) : cor(X, y1, dims=vd)
+
         @test size(C) == (k, 1)
         @test vec(C) ≈ Cxy[:,1]
+        if vd == 1 
+            C_itr = zm ? Statistics.corm(X, 0, y1_itr, 0) : cor(X, y1_itr)
+            @test C_itr == C
+        end
         @inferred cor(X, y1, dims=vd)
 
         @test cor(X, Y) == Statistics.corm(X, mean(X, dims=1), Y, mean(Y, dims=1))
