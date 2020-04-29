@@ -559,7 +559,6 @@ if `corrected` is `false` where `n = size(X, dims)`.
 cov(X::AbstractMatrix; dims::Int=1, corrected::Bool=true) =
     covm(X, _vmean(X, dims), dims; corrected=corrected)
 
-
 """
     cov(x::Any, y::Any; corrected::Bool=true)
 
@@ -653,6 +652,7 @@ function cov2cor!(C::AbstractMatrix, xsd::AbstractArray, ysd::AbstractArray)
 end
 
 # corzm (non-exported, with centered data)
+
 function corzm(itr::Any) 
     if Base.IteratorEltype(itr) isa Base.HasEltype && isconcrete(eltype(itr))
         return one(real(eltype(itr)))
@@ -673,6 +673,7 @@ corzm(x::AbstractMatrix, y::AbstractMatrix, vardim::Int=1) =
     cov2cor!(unscaled_covzm(x, y, vardim), sqrt!(sum(abs2, x, dims=vardim)), sqrt!(sum(abs2, y, dims=vardim)))
 
 # corm
+
 function corm(itr::Any, itrmean) 
     if Base.IteratorEltype(itr) isa Base.HasEltype && isconcrete(eltype(itr))
         return one(real(eltype(itr)))
@@ -732,9 +733,9 @@ Compute the Pearson correlation matrix of the matrix `X` along the dimension `di
 cor(X::AbstractMatrix; dims::Int=1) = corm(X, _vmean(X, dims), dims)
 
 """
-    cor(x::AbstractVector, y::AbstractVector)
+    cor(x::Any, y::Any)
 
-Compute the Pearson correlation between the vectors `x` and `y`.
+Compute the Pearson correlation between iterators `x` and `y`.
 """
 function cor(x::Any, y::Any)
     cx = collect(x)
