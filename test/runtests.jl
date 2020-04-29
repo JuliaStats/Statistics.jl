@@ -376,7 +376,7 @@ Y = [6.0  2.0;
             @test C == C_itr == Statistics.covm(x1, mean(x1), Y, mean(Y, dims=1))
         end
         C = zm ? Statistics.covm(x1, 0, Y, 0, vd, corrected=cr) :
-                 cov(x1, Y, dims=vd, corrected=cr) 
+                 cov(x1, Y, dims=vd, corrected=cr)
         @test size(C) == (1, k)
         @test vec(C) ≈ Cxy[1,:]
         @inferred cov(x1, Y, dims=vd, corrected=cr)
@@ -480,7 +480,6 @@ end
             C_itr = cor(X, y1_itr)
             @test C == C_itr == Statistics.corm(X, mean(X, dims=1), y1, mean(y1))
         end
-        println("zm = $zm")
         C = zm ? Statistics.corm(X, 0, y1, 0, vd) : cor(X, y1, dims=vd)
 
         @test size(C) == (k, 1)
