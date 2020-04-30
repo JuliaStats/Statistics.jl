@@ -693,9 +693,7 @@ end
 
 # corzm (non-exported, with centered data)
 
-function corzm(itr::Any) 
-    _return_one(itr)
-end
+corzm(itr::Any) = _return_one(itr)
 corzm(x::AbstractVector{T}) where {T} = one(real(T))
 function corzm(x::AbstractMatrix, vardim::Int=1)
     c = unscaled_covzm(x, vardim)
@@ -710,9 +708,7 @@ corzm(x::AbstractMatrix, y::AbstractMatrix, vardim::Int=1) =
 
 # corm
 
-function corm(itr::Any, itrmean) 
-    _return_one(itr)
-end
+corm(itr::Any, itrmean) = _return_one(itr)
 corm(x::AbstractVector{T}, xmean) where {T} = one(real(T))
 corm(x::AbstractMatrix, xmean, vardim::Int=1) = corzm(x .- xmean, vardim)
 function corm(x::Any, mx, y::Any, my) 
@@ -751,9 +747,7 @@ corm(x::AbstractVecOrMat, xmean, y::AbstractVecOrMat, ymean, vardim::Int=1) =
 
 Return the number one.
 """
-function cor(itr::Any)
-    _return_one(itr)
-end
+cor(itr::Any) = _return_one(itr)
 cor(x::AbstractVector) = one(real(eltype(x)))
 
 """
