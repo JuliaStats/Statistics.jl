@@ -483,15 +483,11 @@ _collect_if_itr(x::Any) = collect(x)
 _collect_if_itr(x::AbstractVector) = x
 
 function _matrix_error(x, y)
-    if x isa AbstractVector || y isa AbstractVector
-
-    elseif x isa AbstractArray || y isa AbstractArray
+    if !(x isa AbstractVector || y isa AbstractVector) && (x isa AbstractArray || y isa AbstractArray)
         s = "Covariance and correlation between a non-vector array and a non-vector iterator" *
             "is currently disallowed. `collect` one of the arguments." 
         throw(ArgumentError(s))
-    else 
-
-    end
+    end 
 end
 
 # core functions
