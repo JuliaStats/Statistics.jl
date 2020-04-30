@@ -373,38 +373,40 @@ Y = [6.0  2.0;
         @inferred cov(x1_itr, y1_itr, corrected=cr)
 
         if vd == 1
-            C = cov(x1, Y)
-            C_itr = cov(x1_itr, Y)
-            @test C == C_itr == Statistics.covm(x1, mean(x1), Y, mean(Y, dims=1))
+            @test cov(x1, Y) == Statistics.covm(x1, mean(x1), Y, mean(Y, dims=1))
         end
         C = zm ? Statistics.covm(x1, 0, Y, 0, vd, corrected=cr) :
                  cov(x1, Y, dims=vd, corrected=cr)
         @test size(C) == (1, k)
         @test vec(C) ≈ Cxy[1,:]
         @inferred cov(x1, Y, dims=vd, corrected=cr)
-        if vd == 1
-            @inferred cov(x1_itr, Y, corrected=cr)
-        end
 
         if vd == 1
-            C = cov(X, y1)
-            C_itr = cov(X, y1_itr)
-            @test C == C_itr == Statistics.covm(X, mean(X, dims=1), y1, mean(y1))
+            @test cov(X, y1) == Statistics.covm(X, mean(X, dims=1), y1, mean(y1))
         end
         C = zm ? Statistics.covm(X, 0, y1, 0, vd, corrected=cr) :
                  cov(X, y1, dims=vd, corrected=cr)
         @test size(C) == (k, 1)
         @test vec(C) ≈ Cxy[:,1]
         @inferred cov(X, y1, dims=vd, corrected=cr)
-        if vd == 1
-            @inferred cov(X, y1_itr, corrected=cr)
-        end
+
         @test cov(X, Y) == Statistics.covm(X, mean(X, dims=1), Y, mean(Y, dims=1))
         C = zm ? Statistics.covm(X, 0, Y, 0, vd, corrected=cr) :
                  cov(X, Y, dims=vd, corrected=cr)
         @test size(C) == (k, k)
         @test C ≈ Cxy
         @inferred cov(X, Y, dims=vd, corrected=cr)
+    end
+
+    @testset "errors for `cov` with non-array iterators and matrices" begin
+        x1_itr = (xi for xi in X[:, 1])
+        y1_itr = skipmissing(Y[:, 1])
+        @test_throws ArgumentError Statistics.covzm(X, y1_itr)
+        @test_throws ArgumentError Statistics.covzm(x1_itr, Y)
+        @test_throws ArgumentError Statistics.covm(X, mean(X, dims = 1), y1_itr, mean(y1_itr))
+        @test_throws ArgumentError Statistics.covm(x1_itr, mean(x1_itr), Y, mean(Y, dims = 1))        
+        @test_throws ArgumentError cov(X, y1_itr)
+        @test_throws ArgumentError cov(x1_itr, Y)
     end
 
     @testset "floating point accuracy for `cov` of large numbers" begin
@@ -475,35 +477,20 @@ end
         @inferred cor(x1_itr, y1_itr)
 
         if vd == 1
-            C = cor(x1, Y)
-            C_itr = Statistics.corm(x1_itr, mean(x1), Y, mean(Y, dims=1))
-            @test C == C_itr == Statistics.corm(x1, mean(x1), Y, mean(Y, dims=1))
+            @test cor(x1, Y) == Statistics.corm(x1, mean(x1), Y, mean(Y, dims=1))
         end
         C = zm ? Statistics.corm(x1, 0, Y, 0, vd) : cor(x1, Y, dims=vd)
         @test size(C) == (1, k)
         @test vec(C) ≈ Cxy[1,:]
         @inferred cor(x1, Y, dims=vd)
-        if vd == 1
-            @inferred cor(x1, Y)
-        end
 
         if vd == 1
-            C = cor(X, y1)
-            C_itr = cor(X, y1_itr)
-            @test C == C_itr == Statistics.corm(X, mean(X, dims=1), y1, mean(y1))
+            @test cor(X, y1) == Statistics.corm(X, mean(X, dims=1), y1, mean(y1))
         end
         C = zm ? Statistics.corm(X, 0, y1, 0, vd) : cor(X, y1, dims=vd)
-
         @test size(C) == (k, 1)
         @test vec(C) ≈ Cxy[:,1]
-        if vd == 1 
-            C_itr = zm ? Statistics.corm(X, 0, y1_itr, 0) : cor(X, y1_itr)
-            @test C_itr == C
-        end
         @inferred cor(X, y1, dims=vd)
-        if vd == 1
-            @inferred cor(X, y1_itr)
-        end
 
         @test cor(X, Y) == Statistics.corm(X, mean(X, dims=1), Y, mean(Y, dims=1))
         C = zm ? Statistics.corm(X, 0, Y, 0, vd) : cor(X, Y, dims=vd)
@@ -521,6 +508,15 @@ end
         tmp2 = Vector(tmp)
         @test cor(tmp, tmp) <= 1.0
         @test cor(tmp, tmp2) <= 1.0
+    end
+
+    @testset "errors for `cor` with non-array iterators and matrices" begin
+        x1_itr = (xi for xi in X[:, 1])
+        y1_itr = skipmissing(Y[:, 1])        
+        @test_throws ArgumentError Statistics.corm(X, mean(X, dims = 1), y1_itr, mean(y1_itr))
+        @test_throws ArgumentError Statistics.corm(x1_itr, mean(x1_itr), Y, mean(Y, dims = 1))        
+        @test_throws ArgumentError cor(X, y1_itr)
+        @test_throws ArgumentError cor(x1_itr, Y)
     end
 end
 

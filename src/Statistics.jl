@@ -479,6 +479,30 @@ end
 _vmean(x::AbstractVector, vardim::Int) = mean(x)
 _vmean(x::AbstractMatrix, vardim::Int) = mean(x, dims=vardim)
 
+function _matrix_error(x, y, fun)
+    if x isa AbstractMatrix
+        s = "$(fun)(x::AbstractMatrix, y::Any) is currently not allowed. " * 
+            "Use $(fun)(x, collect(y)) instead"
+        throw(ArgumentError(s))
+    elseif y isa AbstractMatrix
+        s = "$(fun)(x::Any, y::AbstractMatrix) is currently not allowed. " * 
+            "Use $(fun)(collect(x), y) instead"
+       throw(ArgumentError(s))
+    end
+end
+
+function _matrix_error(x, mx, y, my, fun)
+    if x isa AbstractMatrix || y isa AbstractMatrix
+       s = "$(fun)(x::$(typeof(x)), mx, y::Any, my) is currently not allowed. " * 
+           "Use $(fun)(x, mx, collect(y), my) instead"
+       throw(ArgumentError(s))
+    elseif y isa AbstractMatrix
+       s = "$(fun)(x::Any, mx, y::$(typeof(y)), my) is currently not allowed. " * 
+           "Use $(fun)(collect(x), mx, y, my) inistead."
+       throw(ArgumentError(s))
+    end
+end
+
 # core functions
 
 unscaled_covzm(x::AbstractVector{<:Number})    = sum(abs2, x)
@@ -505,8 +529,10 @@ function covzm(x::AbstractMatrix, vardim::Int=1; corrected::Bool=true)
     A .= A .* b
     return A
 end
-covzm(x::Any, y::Any; corrected::Bool = true) =
+function covzm(x::Any, y::Any; corrected::Bool = true)
+    _matrix_error(x, y, covzm)
     covzm(collect(x), collect(y); corrected = corrected)
+end
 covzm(x::AbstractVector, y::AbstractVector; corrected::Bool=true) =
     unscaled_covzm(x, y) / (length(x) - Int(corrected))
 function covzm(x::AbstractVecOrMat, y::AbstractVecOrMat, vardim::Int=1; corrected::Bool=true)
@@ -527,8 +553,10 @@ covm(x::AbstractVector, xmean; corrected::Bool=true) =
     covzm(map(t -> t - xmean, x); corrected=corrected)
 covm(x::AbstractMatrix, xmean, vardim::Int=1; corrected::Bool=true) =
     covzm(x .- xmean, vardim; corrected=corrected)
-covm(x::Any, xmean, y::Any, ymean; corrected::Bool=true) =
-    covzm(x .- xmean, y .- ymean; corrected=corrected)
+function covm(x::Any, xmean, y::Any, ymean; corrected::Bool=true)
+    _matrix_error(x, xmean, y, ymean, covm)
+    covzm(map(t -> t - xmean, x), map(t -> t - ymean, y); corrected=corrected)
+end
 covm(x::AbstractVector, xmean, y::AbstractVector, ymean; corrected::Bool=true) =
     covzm(map(t -> t - xmean, x), map(t -> t - ymean, y); corrected=corrected)
 covm(x::AbstractVecOrMat, xmean, y::AbstractVecOrMat, ymean, vardim::Int=1; corrected::Bool=true) =
@@ -568,12 +596,13 @@ default), computes ``\\frac{1}{n-1}\\sum_{i=1}^n (x_i-\\bar x) (y_i-\\bar y)^*``
 `false`, computes ``\\frac{1}{n}\\sum_{i=1}^n (x_i-\\bar x) (y_i-\\bar y)^*``.
 """
 function cov(x::Any, y::Any; corrected::Bool=true)
+    _matrix_error(x, y, cov)
     cx = collect(x)
     cy = collect(y)
     meanx = _vmean(cx, 1)
     meany = _vmean(cy, 1)
-    dx = x .- meanx
-    dy = y .- meany
+    dx = map!(t -> t - meanx, cx, cx)
+    dy = map!(t -> t - meany, cy, cy)
     covzm(dx, dy; corrected=corrected)
 end
 cov(x::AbstractVector, y::AbstractVector; corrected::Bool=true) =
@@ -683,7 +712,10 @@ function corm(itr::Any, itrmean)
 end
 corm(x::AbstractVector{T}, xmean) where {T} = one(real(T))
 corm(x::AbstractMatrix, xmean, vardim::Int=1) = corzm(x .- xmean, vardim)
-corm(x::Any, mx, y::Any, my) = corm(collect(x), mx, collect(y), my)
+function corm(x::Any, mx, y::Any, my) 
+    _matrix_error(x, mx, y, my, corm)
+    corm(collect(x), mx, collect(y), my)
+end
 function corm(x::AbstractVector, mx, y::AbstractVector, my)
     require_one_based_indexing(x, y)
     n = length(x)
@@ -738,10 +770,11 @@ cor(X::AbstractMatrix; dims::Int=1) = corm(X, _vmean(X, dims), dims)
 Compute the Pearson correlation between iterators `x` and `y`.
 """
 function cor(x::Any, y::Any)
+    _matrix_error(x, y, cor)
     cx = collect(x)
     cy = collect(y)
 
-    corm(cx, _vmean(cx, 1), cy, _vmean(cy, 1))
+    corm(cx, mean(cx), cy, mean(cy))
 end
 
 """
