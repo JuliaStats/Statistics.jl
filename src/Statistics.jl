@@ -680,14 +680,18 @@ function cov2cor!(C::AbstractMatrix, xsd::AbstractArray, ysd::AbstractArray)
     return C
 end
 
-# corzm (non-exported, with centered data)
-
-function corzm(itr::Any) 
+function _return_one(itr)
     if Base.IteratorEltype(itr) isa Base.HasEltype && isconcrete(eltype(itr))
         return one(real(eltype(itr)))
     else
         return one(real(eltype(collect(itr))))
     end
+end
+
+# corzm (non-exported, with centered data)
+
+function corzm(itr::Any) 
+    _return_one(itr)
 end
 corzm(x::AbstractVector{T}) where {T} = one(real(T))
 function corzm(x::AbstractMatrix, vardim::Int=1)
@@ -704,11 +708,7 @@ corzm(x::AbstractMatrix, y::AbstractMatrix, vardim::Int=1) =
 # corm
 
 function corm(itr::Any, itrmean) 
-    if Base.IteratorEltype(itr) isa Base.HasEltype && isconcrete(eltype(itr))
-        return one(real(eltype(itr)))
-    else
-        return one(real(eltype(collect(itr))))
-    end
+    _return_one(itr)
 end
 corm(x::AbstractVector{T}, xmean) where {T} = one(real(T))
 corm(x::AbstractMatrix, xmean, vardim::Int=1) = corzm(x .- xmean, vardim)
@@ -749,11 +749,7 @@ corm(x::AbstractVecOrMat, xmean, y::AbstractVecOrMat, ymean, vardim::Int=1) =
 Return the number one.
 """
 function cor(itr::Any)
-    if Base.IteratorEltype(itr) isa Base.HasEltype && isconcrete(eltype(itr))
-        return one(real(eltype(itr)))
-    else
-        return one(real(eltype(collect(itr))))
-    end
+    _return_one(itr)
 end
 cor(x::AbstractVector) = one(real(eltype(x)))
 
