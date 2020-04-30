@@ -479,6 +479,9 @@ end
 _vmean(x::AbstractVector, vardim::Int) = mean(x)
 _vmean(x::AbstractMatrix, vardim::Int) = mean(x, dims=vardim)
 
+_lazycollect(x::Any) = collect(x)
+_lazycollect(x::AbstractVector) = x
+
 function _matrix_error(x, y, fun)
     if x isa AbstractMatrix
         s = "$(fun)(x::AbstractMatrix, y::Any) is currently not allowed. " * 
@@ -531,7 +534,7 @@ function covzm(x::AbstractMatrix, vardim::Int=1; corrected::Bool=true)
 end
 function covzm(x::Any, y::Any; corrected::Bool = true)
     _matrix_error(x, y, covzm)
-    covzm(collect(x), collect(y); corrected = corrected)
+    covzm(_lazycollect(x), _lazycollect(y); corrected = corrected)
 end
 covzm(x::AbstractVector, y::AbstractVector; corrected::Bool=true) =
     unscaled_covzm(x, y) / (length(x) - Int(corrected))
@@ -714,7 +717,7 @@ corm(x::AbstractVector{T}, xmean) where {T} = one(real(T))
 corm(x::AbstractMatrix, xmean, vardim::Int=1) = corzm(x .- xmean, vardim)
 function corm(x::Any, mx, y::Any, my) 
     _matrix_error(x, mx, y, my, corm)
-    corm(collect(x), mx, collect(y), my)
+    corm(_lazycollect(x), mx, _lazycollect(y), my)
 end
 function corm(x::AbstractVector, mx, y::AbstractVector, my)
     require_one_based_indexing(x, y)
@@ -767,8 +770,8 @@ Compute the Pearson correlation between iterators `x` and `y`.
 """
 function cor(x::Any, y::Any)
     _matrix_error(x, y, cor)
-    cx = collect(x)
-    cy = collect(y)
+    cx = _lazycollect(x)
+    cy = _lazycollect(y)
 
     corm(cx, mean(cx), cy, mean(cy))
 end
