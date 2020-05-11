@@ -165,6 +165,7 @@ mean(A::AbstractArray; dims=:) = _mean(identity, A, dims)
 
 _mean_promote(x::T, y::S) where {T,S} = convert(promote_type(T, S), y)
 
+# ::Dims is there to force specializing on Colon (as it is a Function)
 function _mean(f, A::AbstractArray, dims::Dims=:) where Dims
     isempty(A) && return sum(f, A, dims=dims)/0
     if dims === (:)
