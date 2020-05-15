@@ -67,7 +67,6 @@ end
 end
 
 @testset "mean" begin
-    @test_throws MethodError mean(())
     @test mean((1,2,3)) === 2.
     @test mean([0]) === 0.
     @test mean([1.]) === 1.
