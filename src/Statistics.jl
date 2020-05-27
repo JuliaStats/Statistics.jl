@@ -319,7 +319,7 @@ distribution. For arrays, this computation is equivalent to calculating
 `sum((itr .- mean(itr)).^2) / (length(itr) - 1))`.
 If `corrected` is `true`, then the sum is scaled with `n-1`,
 whereas the sum is scaled with `n` if `corrected` is
-`false`. `n` is the number of elements in `itr`.
+`false` where `n` is the number of elements in `itr`.
 
 A pre-computed `mean` may be provided.
 
