@@ -120,7 +120,7 @@ end
     @test_throws MethodError mean([])
     @test_throws MethodError mean(skipmissing([]))
     @test_throws ArgumentError mean((1 for i in 2:1))
-    if VERSION >= v"1.6"
+    if VERSION >= v"1.6.0-DEV.83"
         @test_throws ArgumentError mean(())
         @test_throws ArgumentError mean(Union{}[])
     end
