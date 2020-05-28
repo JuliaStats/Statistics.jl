@@ -348,7 +348,7 @@ distribution. For arrays, this computation is equivalent to calculating
 `sum((itr .- mean(itr)).^2) / (length(itr) - 1))`.
 If `corrected` is `true`, then the sum is scaled with `n-1`,
 whereas the sum is scaled with `n` if `corrected` is
-`false` with `n` the number of elements in `itr`.
+`false` where `n` is the number of elements in `itr`.
 
 If `itr` is an `AbstractArray`, `dims` can be provided to compute the variance
 over dimensions.
