@@ -969,6 +969,10 @@ end
     require_one_based_indexing(v)
 
     n = length(v)
+    
+    @assert n > 0 # this case should never happen here
+    n == 1 && return v[1]
+    
     m = alpha + p * (one(alpha) - alpha - beta)
     aleph = n*p + oftype(p, m)
     j = clamp(trunc(Int, aleph), 1, n-1)
