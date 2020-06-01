@@ -96,7 +96,7 @@ julia> mean([√1, √2, √3])
 1.3820881233139908
 
 julia> mean(√, [1 2 3; 4 5 6], dims=2)
-2×1 Array{Float64,2}:
+2×1 Matrix{Float64}:
  1.3820881233139908
  2.2285192400943226
 ```
@@ -113,17 +113,17 @@ Compute the mean of `v` over the singleton dimensions of `r`, and write results 
 julia> using Statistics
 
 julia> v = [1 2; 3 4]
-2×2 Array{Int64,2}:
+2×2 Matrix{Int64}:
  1  2
  3  4
 
 julia> mean!([1., 1.], v)
-2-element Array{Float64,1}:
+2-element Vector{Float64}:
  1.5
  3.5
 
 julia> mean!([1. 1.], v)
-1×2 Array{Float64,2}:
+1×2 Matrix{Float64}:
  2.0  3.0
 ```
 """
@@ -147,16 +147,16 @@ Compute the mean of an array over the given dimensions.
 julia> using Statistics
 
 julia> A = [1 2; 3 4]
-2×2 Array{Int64,2}:
+2×2 Matrix{Int64}:
  1  2
  3  4
 
 julia> mean(A, dims=1)
-1×2 Array{Float64,2}:
+1×2 Matrix{Float64}:
  2.0  3.0
 
 julia> mean(A, dims=2)
-2×1 Array{Float64,2}:
+2×1 Matrix{Float64}:
  1.5
  3.5
 ```
@@ -770,7 +770,7 @@ extrema and then computing their mean.
 julia> using Statistics
 
 julia> a = [1,2,3.6,10.9]
-4-element Array{Float64,1}:
+4-element Vector{Float64}:
   1.0
   2.0
   3.6
@@ -845,7 +845,7 @@ Compute the median of an array along the given dimensions.
 julia> using Statistics
 
 julia> median([1 2; 3 4], dims=1)
-1×2 Array{Float64,2}:
+1×2 Matrix{Float64}:
  2.0  3.0
 ```
 """
@@ -897,7 +897,7 @@ julia> quantile!(x, 0.5)
 2.0
 
 julia> x
-3-element Array{Int64,1}:
+3-element Vector{Int64}:
  1
  2
  3
@@ -908,7 +908,7 @@ julia> quantile!(y, x, [0.1, 0.5, 0.9]) === y
 true
 
 julia> y
-3-element Array{Float64,1}:
+3-element Vector{Float64}:
  1.2000000000000002
  2.0
  2.8000000000000003
@@ -1037,7 +1037,7 @@ julia> quantile(0:20, 0.5)
 10.0
 
 julia> quantile(0:20, [0.1, 0.5, 0.9])
-3-element Array{Float64,1}:
+3-element Vector{Float64}:
   2.0
  10.0
  18.000000000000004
