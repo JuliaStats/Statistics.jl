@@ -557,6 +557,7 @@ end
     @test_throws ArgumentError quantile([1, missing], 0.5)
     @test_throws ArgumentError quantile([1, NaN], 0.5)
     @test quantile(skipmissing([1, missing, 2]), 0.5) === 1.5
+    @test quantile([1]), 0.5) === 1.0
 
     # make sure that type inference works correctly in normal cases
     for T in [Int, BigInt, Float64, Float16, BigFloat, Rational{Int}, Rational{BigInt}]
