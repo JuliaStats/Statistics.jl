@@ -969,14 +969,22 @@ end
     require_one_based_indexing(v)
 
     n = length(v)
+    
+    @assert n > 0 # this case should never happen here
+    
     m = alpha + p * (one(alpha) - alpha - beta)
     aleph = n*p + oftype(p, m)
     j = clamp(trunc(Int, aleph), 1, n-1)
     γ = clamp(aleph - j, 0, 1)
 
-    a = v[j]
-    b = v[j + 1]
-
+    if n == 1
+        a = v[1]
+        b = v[1]
+    else
+        a = v[j]
+        b = v[j + 1]
+    end
+    
     if isfinite(a) && isfinite(b)
         return a + γ*(b-a)
     else
