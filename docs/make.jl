@@ -10,7 +10,8 @@ makedocs(
     sitename = "Statistics",
     pages = Any[
         "Statistics" => "index.md"
-        ]
+        ],
+    strict=true
     )
 
 deploydocs(repo = "github.com/JuliaLang/Statistics.jl.git")
