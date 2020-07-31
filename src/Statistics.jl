@@ -29,8 +29,6 @@ Compute the mean of all elements in a collection.
 
 # Examples
 ```jldoctest
-julia> using Statistics
-
 julia> mean(1:20)
 10.5
 
@@ -49,8 +47,6 @@ mean(itr) = mean(identity, itr)
 Apply the function `f` to each element of collection `itr` and take the mean.
 
 ```jldoctest
-julia> using Statistics
-
 julia> mean(√, [1, 2, 3])
 1.3820881233139908
 
@@ -87,8 +83,6 @@ Apply the function `f` to each element of array `A` and take the mean over dimen
     This method requires at least Julia 1.3.
 
 ```jldoctest
-julia> using Statistics
-
 julia> mean(√, [1, 2, 3])
 1.3820881233139908
 
@@ -110,8 +104,6 @@ Compute the mean of `v` over the singleton dimensions of `r`, and write results 
 
 # Examples
 ```jldoctest
-julia> using Statistics
-
 julia> v = [1 2; 3 4]
 2×2 Matrix{Int64}:
  1  2
@@ -144,8 +136,6 @@ Compute the mean of an array over the given dimensions.
 
 # Examples
 ```jldoctest
-julia> using Statistics
-
 julia> A = [1 2; 3 4]
 2×2 Matrix{Int64}:
  1  2
@@ -752,8 +742,6 @@ Compute the middle of a range, which consists of computing the mean of its extre
 Since a range is sorted, the mean is performed with the first and last element.
 
 ```jldoctest
-julia> using Statistics
-
 julia> middle(1:10)
 5.5
 ```
@@ -767,8 +755,6 @@ Compute the middle of an array `a`, which consists of finding its
 extrema and then computing their mean.
 
 ```jldoctest
-julia> using Statistics
-
 julia> a = [1,2,3.6,10.9]
 4-element Vector{Float64}:
   1.0
@@ -818,8 +804,6 @@ equivalent to calculating mean of two median elements.
 
 # Examples
 ```jldoctest
-julia> using Statistics
-
 julia> median([1, 2, 3])
 2.0
 
@@ -842,8 +826,6 @@ Compute the median of an array along the given dimensions.
 
 # Examples
 ```jl
-julia> using Statistics
-
 julia> median([1 2; 3 4], dims=1)
 1×2 Matrix{Float64}:
  2.0  3.0
@@ -889,8 +871,6 @@ defined in this paper:
 
 # Examples
 ```jldoctest
-julia> using Statistics
-
 julia> x = [3, 2, 1];
 
 julia> quantile!(x, 0.5)
@@ -969,9 +949,9 @@ end
     require_one_based_indexing(v)
 
     n = length(v)
-    
+
     @assert n > 0 # this case should never happen here
-    
+
     m = alpha + p * (one(alpha) - alpha - beta)
     aleph = n*p + oftype(p, m)
     j = clamp(trunc(Int, aleph), 1, n-1)
@@ -984,7 +964,7 @@ end
         a = v[j]
         b = v[j + 1]
     end
-    
+
     if isfinite(a) && isfinite(b)
         return a + γ*(b-a)
     else
@@ -1031,8 +1011,6 @@ defined in this paper:
 
 # Examples
 ```jldoctest
-julia> using Statistics
-
 julia> quantile(0:20, 0.5)
 10.0
 
