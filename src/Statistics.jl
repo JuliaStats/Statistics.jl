@@ -12,7 +12,7 @@ using LinearAlgebra, SparseArrays
 using Base: has_offset_axes, require_one_based_indexing
 
 export cor, cov, std, stdm, var, varm, mean!, mean,
-    median!, median, middle, quantile!, quantile
+    median!, median, middle, quantile!, quantile, sample
 
 ##### mean #####
 
@@ -1141,5 +1141,9 @@ function centralize_sumabs2!(R::AbstractArray{S}, A::SparseMatrixCSC{Tv,Ti}, mea
     end
     return R
 end
+
+##### Sampling #####
+
+function sample end
 
 end # module
