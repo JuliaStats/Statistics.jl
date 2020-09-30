@@ -985,7 +985,7 @@ end
         b = v[j + 1]
     end
     
-    if isfinite(a) && isfinite(b)
+    if applicable(isfinite, a) && isfinite(a) && isfinite(b)
         return a + γ*(b-a)
     else
         return (1-γ)*a + γ*b
