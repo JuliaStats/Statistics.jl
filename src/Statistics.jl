@@ -733,17 +733,17 @@ cor(x::AbstractVecOrMat, y::AbstractVecOrMat; dims::Int=1) =
 Compute the middle of a scalar value, which is equivalent to `x` itself, but of the type of `middle(x, x)` for consistency.
 """
 middle(x::Union{Bool,Int8,Int16,Int32,Int64,Int128,UInt8,UInt16,UInt32,UInt64,UInt128}) = Float64(x)
-# Specialized functions for real types allow for improved performance
+# Specialized functions for number types allow for improved performance
 middle(x::AbstractFloat) = x
-middle(x::Real) = (x + zero(x)) / 1
+middle(x::Number) = (x + zero(x)) / 1
 
 """
     middle(x, y)
 
-Compute the middle of two reals `x` and `y`, which is
+Compute the middle of two numbers `x` and `y`, which is
 equivalent in both value and type to computing their mean (`(x + y) / 2`).
 """
-middle(x::Real, y::Real) = x/2 + y/2
+middle(x::Number, y::Number) = x/2 + y/2
 
 """
     middle(range)

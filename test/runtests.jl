@@ -14,6 +14,9 @@ Random.seed!(123)
     @test middle(1:8) === 4.5
     @test middle([1:8;]) === 4.5
 
+    @test middle(5.0 + 2.0im, 2.0 + 3.0im) == 3.5 + 2.5im
+    @test middle(5.0 + 2.0im) == 5.0 + 2.0im
+
     # ensure type-correctness
     for T in [Bool,Int8,Int16,Int32,Int64,Int128,UInt8,UInt16,UInt32,UInt64,UInt128,Float16,Float32,Float64]
         @test middle(one(T)) === middle(one(T), one(T))
