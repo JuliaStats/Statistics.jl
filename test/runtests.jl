@@ -857,3 +857,9 @@ end
         @test isfinite.(cov_sparse) == isfinite.(cov_dense)
     end
 end
+
+@testset "sample" begin
+    Random.seed!(1234)
+    @test sample(1:4) == 1
+    @test sample(reshape(1:27, 3, 3, 3)) == 11
+end
