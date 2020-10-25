@@ -1,6 +1,6 @@
 # This file is a part of Julia. License is MIT: https://julialang.org/license
 
-using Statistics, Test, Random, LinearAlgebra, SparseArrays
+using Statistics, Test, Random, LinearAlgebra, SparseArrays, StableRNGs
 using Test: guardseed
 
 Random.seed!(123)
@@ -859,7 +859,11 @@ end
 end
 
 @testset "sample" begin
-    Random.seed!(1234)
-    @test sample(1:4) == 1
-    @test sample(reshape(1:27, 3, 3, 3)) == 11
+    rng = StableRNG(123)
+    @test sample(rng, 1:4) == 4
+    @test sample(rng, reshape(1:27, 3, 3, 3)) == 15
+    
+    # just test dispatch
+    sample(1:4)
+    sample(rand(3,3,3))
 end
