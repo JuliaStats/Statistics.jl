@@ -7,7 +7,7 @@ Standard library module for basic statistics functionality.
 """
 module Statistics
 
-using LinearAlgebra, SparseArrays
+using LinearAlgebra, Random, SparseArrays
 
 using Base: has_offset_axes, require_one_based_indexing
 
