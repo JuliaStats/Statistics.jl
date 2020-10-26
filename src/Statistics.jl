@@ -1152,7 +1152,7 @@ Uniformly select a single random element of `a`.
 Optionally specify a random number generator `rng` as the first argument
 (defaults to `Random.GLOBAL_RNG`).
 """
-sample(rng::AbstractRNG, a::AbstractArray) = a[rand(rng, eachindex(a))]
+sample(rng::AbstractRNG, a::AbstractArray) = rand(rng, a)
 sample(a::AbstractArray) = sample(Random.GLOBAL_RNG, a)
 
 end # module
