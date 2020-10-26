@@ -1,6 +1,6 @@
 # This file is a part of Julia. License is MIT: https://julialang.org/license
 
-using Statistics, Test, Random, LinearAlgebra, SparseArrays, StableRNGs
+using Statistics, Test, Random, LinearAlgebra, SparseArrays
 using Test: guardseed
 
 Random.seed!(123)
@@ -145,7 +145,7 @@ end
     @test mean(Number[1, 1.5, 2+3im]) === 1.5+1im # mixed-type array
     @test mean(v for v in Number[1, 1.5, 2+3im]) === 1.5+1im
     @test (@inferred mean(Int[])) === 0/0
-    @test (@inferred mean(Float32[])) === 0.f0/0    
+    @test (@inferred mean(Float32[])) === 0.f0/0
     @test (@inferred mean(Float64[])) === 0/0
     @test (@inferred mean(Iterators.filter(x -> true, Int[]))) === 0/0
     @test (@inferred mean(Iterators.filter(x -> true, Float32[]))) === 0.f0/0
@@ -859,11 +859,31 @@ end
 end
 
 @testset "sample" begin
-    rng = StableRNG(123)
-    @test sample(rng, 1:4) == 4
-    @test sample(rng, reshape(1:27, 3, 3, 3)) == 15
-    
-    # just test dispatch
-    sample(1:4)
-    sample(rand(3,3,3))
+    @testset "consistency with Base" begin
+        a = rand(100)
+        Random.seed!(1234)
+        res1 = [sample(a) for _ in 1:100]
+        Random.seed!(1234)
+        res2 = [rand(a) for _ in 1:100]
+
+        @test res1 == res2
+
+        mt1 = Random.MersenneTwister(1234)
+        mt2 = Random.MersenneTwister(1234)
+
+        @test [sample(mt1, a) for _ in 1:100] == [rand(mt2, a) for _ in 1:100]
+    end
+
+    @testset "uniformity" begin
+        Random.seed!(1234)
+        counts = zeros(Int, 10)
+        for _ in 1:1_000_000
+            counts[sample(1:10)] += 1
+        end
+
+        # 3 standard deviations of the fraction estimator distribution is ~900
+        @test minimum(counts) > 99_000
+        @test maximum(counts) < 101_000
+    end
+
 end
