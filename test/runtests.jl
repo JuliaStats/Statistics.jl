@@ -876,14 +876,14 @@ end
 
     @testset "uniformity" begin
         Random.seed!(1234)
-        counts = zeros(Int, 10)
-        for _ in 1:1_000_000
-            counts[sample(1:10)] += 1
+        counts = zeros(Int, 5)
+        for _ in 1:100_000
+            counts[sample(1:5)] += 1
         end
 
-        # 3 standard deviations of the fraction estimator distribution is ~900
-        @test minimum(counts) > 99_000
-        @test maximum(counts) < 101_000
+        # violation probability is <0.001
+        @test minimum(counts) > 19_500
+        @test maximum(counts) < 20_500
     end
 
 end
