@@ -306,8 +306,8 @@ end
 Compute the sample variance of collection `itr`, with known mean(s) `mean`.
 
 The algorithm returns an estimator of the generative distribution's variance
-under the assumption that each entry of `itr` drawn from that generative
-distribution is independent and identically distributed (IID).
+under the assumption that each entry of `itr` is a sample drawn from the same
+unknown distribution, with the samples uncorrelated.
 For arrays, this computation is equivalent to calculating
 `sum((itr .- mean(itr)).^2) / (length(itr) - 1)`.
 If `corrected` is `true`, then the sum is scaled with `n-1`,
@@ -344,8 +344,8 @@ end
 Compute the sample variance of collection `itr`.
 
 The algorithm returns an estimator of the generative distribution's variance
-under the assumption that each entry of `itr` drawn from that generative
-distribution is independent and identically distributed (IID).
+under the assumption that each entry of `itr` is a sample drawn from the same
+unknown distribution, with the samples uncorrelated.
 For arrays, this computation is equivalent to calculating
 `sum((itr .- mean(itr)).^2) / (length(itr) - 1))`.
 If `corrected` is `true`, then the sum is scaled with `n-1`,
@@ -420,8 +420,8 @@ stdm(A::AbstractArray, m; corrected::Bool=true) =
 Compute the sample standard deviation of collection `itr`.
 
 The algorithm returns an estimator of the generative distribution's standard
-deviation under the assumption that each entry of `itr` drawn from that generative
-distribution is independent and identically distributed (IID).
+deviation under the assumption that each entry of `itr` is a sample drawn from
+the same unknown distribution, with the samples uncorrelated.
 For arrays, this computation is equivalent to calculating
 `sqrt(sum((itr .- mean(itr)).^2) / (length(itr) - 1))`.
 If `corrected` is `true`, then the sum is scaled with `n-1`,
@@ -464,8 +464,8 @@ std(iterable; corrected::Bool=true, mean=nothing) =
 Compute the sample standard deviation of collection `itr`, with known mean(s) `mean`.
 
 The algorithm returns an estimator of the generative distribution's standard
-deviation under the assumption that each entry of `itr` drawn from that generative
-distribution is independent and identically distributed (IID).
+deviation under the assumption that each entry of `itr` is a sample drawn from
+the same unknown distribution, with the samples uncorrelated.
 For arrays, this computation is equivalent to calculating
 `sqrt(sum((itr .- mean(itr)).^2) / (length(itr) - 1))`.
 If `corrected` is `true`, then the sum is scaled with `n-1`,
