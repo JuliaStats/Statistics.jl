@@ -2,6 +2,14 @@
 
 The Statistics standard library module contains basic statistics functionality.
 
+## Index
+
+```@index
+Modules = [Statistics]
+```
+
+## Docs
+
 ```@docs
 std
 stdm
