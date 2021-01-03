@@ -518,7 +518,7 @@ end
     end
     
     @test cor(Int[]) === 1.0
-    @test cor([im]) ===1.0 + 0.0im
+    @test cor([im]) === 1.0 + 0.0im
     @test_throws MethodError cor([])
     @test_throws MethodError cor(Any[1.0])
     
