@@ -1,6 +1,6 @@
 # Statistics.jl
 
-[![Travis CI Build Status][travis-img]][travis-url]
+[![Build status](https://github.com/JuliaLang/Statistics.jl/workflows/CI/badge.svg)]((https://github.com/JuliaLang/Statistics.jl/actions?query=workflow%3ACI+branch%3Amaster))
 
 Development repository for the Statistics standard library (stdlib) that ships with Julia. 
 
@@ -14,6 +14,3 @@ If you want to develop this package, do the following steps:
 - To test your changes, simply do `include("test/runtests.jl")`.
 
 If you need to build Julia from source with a git checkout of Statistics, then instead use `make DEPS_GIT=Statistics` when building Julia. The `Statistics` repo is in `stdlib/Statistics`, and created initially with a detached `HEAD`. If you're doing this from a pre-existing Julia repository, you may need to `make clean` beforehand.
-
-[travis-img]: https://travis-ci.com/JuliaLang/Statistics.jl.svg?branch=master
-[travis-url]: https://travis-ci.com/JuliaLang/Statistics.jl
