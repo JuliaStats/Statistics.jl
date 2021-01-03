@@ -516,6 +516,20 @@ end
         @test cor(tmp, tmp) <= 1.0
         @test cor(tmp, tmp2) <= 1.0
     end
+    
+    @test cor(Int[]) === 1.0
+    @test cor([im]) ===1.0 + 0.0im
+    @test_throws MethodError cor([])
+    @test_throws MethodError cor(Any[1.0])
+    
+    @test cor([1, missing]) === 1.0
+    @test ismissing(cor([missing]))
+    @test_throws MethodError cor(Any[1.0, missing])
+    
+    @test Statistics.corm([true], 1.0) === 1.0
+    @test_throws MethodError Statistics.corm(Any[0.0, 1.0], 0.5)
+    @test Statistics.corzm([true]) === 1.0
+    @test_throws MethodError Statistics.corzm(Any[0.0, 1.0])
 end
 
 @testset "quantile" begin
