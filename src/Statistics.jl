@@ -367,11 +367,19 @@ singleton dimensions are allowed).
 """
 var(A::AbstractArray; corrected::Bool=true, mean=nothing, dims=:) = _var(A, corrected, mean, dims)
 
-_var(A::AbstractArray, corrected::Bool, mean, dims) =
-    varm(A, something(mean, Statistics.mean(A, dims=dims)); corrected=corrected, dims=dims)
+function _var(A::AbstractArray, corrected::Bool, mean, dims)
+  if mean === nothing
+    mean = Statistics.mean(A, dims=dims)
+  end
+  return varm(A, mean; corrected=corrected, dims=dims)
+end
 
-_var(A::AbstractArray, corrected::Bool, mean, ::Colon) =
-    real(varm(A, something(mean, Statistics.mean(A)); corrected=corrected))
+function _var(A::AbstractArray, corrected::Bool, mean, ::Colon)
+  if mean === nothing
+    mean = Statistics.mean(A)
+  end
+  return real(varm(A, mean; corrected=corrected))
+end
 
 varm(iterable, m; corrected::Bool=true) = _var(iterable, corrected, m)
 
