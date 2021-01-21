@@ -369,14 +369,14 @@ var(A::AbstractArray; corrected::Bool=true, mean=nothing, dims=:) = _var(A, corr
 
 function _var(A::AbstractArray, corrected::Bool, mean, dims)
   if mean === nothing
-    mean = Statistics.mean(A, dims=dims)
+      mean = Statistics.mean(A, dims=dims)
   end
   return varm(A, mean; corrected=corrected, dims=dims)
 end
 
 function _var(A::AbstractArray, corrected::Bool, mean, ::Colon)
   if mean === nothing
-    mean = Statistics.mean(A)
+      mean = Statistics.mean(A)
   end
   return real(varm(A, mean; corrected=corrected))
 end
