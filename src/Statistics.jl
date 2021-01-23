@@ -685,7 +685,14 @@ function corm(x::AbstractVector, mx, y::AbstractVector, my)
     require_one_based_indexing(x, y)
     n = length(x)
     length(y) == n || throw(DimensionMismatch("inconsistent lengths"))
-    n > 0 || throw(ArgumentError("correlation only defined for non-empty vectors"))
+    if n == 0
+        T = promote_type(typeof(mx), typeof(my))
+        if T <: AbstractFloat
+            return T(NaN)
+        else
+            return NaN
+        end
+    end
 
     @inbounds begin
         # Initialize the accumulators
