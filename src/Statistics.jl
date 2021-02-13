@@ -665,7 +665,8 @@ end
 
 # corzm (non-exported, with centered data)
 
-corzm(x::AbstractVector{T}) where {T} = one(float(T))
+corzm(x::AbstractVector{T}) where {T} =
+    one(float(T === Missing ? Missing : nonmissingtype(T)))
 function corzm(x::AbstractMatrix, vardim::Int=1)
     c = unscaled_covzm(x, vardim)
     return cov2cor!(c, collect(sqrt(c[i,i]) for i in 1:min(size(c)...)))
@@ -679,7 +680,8 @@ corzm(x::AbstractMatrix, y::AbstractMatrix, vardim::Int=1) =
 
 # corm
 
-corm(x::AbstractVector{T}, xmean) where {T} = one(float(T))
+corm(x::AbstractVector{T}, xmean) where {T} =
+    one(float(T === Missing ? Missing : nonmissingtype(T)))
 corm(x::AbstractMatrix, xmean, vardim::Int=1) = corzm(x .- xmean, vardim)
 function corm(x::AbstractVector, mx, y::AbstractVector, my)
     require_one_based_indexing(x, y)
@@ -713,7 +715,8 @@ corm(x::AbstractVecOrMat, xmean, y::AbstractVecOrMat, ymean, vardim::Int=1) =
 
 Return the number one.
 """
-cor(x::AbstractVector) = one(float(eltype(x)))
+cor(x::AbstractVector) =
+    one(float(eltype(T === Missing ? Missing : nonmissingtype(T))))
 
 """
     cor(X::AbstractMatrix; dims::Int=1)
