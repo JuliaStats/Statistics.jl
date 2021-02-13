@@ -557,8 +557,15 @@ end
     @test quantile(Any[1, Float16(2), 3], Float16(0.5)) isa Float16
     @test quantile(Any[1, big(2), 3], Float16(0.5)) isa BigFloat
 
-    @test_throws ArgumentError quantile([1, missing], 0.5)
-    @test_throws ArgumentError quantile([1, NaN], 0.5)
+    # Need a large vector to actually check consequences of partial sorting
+    x = rand(50)
+    for sorted in (false, true)
+        x[10] = NaN
+        @test_throws ArgumentError quantile(x, 0.5, sorted=sorted)
+        x = Vector{Union{Float64, Missing}}(x)
+        x[10] = missing
+        @test_throws ArgumentError quantile(x, 0.5, sorted=sorted)
+    end
     @test quantile(skipmissing([1, missing, 2]), 0.5) === 1.5
     @test quantile([1], 0.5) === 1.0
 

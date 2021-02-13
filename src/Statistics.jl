@@ -960,8 +960,10 @@ function _quantilesort!(v::AbstractArray, sorted::Bool, minp::Real, maxp::Real)
         # only need to perform partial sort
         sort!(v, 1, lv, Base.Sort.PartialQuickSort(lo:hi), Base.Sort.Forward)
     end
-    ismissing(v[end]) && throw(ArgumentError("quantiles are undefined in presence of missing values"))
-    isnan(v[end]) && throw(ArgumentError("quantiles are undefined in presence of NaNs"))
+    if (sorted && (ismissing(v[end]) || (v[end] isa Number && isnan(v[end])))) ||
+        any(x -> ismissing(x) || (x isa Number && isnan(x)), v)
+        throw(ArgumentError("quantiles are undefined in presence of NaNs or missing values"))
+    end
     return v
 end
 
