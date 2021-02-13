@@ -1,6 +1,6 @@
 # Statistics.jl
 
-[![Build status](https://github.com/JuliaLang/Statistics.jl/workflows/CI/badge.svg)]((https://github.com/JuliaLang/Statistics.jl/actions?query=workflow%3ACI+branch%3Amaster))
+[![Build status](https://github.com/JuliaLang/Statistics.jl/workflows/CI/badge.svg)](https://github.com/JuliaLang/Statistics.jl/actions?query=workflow%3ACI+branch%3Amaster)
 
 Development repository for the Statistics standard library (stdlib) that ships with Julia. 
 
