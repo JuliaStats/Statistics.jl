@@ -48,6 +48,7 @@ end
     @test isnan(median([NaN,0.0]))
     @test isnan(median([NaN,0.0,1.0]))
     @test isnan(median(Any[NaN,0.0,1.0]))
+    @test isnan(median(median(Union{Float64, Missing}[1, 2, 3, NaN])))
     @test isequal(median([NaN 0.0; 1.2 4.5], dims=2), reshape([NaN; 2.85], 2, 1))
 
     @test ismissing(median([1, missing]))
