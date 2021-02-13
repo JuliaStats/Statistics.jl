@@ -715,7 +715,7 @@ corm(x::AbstractVecOrMat, xmean, y::AbstractVecOrMat, ymean, vardim::Int=1) =
 
 Return the number one.
 """
-cor(x::AbstractVector) =
+cor(x::AbstractVector) where {T} =
     one(float(eltype(T === Missing ? Missing : nonmissingtype(T))))
 
 """
