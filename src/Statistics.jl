@@ -665,6 +665,10 @@ end
 
 # corzm (non-exported, with centered data)
 
+if !isdefined(Base, :nonmissingtype)
+    nonmissingtype(::Type{T}) where {T} = Core.Compiler.typesubtract(T, Missing)
+end
+
 corzm(x::AbstractVector{T}) where {T} =
     T === Missing ? missing : one(float(nonmissingtype(T)))
 function corzm(x::AbstractMatrix, vardim::Int=1)
