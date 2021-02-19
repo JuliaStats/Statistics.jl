@@ -689,7 +689,7 @@ end
     @test varm(z, 0.0) ≈ invoke(varm, Tuple{Any,Float64}, z, 0.0) ≈ sum(abs2, z)/9
     @test isa(varm(z, 0.0), Float64)
     @test isa(invoke(varm, Tuple{Any,Float64}, z, 0.0), Float64)
-    @test cor(z) === 1.0
+    @test cor(z) === 1.0+0.0im
     v = varm([1.0+2.0im], 0; corrected = false)
     @test v ≈ 5
     @test isa(v, Float64)
