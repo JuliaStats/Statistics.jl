@@ -48,7 +48,6 @@ end
     @test isnan(median([NaN,0.0]))
     @test isnan(median([NaN,0.0,1.0]))
     @test isnan(median(Any[NaN,0.0,1.0]))
-    @test isnan(median(median(Union{Float64, Missing}[1, 2, 3, NaN])))
     @test isequal(median([NaN 0.0; 1.2 4.5], dims=2), reshape([NaN; 2.85], 2, 1))
 
     @test ismissing(median([1, missing]))
@@ -68,6 +67,15 @@ end
     @test @inferred(median(Float16[1, 2, 3]))   === Float16(2)
     @test @inferred(median(Float32[1, 2, NaN])) === NaN32
     @test @inferred(median(Float32[1, 2, 3]))   === 2.0f0
+
+    # custom type implementing minimal interface
+    struct A
+        x
+    end
+    Statistics.middle(x::A, y::A) = A(middle(x.x, y.x))
+    Base.isless(x::A, y::A) = isless(x.x, y.x)
+    @test median([A(1), A(2)]) === A(1.5)
+    @test median(Any[A(1), A(2)]) === A(1.5)
 end
 
 @testset "mean" begin
