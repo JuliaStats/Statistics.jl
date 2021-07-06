@@ -152,7 +152,7 @@ end
                ≈ float(typemax(Int)))
     end
     let x = rand(10000)  # mean should use sum's accurate pairwise algorithm
-        @test mean(x) == sum(x) / length(x)
+        @test mean(x) == sum((@view x[begin + 1:end]), init=x[1]) / length(x)
     end
     @test mean(Number[1, 1.5, 2+3im]) === 1.5+1im # mixed-type array
     @test mean(v for v in Number[1, 1.5, 2+3im]) === 1.5+1im
@@ -162,6 +162,15 @@ end
     @test (@inferred mean(Iterators.filter(x -> true, Int[]))) === 0/0
     @test (@inferred mean(Iterators.filter(x -> true, Float32[]))) === 0.f0/0
     @test (@inferred mean(Iterators.filter(x -> true, Float64[]))) === 0/0
+    # Check that mean does not call function argument an extra time
+    let  _cnt = 0, N = 100, x = rand(Int, N)
+        f(x) = begin; _cnt += 1; x; end
+        @test mean(1:N) == mean(f, 1:N)
+        @test _cnt == N
+        _cnt = 0
+        @test mean(x) == mean(f, x)
+        @test _cnt == N
+    end
 end
 
 @testset "mean/median for ranges" begin
