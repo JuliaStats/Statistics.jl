@@ -162,6 +162,15 @@ end
     @test (@inferred mean(Iterators.filter(x -> true, Int[]))) === 0/0
     @test (@inferred mean(Iterators.filter(x -> true, Float32[]))) === 0.f0/0
     @test (@inferred mean(Iterators.filter(x -> true, Float64[]))) === 0/0
+    # Check that mean does not call function argument an extra time
+    let  _cnt = 0, N = 100, x = rand(Int, N)
+        f(x) = begin; _cnt += 1; x; end
+        @test mean(1:N) == mean(f, 1:N)
+        @test _cnt == N
+        _cnt = 0
+        @test mean(x) == mean(f, x)
+        @test _cnt == N
+    end
 end
 
 @testset "mean/median for ranges" begin
