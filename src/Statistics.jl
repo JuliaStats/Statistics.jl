@@ -165,16 +165,11 @@ mean(A::AbstractArray; dims=:) = _mean(identity, A, dims)
 
 _mean_promote(x::T, y::S) where {T,S} = convert(promote_type(T, S), y)
 
-
-function _promoted_sum(f, A::AbstractArray; dims) # calls f() length(x) +1 times
-    x1 = f(first(A)) / 1
-    result = sum(x -> _mean_promote(x1, f(x)), A; dims)
-end
-function _promoted_sum(f, A::AbstractVector; dims) # calls f() length(x) times
-    x1 = f(first(A)) / 1
-    result = sum(x -> _mean_promote(x1, f(x)), @view A[begin+1:end]; dims,
-                 init = x1)
-end
+# calls f(A[1]) twice
+_promoted_sum(f, A::AbstractArray; init, dims) = sum(x -> _mean_promote(init, f(x)), A; dims)
+ # calls f(A[1]) once
+_promoted_sum(f, A::AbstractVector; init, dims) =
+    sum(x -> _mean_promote(x1, f(x)), @view A[begin+1:end]; init, dims)
 
 # ::Dims is there to force specializing on Colon (as it is a Function)
 function _mean(f, A::AbstractArray, dims::Dims=:) where Dims
@@ -184,7 +179,8 @@ function _mean(f, A::AbstractArray, dims::Dims=:) where Dims
     else
         n = mapreduce(i -> size(A, i), *, unique(dims); init=1)
     end
-    result = _promoted_sum(f, A; dims)
+    init = f(first(A)) / 1
+    result = _promoted_sum(f, A; init, dims)
     if dims === (:)
         return result / n
     else
@@ -326,7 +322,7 @@ whereas the sum is scaled with `n` if `corrected` is
 
 If `itr` is an `AbstractArray`, `dims` can be provided to compute the variance
 over dimensions. In that case, `mean` must be an array with the same shape as
-`mean(itr; dims)` (additional trailing singleton dimensions are allowed).
+`mean(itr, dims=dims)` (additional trailing singleton dimensions are allowed).
 
 !!! note
     If array contains `NaN` or [`missing`](@ref) values, the result is also
@@ -337,7 +333,7 @@ over dimensions. In that case, `mean` must be an array with the same shape as
 varm(A::AbstractArray, m::AbstractArray; corrected::Bool=true, dims=:) = _varm(A, m, corrected, dims)
 
 _varm(A::AbstractArray{T}, m, corrected::Bool, region) where {T} =
-    varm!(Base.reducedim_init(t -> abs2(t)/2, +, A, region), A, m; corrected)
+    varm!(Base.reducedim_init(t -> abs2(t)/2, +, A, region), A, m; corrected=corrected)
 
 varm(A::AbstractArray, m; corrected::Bool=true) = _varm(A, m, corrected, :)
 
@@ -366,7 +362,7 @@ If `itr` is an `AbstractArray`, `dims` can be provided to compute the variance
 over dimensions.
 
 A pre-computed `mean` may be provided. When `dims` is specified, `mean` must be
-an array with the same shape as `mean(itr; dims)` (additional trailing
+an array with the same shape as `mean(itr, dims=dims)` (additional trailing
 singleton dimensions are allowed).
 
 !!! note
@@ -379,16 +375,16 @@ var(A::AbstractArray; corrected::Bool=true, mean=nothing, dims=:) = _var(A, corr
 
 function _var(A::AbstractArray, corrected::Bool, mean, dims)
   if mean === nothing
-      mean = Statistics.mean(A; dims)
+      mean = Statistics.mean(A, dims=dims)
   end
-  return varm(A, mean; corrected, dims)
+  return varm(A, mean; corrected=corrected, dims=dims)
 end
 
 function _var(A::AbstractArray, corrected::Bool, mean, ::Colon)
   if mean === nothing
       mean = Statistics.mean(A)
   end
-  return real(varm(A, mean; corrected))
+  return real(varm(A, mean; corrected=corrected))
 end
 
 varm(iterable, m; corrected::Bool=true) = _var(iterable, corrected, m)
@@ -429,7 +425,8 @@ function sqrt!(A::AbstractArray)
     A
 end
 
-stdm(A::AbstractArray, m; corrected::Bool=true) = sqrt.(varm(A, m; corrected))
+stdm(A::AbstractArray, m; corrected::Bool=true) =
+    sqrt.(varm(A, m; corrected=corrected))
 
 """
     std(itr; corrected::Bool=true, mean=nothing[, dims])
@@ -449,7 +446,7 @@ If `itr` is an `AbstractArray`, `dims` can be provided to compute the standard d
 over dimensions, and `means` may contain means for each dimension of `itr`.
 
 A pre-computed `mean` may be provided. When `dims` is specified, `mean` must be
-an array with the same shape as `mean(itr; dims)` (additional trailing
+an array with the same shape as `mean(itr, dims=dims)` (additional trailing
 singleton dimensions are allowed).
 
 !!! note
@@ -461,19 +458,19 @@ singleton dimensions are allowed).
 std(A::AbstractArray; corrected::Bool=true, mean=nothing, dims=:) = _std(A, corrected, mean, dims)
 
 _std(A::AbstractArray, corrected::Bool, mean, dims) =
-    sqrt.(var(A; corrected, mean, dims))
+    sqrt.(var(A; corrected=corrected, mean=mean, dims=dims))
 
 _std(A::AbstractArray, corrected::Bool, mean, ::Colon) =
-    sqrt.(var(A; corrected, mean))
+    sqrt.(var(A; corrected=corrected, mean=mean))
 
 _std(A::AbstractArray{<:AbstractFloat}, corrected::Bool, mean, dims) =
-    sqrt!(var(A; corrected, mean, dims))
+    sqrt!(var(A; corrected=corrected, mean=mean, dims=dims))
 
 _std(A::AbstractArray{<:AbstractFloat}, corrected::Bool, mean, ::Colon) =
-    sqrt.(var(A; corrected, mean))
+    sqrt.(var(A; corrected=corrected, mean=mean))
 
 std(iterable; corrected::Bool=true, mean=nothing) =
-    sqrt(var(iterable; corrected, mean))
+    sqrt(var(iterable, corrected=corrected, mean=mean))
 
 """
     stdm(itr, mean; corrected::Bool=true)
@@ -491,7 +488,7 @@ whereas the sum is scaled with `n` if `corrected` is
 
 If `itr` is an `AbstractArray`, `dims` can be provided to compute the standard deviation
 over dimensions. In that case, `mean` must be an array with the same shape as
-`mean(itr; dims)` (additional trailing singleton dimensions are allowed).
+`mean(itr, dims=dims)` (additional trailing singleton dimensions are allowed).
 
 !!! note
     If array contains `NaN` or [`missing`](@ref) values, the result is also
@@ -499,7 +496,8 @@ over dimensions. In that case, `mean` must be an array with the same shape as
     Use the [`skipmissing`](@ref) function to omit `missing` entries and compute the
     standard deviation of non-missing values.
 """
-stdm(iterable, mean; corrected::Bool=true) = std(iterable; corrected, mean)
+stdm(iterable, m; corrected::Bool=true) =
+    std(iterable, corrected=corrected, mean=m)
 
 
 ###### covariance ######
@@ -561,13 +559,13 @@ end
 ## Use map(t -> t - xmean, x) instead of x .- xmean to allow for Vector{Vector}
 ## which can't be handled by broadcast
 covm(x::AbstractVector, xmean; corrected::Bool=true) =
-    covzm(map(t -> t - xmean, x); corrected)
+    covzm(map(t -> t - xmean, x); corrected=corrected)
 covm(x::AbstractMatrix, xmean, vardim::Int=1; corrected::Bool=true) =
-    covzm(x .- xmean, vardim; corrected)
+    covzm(x .- xmean, vardim; corrected=corrected)
 covm(x::AbstractVector, xmean, y::AbstractVector, ymean; corrected::Bool=true) =
-    covzm(map(t -> t - xmean, x), map(t -> t - ymean, y); corrected)
+    covzm(map(t -> t - xmean, x), map(t -> t - ymean, y); corrected=corrected)
 covm(x::AbstractVecOrMat, xmean, y::AbstractVecOrMat, ymean, vardim::Int=1; corrected::Bool=true) =
-    covzm(x .- xmean, y .- ymean, vardim; corrected)
+    covzm(x .- xmean, y .- ymean, vardim; corrected=corrected)
 
 # cov (API)
 """
@@ -576,7 +574,7 @@ covm(x::AbstractVecOrMat, xmean, y::AbstractVecOrMat, ymean, vardim::Int=1; corr
 Compute the variance of the vector `x`. If `corrected` is `true` (the default) then the sum
 is scaled with `n-1`, whereas the sum is scaled with `n` if `corrected` is `false` where `n = length(x)`.
 """
-cov(x::AbstractVector; corrected::Bool=true) = covm(x, mean(x); corrected)
+cov(x::AbstractVector; corrected::Bool=true) = covm(x, mean(x); corrected=corrected)
 
 """
     cov(X::AbstractMatrix; dims::Int=1, corrected::Bool=true)
@@ -586,7 +584,7 @@ is `true` (the default) then the sum is scaled with `n-1`, whereas the sum is sc
 if `corrected` is `false` where `n = size(X, dims)`.
 """
 cov(X::AbstractMatrix; dims::Int=1, corrected::Bool=true) =
-    covm(X, _vmean(X, dims), dims; corrected)
+    covm(X, _vmean(X, dims), dims; corrected=corrected)
 
 """
     cov(x::AbstractVector, y::AbstractVector; corrected::Bool=true)
@@ -597,7 +595,7 @@ default), computes ``\\frac{1}{n-1}\\sum_{i=1}^n (x_i-\\bar x) (y_i-\\bar y)^*``
 `false`, computes ``\\frac{1}{n}\\sum_{i=1}^n (x_i-\\bar x) (y_i-\\bar y)^*``.
 """
 cov(x::AbstractVector, y::AbstractVector; corrected::Bool=true) =
-    covm(x, mean(x), y, mean(y); corrected)
+    covm(x, mean(x), y, mean(y); corrected=corrected)
 
 """
     cov(X::AbstractVecOrMat, Y::AbstractVecOrMat; dims::Int=1, corrected::Bool=true)
@@ -607,7 +605,7 @@ Compute the covariance between the vectors or matrices `X` and `Y` along the dim
 the sum is scaled with `n` if `corrected` is `false` where `n = size(X, dims) = size(Y, dims)`.
 """
 cov(X::AbstractVecOrMat, Y::AbstractVecOrMat; dims::Int=1, corrected::Bool=true) =
-    covm(X, _vmean(X, dims), Y, _vmean(Y, dims), dims; corrected)
+    covm(X, _vmean(X, dims), Y, _vmean(Y, dims), dims; corrected=corrected)
 
 ##### correlation #####
 
