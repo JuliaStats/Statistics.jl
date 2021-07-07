@@ -169,7 +169,7 @@ _mean_promote(x::T, y::S) where {T,S} = convert(promote_type(T, S), y)
 _promoted_sum(f, A::AbstractArray; init, dims) = sum(x -> _mean_promote(init, f(x)), A; dims)
  # calls f(A[1]) once
 _promoted_sum(f, A::AbstractVector; init, dims) =
-    sum(x -> _mean_promote(x1, f(x)), @view A[begin+1:end]; init, dims)
+    sum(x -> _mean_promote(init, f(x)), @view A[begin+1:end]; init, dims)
 
 # ::Dims is there to force specializing on Colon (as it is a Function)
 function _mean(f, A::AbstractArray, dims::Dims=:) where Dims
