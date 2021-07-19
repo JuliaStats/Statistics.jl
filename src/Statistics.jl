@@ -419,8 +419,8 @@ function sqrt!(A::AbstractArray)
     A
 end
 
-stdm(A::AbstractArray, m; corrected::Bool=true) =
-    sqrt.(varm(A, m; corrected=corrected))
+stdm(A::AbstractArray, m; corrected::Bool=true, dims=:) =
+    sqrt.(varm(A, m; corrected=corrected, dims=dims))
 
 """
     std(itr; corrected::Bool=true, mean=nothing[, dims])
@@ -467,7 +467,7 @@ std(iterable; corrected::Bool=true, mean=nothing) =
     sqrt(var(iterable, corrected=corrected, mean=mean))
 
 """
-    stdm(itr, mean; corrected::Bool=true)
+    stdm(itr, mean; corrected::Bool=true, dims)
 
 Compute the sample standard deviation of collection `itr`, with known mean(s) `mean`.
 
