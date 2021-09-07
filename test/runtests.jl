@@ -434,10 +434,19 @@ Y = [6.0  2.0;
         @inferred cov(X, Y, dims=vd, corrected=cr)
     end
 
-    @testset "floating point accuracy for `cov` of large numbers" begin
+    @testset "floating point accuracy for `cov`" begin
+        # Large numbers
         A = [4.0, 7.0, 13.0, 16.0]
         C = A .+ 1.0e10
-        @test cov(A, A) ≈ cov(C, C)
+        @test cov(A) ≈ cov(A, A) ≈
+            cov(reshape(A, :, 1))[1] ≈ cov(reshape(A, :, 1))[1] ≈
+            cov(C, C) ≈ var(C)
+
+        # Large Vector{Float32}
+        A = 20*randn(Float32, 10_000_000) .+ 100
+        @test cov(A) ≈ cov(A, A) ≈
+            cov(reshape(A, :, 1))[1] ≈ cov(reshape(A, :, 1))[1] ≈
+            var(A)
     end
 end
 

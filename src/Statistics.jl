@@ -519,7 +519,8 @@ unscaled_covzm(x::AbstractVector{<:Number})    = sum(abs2, x)
 unscaled_covzm(x::AbstractVector)              = sum(t -> t*t', x)
 unscaled_covzm(x::AbstractMatrix, vardim::Int) = (vardim == 1 ? _conj(x'x) : x * x')
 
-unscaled_covzm(x::AbstractVector, y::AbstractVector) = sum(conj(y[i])*x[i] for i in eachindex(y, x))
+unscaled_covzm(x::AbstractVector, y::AbstractVector) =
+    sum(Broadcast.instantiate(Broadcast.broadcasted((xi, yi) -> conj(yi)*xi, x, y)))
 unscaled_covzm(x::AbstractVector, y::AbstractMatrix, vardim::Int) =
     (vardim == 1 ? *(transpose(x), _conj(y)) : *(transpose(x), transpose(_conj(y))))
 unscaled_covzm(x::AbstractMatrix, y::AbstractVector, vardim::Int) =
