@@ -938,7 +938,7 @@ function quantile!(q::AbstractArray, v::AbstractVector, p::AbstractArray;
     isempty(q) && return q
 
     minp, maxp = extrema(p)
-    _quantilesort!(v, sorted, minp, maxp, length(p))
+    _quantilesort!(v, sorted, minp, maxp)
 
     for (i, j) in zip(eachindex(p), eachindex(q))
         @inbounds q[j] = _quantile(v,p[i], alpha=alpha, beta=beta)
@@ -950,34 +950,27 @@ function quantile!(v::AbstractVector, p::Union{AbstractArray, Tuple{Vararg{Real}
                    sorted::Bool=false, alpha::Real=1., beta::Real=alpha)
     if !isempty(p)
         minp, maxp = extrema(p)
-        _quantilesort!(v, sorted, minp, maxp, length(p))
+        _quantilesort!(v, sorted, minp, maxp)
     end
     return map(x->_quantile(v, x, alpha=alpha, beta=beta), p)
 end
 
 quantile!(v::AbstractVector, p::Real; sorted::Bool=false, alpha::Real=1., beta::Real=alpha) =
-    _quantile(_quantilesort!(v, sorted, p, p, 1), p, alpha=alpha, beta=beta)
+    _quantile(_quantilesort!(v, sorted, p, p), p, alpha=alpha, beta=beta)
 
 # Function to perform partial sort of v for quantiles in given range
-function _quantilesort!(v::AbstractArray, sorted::Bool, minp::Real, maxp::Real, len::Int)
+function _quantilesort!(v::AbstractArray, sorted::Bool, minp::Real, maxp::Real)
     isempty(v) && throw(ArgumentError("empty data vector"))
     require_one_based_indexing(v)
 
     if !sorted
         lv = length(v)
         # only need to perform partial sort
-        if len == 2
-            lo1 = floor(Int,minp*(lv))
-            lo2 = ceil(Int,1+minp*(lv))
-            sort!(v, 1, lv, Base.Sort.PartialQuickSort(lo1:lo2), Base.Sort.Forward)
-            hi1 = floor(Int,maxp*(lv))
-            hi2 = ceil(Int,1+maxp*(lv))
-            sort!(v, 1, lv, Base.Sort.PartialQuickSort(hi1:hi2), Base.Sort.Forward)
-        else
-            lo = floor(Int,minp*(lv))
-            hi = ceil(Int,1+maxp*(lv))
-            sort!(v, 1, lv, Base.Sort.PartialQuickSort(lo:hi), Base.Sort.Forward)
-        end
+        lo = floor(Int,minp*(lv))
+        hi = ceil(Int,1+maxp*(lv))
+
+        # only need to perform partial sort
+        sort!(v, 1, lv, Base.Sort.PartialQuickSort(lo:hi), Base.Sort.Forward)        end
     end
     if (sorted && (ismissing(v[end]) || (v[end] isa Number && isnan(v[end])))) ||
         any(x -> ismissing(x) || (x isa Number && isnan(x)), v)
