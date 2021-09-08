@@ -938,7 +938,7 @@ function quantile!(q::AbstractArray, v::AbstractVector, p::AbstractArray;
     isempty(q) && return q
 
     minp, maxp = extrema(p)
-    _quantilesort!(v, sorted, minp, maxp)
+    _quantilesort!(v, sorted, minp, maxp, length(p))
 
     for (i, j) in zip(eachindex(p), eachindex(q))
         @inbounds q[j] = _quantile(v,p[i], alpha=alpha, beta=beta)
@@ -950,16 +950,16 @@ function quantile!(v::AbstractVector, p::Union{AbstractArray, Tuple{Vararg{Real}
                    sorted::Bool=false, alpha::Real=1., beta::Real=alpha)
     if !isempty(p)
         minp, maxp = extrema(p)
-        _quantilesort!(v, sorted, minp, maxp)
+        _quantilesort!(v, sorted, minp, maxp, length(p))
     end
     return map(x->_quantile(v, x, alpha=alpha, beta=beta), p)
 end
 
 quantile!(v::AbstractVector, p::Real; sorted::Bool=false, alpha::Real=1., beta::Real=alpha) =
-    _quantile(_quantilesort!(v, sorted, p, p), p, alpha=alpha, beta=beta)
+    _quantile(_quantilesort!(v, sorted, p, p, 1), p, alpha=alpha, beta=beta)
 
 # Function to perform partial sort of v for quantiles in given range
-function _quantilesort!(v::AbstractArray, sorted::Bool, minp::Real, maxp::Real)
+function _quantilesort!(v::AbstractArray, sorted::Bool, minp::Real, maxp::Real, len::Int)
     isempty(v) && throw(ArgumentError("empty data vector"))
     require_one_based_indexing(v)
 
@@ -967,9 +967,13 @@ function _quantilesort!(v::AbstractArray, sorted::Bool, minp::Real, maxp::Real)
         lv = length(v)
         lo = floor(Int,minp*(lv))
         hi = ceil(Int,1+maxp*(lv))
-
         # only need to perform partial sort
-        sort!(v, 1, lv, Base.Sort.PartialQuickSort(lo:hi), Base.Sort.Forward)
+        if len == 2
+            sort!(v, 1, lv, Base.Sort.PartialQuickSort(lo:lo), Base.Sort.Forward)
+            sort!(v, 1, lv, Base.Sort.PartialQuickSort(hi:hi), Base.Sort.Forward)
+        else
+            sort!(v, 1, lv, Base.Sort.PartialQuickSort(lo:hi), Base.Sort.Forward)
+        end
     end
     if (sorted && (ismissing(v[end]) || (v[end] isa Number && isnan(v[end])))) ||
         any(x -> ismissing(x) || (x isa Number && isnan(x)), v)
