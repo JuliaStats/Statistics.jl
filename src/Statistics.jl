@@ -965,13 +965,17 @@ function _quantilesort!(v::AbstractArray, sorted::Bool, minp::Real, maxp::Real, 
 
     if !sorted
         lv = length(v)
-        lo = floor(Int,minp*(lv))
-        hi = ceil(Int,1+maxp*(lv))
         # only need to perform partial sort
         if len == 2
-            sort!(v, 1, lv, Base.Sort.PartialQuickSort(lo:lo), Base.Sort.Forward)
-            sort!(v, 1, lv, Base.Sort.PartialQuickSort(hi:hi), Base.Sort.Forward)
+            lo1 = floor(Int,minp*(lv))
+            lo2 = ceil(Int,1+minp*(lv))
+            sort!(v, 1, lv, Base.Sort.PartialQuickSort(lo1:lo2), Base.Sort.Forward)
+            hi1 = floor(Int,maxp*(lv))
+            hi2 = ceil(Int,1+maxp*(lv))
+            sort!(v, 1, lv, Base.Sort.PartialQuickSort(hi1:hi2), Base.Sort.Forward)
         else
+            lo = floor(Int,minp*(lv))
+            hi = ceil(Int,1+maxp*(lv))
             sort!(v, 1, lv, Base.Sort.PartialQuickSort(lo:hi), Base.Sort.Forward)
         end
     end
