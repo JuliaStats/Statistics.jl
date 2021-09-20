@@ -165,16 +165,22 @@ mean(A::AbstractArray; dims=:) = _mean(identity, A, dims)
 
 _mean_promote(x::T, y::S) where {T,S} = convert(promote_type(T, S), y)
 
+# calls f(A[1]) twice
+_promoted_sum(f, A::AbstractArray; init, dims) = sum(x -> _mean_promote(init, f(x)), A; dims)
+ # calls f(A[1]) once
+_promoted_sum(f, A::AbstractVector; init, dims) =
+    sum(x -> _mean_promote(init, f(x)), @view A[begin+1:end]; init, dims)
+
 # ::Dims is there to force specializing on Colon (as it is a Function)
 function _mean(f, A::AbstractArray, dims::Dims=:) where Dims
-    isempty(A) && return sum(f, A, dims=dims)/0
+    isempty(A) && return sum(f, A; dims)/0
     if dims === (:)
         n = length(A)
     else
         n = mapreduce(i -> size(A, i), *, unique(dims); init=1)
     end
-    x1 = f(first(A)) / 1
-    result = sum(x -> _mean_promote(x1, f(x)), A, dims=dims)
+    init = f(first(A)) / 1
+    result = _promoted_sum(f, A; init, dims)
     if dims === (:)
         return result / n
     else
@@ -986,9 +992,9 @@ end
     require_one_based_indexing(v)
 
     n = length(v)
-    
+
     @assert n > 0 # this case should never happen here
-    
+
     m = alpha + p * (one(alpha) - alpha - beta)
     aleph = n*p + oftype(p, m)
     j = clamp(trunc(Int, aleph), 1, n-1)
@@ -1001,7 +1007,7 @@ end
         a = v[j]
         b = v[j + 1]
     end
-    
+
     if isfinite(a) && isfinite(b)
         return a + γ*(b-a)
     else
