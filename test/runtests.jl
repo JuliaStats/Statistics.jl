@@ -14,6 +14,9 @@ Random.seed!(123)
     @test middle(1:8) === 4.5
     @test middle([1:8;]) === 4.5
 
+    @test middle(5.0 + 2.0im, 2.0 + 3.0im) == 3.5 + 2.5im
+    @test middle(5.0 + 2.0im) == 5.0 + 2.0im
+
     # ensure type-correctness
     for T in [Bool,Int8,Int16,Int32,Int64,Int128,UInt8,UInt16,UInt32,UInt64,UInt128,Float16,Float32,Float64]
         @test middle(one(T)) === middle(one(T), one(T))
@@ -64,10 +67,18 @@ end
     @test @inferred(median(Float16[1, 2, 3]))   === Float16(2)
     @test @inferred(median(Float32[1, 2, NaN])) === NaN32
     @test @inferred(median(Float32[1, 2, 3]))   === 2.0f0
+
+    # custom type implementing minimal interface
+    struct A
+        x
+    end
+    Statistics.middle(x::A, y::A) = A(middle(x.x, y.x))
+    Base.isless(x::A, y::A) = isless(x.x, y.x)
+    @test median([A(1), A(2)]) === A(1.5)
+    @test median(Any[A(1), A(2)]) === A(1.5)
 end
 
 @testset "mean" begin
-    @test_throws MethodError mean(())
     @test mean((1,2,3)) === 2.
     @test mean([0]) === 0.
     @test mean([1.]) === 1.
@@ -121,6 +132,10 @@ end
     @test_throws MethodError mean([])
     @test_throws MethodError mean(skipmissing([]))
     @test_throws ArgumentError mean((1 for i in 2:1))
+    if VERSION >= v"1.6.0-DEV.83"
+        @test_throws ArgumentError mean(())
+        @test_throws ArgumentError mean(Union{}[])
+    end
 
     # Check that small types are accumulated using wider type
     for T in (Int8, UInt8)
@@ -130,6 +145,23 @@ end
         @test mean(identity, x) == mean(identity, g) == typemax(T)
         @test mean(x, dims=2) == [typemax(T)]'
     end
+    # Check that mean avoids integer overflow (#22)
+    let x = fill(typemax(Int), 10), a = tuple(x...)
+        @test (mean(x) == mean(x, dims=1)[] == mean(float, x)
+               == mean(a) == mean(v for v in x)  == mean(v for v in a)
+               ≈ float(typemax(Int)))
+    end
+    let x = rand(10000)  # mean should use sum's accurate pairwise algorithm
+        @test mean(x) == sum(x) / length(x)
+    end
+    @test mean(Number[1, 1.5, 2+3im]) === 1.5+1im # mixed-type array
+    @test mean(v for v in Number[1, 1.5, 2+3im]) === 1.5+1im
+    @test (@inferred mean(Int[])) === 0/0
+    @test (@inferred mean(Float32[])) === 0.f0/0    
+    @test (@inferred mean(Float64[])) === 0/0
+    @test (@inferred mean(Iterators.filter(x -> true, Int[]))) === 0/0
+    @test (@inferred mean(Iterators.filter(x -> true, Float32[]))) === 0.f0/0
+    @test (@inferred mean(Iterators.filter(x -> true, Float64[]))) === 0/0
 end
 
 @testset "mean/median for ranges" begin
@@ -294,6 +326,22 @@ end
     @test var(Int[]) isa Float64
     @test isequal(var(skipmissing(Int[])), NaN)
     @test var(skipmissing(Int[])) isa Float64
+
+    # over dimensions with provided means
+    for x in ([1 2 3; 4 5 6], sparse([1 2 3; 4 5 6]))
+        @test var(x, dims=1, mean=mean(x, dims=1)) == var(x, dims=1)
+        @test var(x, dims=1, mean=reshape(mean(x, dims=1), 1, :, 1)) == var(x, dims=1)
+        @test var(x, dims=2, mean=mean(x, dims=2)) == var(x, dims=2)
+        @test var(x, dims=2, mean=reshape(mean(x, dims=2), :)) == var(x, dims=2)
+        @test var(x, dims=2, mean=reshape(mean(x, dims=2), :, 1, 1)) == var(x, dims=2)
+        @test_throws DimensionMismatch var(x, dims=1, mean=ones(size(x, 1)))
+        @test_throws DimensionMismatch var(x, dims=1, mean=ones(size(x, 1), 1))
+        @test_throws DimensionMismatch var(x, dims=2, mean=ones(1, size(x, 2)))
+        @test_throws DimensionMismatch var(x, dims=1, mean=ones(1, 1, size(x, 2)))
+        @test_throws DimensionMismatch var(x, dims=2, mean=ones(1, size(x, 2), 1))
+        @test_throws DimensionMismatch var(x, dims=2, mean=ones(size(x, 1), 1, 5))
+        @test_throws DimensionMismatch var(x, dims=1, mean=ones(1, size(x, 2), 5))
+    end
 end
 
 function safe_cov(x, y, zm::Bool, cr::Bool)
@@ -477,32 +525,47 @@ end
         @test cor(tmp, tmp) <= 1.0
         @test cor(tmp, tmp2) <= 1.0
     end
+    
+    @test cor(Int[]) === 1.0
+    @test cor([im]) === 1.0 + 0.0im
+    @test_throws MethodError cor([])
+    @test_throws MethodError cor(Any[1.0])
+    
+    @test cor([1, missing]) === 1.0
+    @test ismissing(cor([missing]))
+    @test_throws MethodError cor(Any[1.0, missing])
+    
+    @test Statistics.corm([true], 1.0) === 1.0
+    @test_throws MethodError Statistics.corm(Any[0.0, 1.0], 0.5)
+    @test Statistics.corzm([true]) === 1.0
+    @test_throws MethodError Statistics.corzm(Any[0.0, 1.0])
 end
 
 @testset "quantile" begin
-    @test quantile([1,2,3,4],0.5) == 2.5
-    @test quantile([1,2,3,4],[0.5]) == [2.5]
-    @test quantile([1., 3],[.25,.5,.75])[2] == median([1., 3])
-    @test quantile(100.0:-1.0:0.0, 0.0:0.1:1.0) == 0.0:10.0:100.0
-    @test quantile(0.0:100.0, 0.0:0.1:1.0, sorted=true) == 0.0:10.0:100.0
-    @test quantile(100f0:-1f0:0.0, 0.0:0.1:1.0) == 0f0:10f0:100f0
+    @test quantile([1,2,3,4],0.5) ≈ 2.5
+    @test quantile([1,2,3,4],[0.5]) ≈ [2.5]
+    @test quantile([1., 3],[.25,.5,.75])[2] ≈ median([1., 3])
+    @test quantile(100.0:-1.0:0.0, 0.0:0.1:1.0) ≈ 0.0:10.0:100.0
+    @test quantile(0.0:100.0, 0.0:0.1:1.0, sorted=true) ≈ 0.0:10.0:100.0
+    @test quantile(100f0:-1f0:0.0, 0.0:0.1:1.0) ≈ 0f0:10f0:100f0
     @test quantile([Inf,Inf],0.5) == Inf
     @test quantile([-Inf,1],0.5) == -Inf
-    @test quantile([0,1],1e-18) == 1e-18
+    # here it is required to introduce an absolute tolerance because the calculated value is 0
+    @test quantile([0,1],1e-18) ≈ 1e-18 atol=1e-18
     @test quantile([1, 2, 3, 4],[]) == []
     @test quantile([1, 2, 3, 4], (0.5,)) == (2.5,)
     @test quantile([4, 9, 1, 5, 7, 8, 2, 3, 5, 17, 11],
                    (0.1, 0.2, 0.4, 0.9)) == (2.0, 3.0, 5.0, 11.0)
     @test quantile(Union{Int, Missing}[4, 9, 1, 5, 7, 8, 2, 3, 5, 17, 11],
-                   [0.1, 0.2, 0.4, 0.9]) == [2.0, 3.0, 5.0, 11.0]
+                   [0.1, 0.2, 0.4, 0.9]) ≈ [2.0, 3.0, 5.0, 11.0]
     @test quantile(Any[4, 9, 1, 5, 7, 8, 2, 3, 5, 17, 11],
-                   [0.1, 0.2, 0.4, 0.9]) == [2.0, 3.0, 5.0, 11.0]
+                   [0.1, 0.2, 0.4, 0.9]) ≈ [2.0, 3.0, 5.0, 11.0]
     @test quantile([4, 9, 1, 5, 7, 8, 2, 3, 5, 17, 11],
-                   Any[0.1, 0.2, 0.4, 0.9]) == [2.0, 3.0, 5.0, 11.0]
+                   Any[0.1, 0.2, 0.4, 0.9]) ≈ [2.0, 3.0, 5.0, 11.0]
     @test quantile([4, 9, 1, 5, 7, 8, 2, 3, 5, 17, 11],
                    Any[0.1, 0.2, 0.4, 0.9]) isa Vector{Float64}
     @test quantile(Any[4, 9, 1, 5, 7, 8, 2, 3, 5, 17, 11],
-                   Any[0.1, 0.2, 0.4, 0.9]) == [2, 3, 5, 11]
+                   Any[0.1, 0.2, 0.4, 0.9]) ≈ [2, 3, 5, 11]
     @test quantile(Any[4, 9, 1, 5, 7, 8, 2, 3, 5, 17, 11],
                    Any[0.1, 0.2, 0.4, 0.9]) isa Vector{Float64}
     @test quantile([1, 2, 3, 4], ()) == ()
@@ -517,9 +580,17 @@ end
     @test quantile(Any[1, Float16(2), 3], Float16(0.5)) isa Float16
     @test quantile(Any[1, big(2), 3], Float16(0.5)) isa BigFloat
 
-    @test_throws ArgumentError quantile([1, missing], 0.5)
-    @test_throws ArgumentError quantile([1, NaN], 0.5)
+    # Need a large vector to actually check consequences of partial sorting
+    x = rand(50)
+    for sorted in (false, true)
+        x[10] = NaN
+        @test_throws ArgumentError quantile(x, 0.5, sorted=sorted)
+        x = Vector{Union{Float64, Missing}}(x)
+        x[10] = missing
+        @test_throws ArgumentError quantile(x, 0.5, sorted=sorted)
+    end
     @test quantile(skipmissing([1, missing, 2]), 0.5) === 1.5
+    @test quantile([1], 0.5) === 1.0
 
     # make sure that type inference works correctly in normal cases
     for T in [Int, BigInt, Float64, Float16, BigFloat, Rational{Int}, Rational{BigInt}]
@@ -533,7 +604,90 @@ end
     x = [3; 2; 1]
     y = zeros(3)
     @test quantile!(y, x, [0.1, 0.5, 0.9]) === y
-    @test y == [1.2, 2.0, 2.8]
+    @test y ≈ [1.2, 2.0, 2.8]
+
+    #tests for quantile calculation with configurable alpha and beta parameters
+    v = [2, 3, 4, 6, 9, 2, 6, 2, 21, 17]
+
+    # tests against scipy.stats.mstats.mquantiles method
+    @test quantile(v, 0.0, alpha=0.0, beta=0.0) ≈ 2.0
+    @test quantile(v, 0.2, alpha=1.0, beta=1.0) ≈ 2.0
+    @test quantile(v, 0.4, alpha=0.0, beta=0.0) ≈ 3.4
+    @test quantile(v, 0.4, alpha=0.0, beta=0.2) ≈ 3.32
+    @test quantile(v, 0.4, alpha=0.0, beta=0.4) ≈ 3.24
+    @test quantile(v, 0.4, alpha=0.0, beta=0.6) ≈ 3.16
+    @test quantile(v, 0.4, alpha=0.0, beta=0.8) ≈ 3.08
+    @test quantile(v, 0.4, alpha=0.0, beta=1.0) ≈ 3.0
+    @test quantile(v, 0.4, alpha=0.2, beta=0.0) ≈ 3.52
+    @test quantile(v, 0.4, alpha=0.2, beta=0.2) ≈ 3.44
+    @test quantile(v, 0.4, alpha=0.2, beta=0.4) ≈ 3.36
+    @test quantile(v, 0.4, alpha=0.2, beta=0.6) ≈ 3.28
+    @test quantile(v, 0.4, alpha=0.2, beta=0.8) ≈ 3.2
+    @test quantile(v, 0.4, alpha=0.2, beta=1.0) ≈ 3.12
+    @test quantile(v, 0.4, alpha=0.4, beta=0.0) ≈ 3.64
+    @test quantile(v, 0.4, alpha=0.4, beta=0.2) ≈ 3.56
+    @test quantile(v, 0.4, alpha=0.4, beta=0.4) ≈ 3.48
+    @test quantile(v, 0.4, alpha=0.4, beta=0.6) ≈ 3.4
+    @test quantile(v, 0.4, alpha=0.4, beta=0.8) ≈ 3.32
+    @test quantile(v, 0.4, alpha=0.4, beta=1.0) ≈ 3.24
+    @test quantile(v, 0.4, alpha=0.6, beta=0.0) ≈ 3.76
+    @test quantile(v, 0.4, alpha=0.6, beta=0.2) ≈ 3.68
+    @test quantile(v, 0.4, alpha=0.6, beta=0.4) ≈ 3.6
+    @test quantile(v, 0.4, alpha=0.6, beta=0.6) ≈ 3.52
+    @test quantile(v, 0.4, alpha=0.6, beta=0.8) ≈ 3.44
+    @test quantile(v, 0.4, alpha=0.6, beta=1.0) ≈ 3.36
+    @test quantile(v, 0.4, alpha=0.8, beta=0.0) ≈ 3.88
+    @test quantile(v, 0.4, alpha=0.8, beta=0.2) ≈ 3.8
+    @test quantile(v, 0.4, alpha=0.8, beta=0.4) ≈ 3.72
+    @test quantile(v, 0.4, alpha=0.8, beta=0.6) ≈ 3.64
+    @test quantile(v, 0.4, alpha=0.8, beta=0.8) ≈ 3.56
+    @test quantile(v, 0.4, alpha=0.8, beta=1.0) ≈ 3.48
+    @test quantile(v, 0.4, alpha=1.0, beta=0.0) ≈ 4.0
+    @test quantile(v, 0.4, alpha=1.0, beta=0.2) ≈ 3.92
+    @test quantile(v, 0.4, alpha=1.0, beta=0.4) ≈ 3.84
+    @test quantile(v, 0.4, alpha=1.0, beta=0.6) ≈ 3.76
+    @test quantile(v, 0.4, alpha=1.0, beta=0.8) ≈ 3.68
+    @test quantile(v, 0.4, alpha=1.0, beta=1.0) ≈ 3.6
+    @test quantile(v, 0.6, alpha=0.0, beta=0.0) ≈ 6.0
+    @test quantile(v, 0.6, alpha=1.0, beta=1.0) ≈ 6.0
+    @test quantile(v, 0.8, alpha=0.0, beta=0.0) ≈ 15.4
+    @test quantile(v, 0.8, alpha=0.0, beta=0.2) ≈ 14.12
+    @test quantile(v, 0.8, alpha=0.0, beta=0.4) ≈ 12.84
+    @test quantile(v, 0.8, alpha=0.0, beta=0.6) ≈ 11.56
+    @test quantile(v, 0.8, alpha=0.0, beta=0.8) ≈ 10.28
+    @test quantile(v, 0.8, alpha=0.0, beta=1.0) ≈ 9.0
+    @test quantile(v, 0.8, alpha=0.2, beta=0.0) ≈ 15.72
+    @test quantile(v, 0.8, alpha=0.2, beta=0.2) ≈ 14.44
+    @test quantile(v, 0.8, alpha=0.2, beta=0.4) ≈ 13.16
+    @test quantile(v, 0.8, alpha=0.2, beta=0.6) ≈ 11.88
+    @test quantile(v, 0.8, alpha=0.2, beta=0.8) ≈ 10.6
+    @test quantile(v, 0.8, alpha=0.2, beta=1.0) ≈ 9.32
+    @test quantile(v, 0.8, alpha=0.4, beta=0.0) ≈ 16.04
+    @test quantile(v, 0.8, alpha=0.4, beta=0.2) ≈ 14.76
+    @test quantile(v, 0.8, alpha=0.4, beta=0.4) ≈ 13.48
+    @test quantile(v, 0.8, alpha=0.4, beta=0.6) ≈ 12.2
+    @test quantile(v, 0.8, alpha=0.4, beta=0.8) ≈ 10.92
+    @test quantile(v, 0.8, alpha=0.4, beta=1.0) ≈ 9.64
+    @test quantile(v, 0.8, alpha=0.6, beta=0.0) ≈ 16.36
+    @test quantile(v, 0.8, alpha=0.6, beta=0.2) ≈ 15.08
+    @test quantile(v, 0.8, alpha=0.6, beta=0.4) ≈ 13.8
+    @test quantile(v, 0.8, alpha=0.6, beta=0.6) ≈ 12.52
+    @test quantile(v, 0.8, alpha=0.6, beta=0.8) ≈ 11.24
+    @test quantile(v, 0.8, alpha=0.6, beta=1.0) ≈ 9.96
+    @test quantile(v, 0.8, alpha=0.8, beta=0.0) ≈ 16.68
+    @test quantile(v, 0.8, alpha=0.8, beta=0.2) ≈ 15.4
+    @test quantile(v, 0.8, alpha=0.8, beta=0.4) ≈ 14.12
+    @test quantile(v, 0.8, alpha=0.8, beta=0.6) ≈ 12.84
+    @test quantile(v, 0.8, alpha=0.8, beta=0.8) ≈ 11.56
+    @test quantile(v, 0.8, alpha=0.8, beta=1.0) ≈ 10.28
+    @test quantile(v, 0.8, alpha=1.0, beta=0.0) ≈ 17.0
+    @test quantile(v, 0.8, alpha=1.0, beta=0.2) ≈ 15.72
+    @test quantile(v, 0.8, alpha=1.0, beta=0.4) ≈ 14.44
+    @test quantile(v, 0.8, alpha=1.0, beta=0.6) ≈ 13.16
+    @test quantile(v, 0.8, alpha=1.0, beta=0.8) ≈ 11.88
+    @test quantile(v, 0.8, alpha=1.0, beta=1.0) ≈ 10.6
+    @test quantile(v, 1.0, alpha=0.0, beta=0.0) ≈ 21.0
+    @test quantile(v, 1.0, alpha=1.0, beta=1.0) ≈ 21.0
 end
 
 # StatsBase issue 164
@@ -551,7 +705,7 @@ end
     @test varm(z, 0.0) ≈ invoke(varm, Tuple{Any,Float64}, z, 0.0) ≈ sum(abs2, z)/9
     @test isa(varm(z, 0.0), Float64)
     @test isa(invoke(varm, Tuple{Any,Float64}, z, 0.0), Float64)
-    @test cor(z) === 1.0
+    @test cor(z) === 1.0+0.0im
     v = varm([1.0+2.0im], 0; corrected = false)
     @test v ≈ 5
     @test isa(v, Float64)
@@ -626,7 +780,7 @@ end
     x = Any[1, 2, 4, 10]
     y = Any[1, 2, 4, 10//1]
     @test var(x) === 16.25
-    @test var(y) === 65//4
+    @test var(y) === 16.25
     @test std(x) === sqrt(16.25)
     @test quantile(x, 0.5)  === 3.0
     @test quantile(x, 1//2) === 3//1
