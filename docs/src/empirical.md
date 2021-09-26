@@ -1,4 +1,4 @@
-# Empirical Estimation
+# Empirical Estimation of Distributions
 
 ## Histograms
 
@@ -16,6 +16,7 @@ Additional methods
 ```@docs
 merge!
 merge
+midpoints
 norm
 normalize
 normalize!

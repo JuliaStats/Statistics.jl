@@ -1,19 +1,16 @@
 # Statistics
 
-The Statistics standard library module contains basic statistics functionality.
+```@meta
+DocTestSetup = :(using Statistics)
+```
 
-```@docs
-std
-stdm
-var
-varm
-cor
-cov
-mean!
-mean
-median!
-median
-middle
-quantile!
-quantile
+The Statistics module contains basic statistics functionality: mean, median, quantiles,
+standard deviation, variance, skewness, kurtosis, correlation and covariance.
+Statistics can be weighted, and several weights types are distinguished to apply appropriate
+corrections where necessary.
+
+```@contents
+Pages = ["weights.md", "scalarstats.md", "cov.md", "robust.md", "ranking.jl",
+         "empirical.md"]
+Depth = 2
 ```

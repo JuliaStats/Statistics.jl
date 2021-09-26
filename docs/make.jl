@@ -1,4 +1,4 @@
-using Documenter, Statistics
+using Documenter, Statistics, Random
 
 # Workaround for JuliaLang/julia/pull/28625
 if Base.HOME_PROJECT[] !== nothing
@@ -6,11 +6,17 @@ if Base.HOME_PROJECT[] !== nothing
 end
 
 makedocs(
+    sitename = "Statistics.jl",
     modules = [Statistics],
-    sitename = "Statistics",
-    pages = Any[
-        "Statistics" => "index.md"
-        ]
-    )
+    pages = ["index.md",
+             "weights.md",
+             "scalarstats.md",
+             "cov.md",
+             "robust.md",
+             "ranking.md",
+             "empirical.md"]
+)
 
-deploydocs(repo = "github.com/JuliaLang/Statistics.jl.git")
+deploydocs(
+    repo = "github.com/JuliaLang/Statistics.jl.git"
+)

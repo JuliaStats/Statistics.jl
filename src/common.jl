@@ -19,16 +19,3 @@ const IntegerVector{T<:Integer} = AbstractArray{T,1}
 const IntegerMatrix{T<:Integer} = AbstractArray{T,2}
 
 const RealFP = Union{Float32, Float64}
-
-# A convenient typealias for deprecating default corrected Bool
-const DepBool = Union{Bool, Nothing}
-
-function depcheck(fname::Symbol, b::DepBool)
-    if b == nothing
-        msg = "$fname will default to corrected=true in the future. Use corrected=false for previous behaviour."
-        Base.depwarn(msg, fname)
-        false
-    else
-        b
-    end
-end

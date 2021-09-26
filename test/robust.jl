@@ -1,4 +1,4 @@
-using StatsBase
+using Statistics
 using Test
 
 ### Trimming outliers

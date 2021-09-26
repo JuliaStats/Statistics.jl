@@ -22,10 +22,10 @@ end
 # ranking helper function for arrays with missing values
 function _rank(f!, x::AbstractArray{>: Missing}, R::Type=Int; sortkwargs...)
     inds = findall(!ismissing, vec(x))
-    isempty(inds) && return missings(R, size(x))
-    xv = disallowmissing(view(vec(x), inds))
+    isempty(inds) && return Array{Union{R, Missing}}(missing, size(x))
+    xv = convert(AbstractVector{Int}, view(vec(x), inds))
     ordv = sortperm(xv; sortkwargs...)
-    rks = missings(R, size(x))
+    rks = Array{Union{R, Missing}}(missing, size(x))
     f!(view(rks, inds), xv, ordv)
     return rks
 end

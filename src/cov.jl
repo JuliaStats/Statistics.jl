@@ -32,11 +32,9 @@ _unscaled_covzm(x::DenseMatrix, wv::AbstractWeights, dims::Integer) =
     _symmetrize!(unscaled_covzm(x, _scalevars(x, wv, dims), dims))
 
 """
-    scattermat(X, [wv::AbstractWeights]; mean=nothing, dims=1)
+    scattermat(X; mean=nothing, dims=1[, weights::AbstractWeights])
 
 Compute the scatter matrix, which is an unnormalized covariance matrix.
-A weighting vector `wv` can be specified to weight
-the estimate.
 
 # Arguments
 * `mean=nothing`: a known mean value. `nothing` indicates that the mean is
@@ -45,82 +43,31 @@ the estimate.
 * `dims=1`: the dimension along which the variables are organized.
   When `dims = 1`, the variables are considered columns with observations in rows;
   when `dims = 2`, variables are in rows with observations in columns.
+* `weights`: optional weights for observations.
 """
-function scattermat end
-
-
-"""
-    cov(X, w::AbstractWeights, vardim=1; mean=nothing,  corrected=false)
-
-Compute the weighted covariance matrix. Similar to `var` and `std` the biased covariance
-matrix (`corrected=false`) is computed by multiplying `scattermat(X, w)` by
-``\\frac{1}{\\sum{w}}`` to normalize. However, the unbiased covariance matrix
-(`corrected=true`) is dependent on the type of weights used:
-* `AnalyticWeights`: ``\\frac{1}{\\sum w - \\sum {w^2} / \\sum w}``
-* `FrequencyWeights`: ``\\frac{1}{\\sum{w} - 1}``
-* `ProbabilityWeights`: ``\\frac{n}{(n - 1) \\sum w}`` where ``n`` equals `count(!iszero, w)`
-* `Weights`: `ArgumentError` (bias correction not supported)
-"""
-cov
-
-
-"""
-    mean_and_cov(x, [wv::AbstractWeights,] vardim=1; corrected=false) -> (mean, cov)
-
-Return the mean and covariance matrix as a tuple. A weighting
-vector `wv` can be specified. `vardim` that designates whether
-the variables are columns in the matrix (`1`) or rows (`2`).
-Finally, bias correction is applied to the covariance calculation if
-`corrected=true`. See [`cov`](@ref) documentation for more details.
-"""
-function mean_and_cov end
-
-scattermat(x::DenseMatrix; mean=nothing, dims::Int=1) =
-    _scattermatm(x, mean, dims)
-_scattermatm(x::DenseMatrix, ::Nothing, dims::Int) =
-    _unscaled_covzm(x .- mean(x, dims=dims), dims)
-_scattermatm(x::DenseMatrix, mean, dims::Int=1) =
+scattermat(x::DenseMatrix; mean=nothing, dims::Int=1,
+           weights::Union{AbstractWeights, Nothing}=nothing) =
+    _scattermatm(x, weights, mean, dims)
+_scattermatm(x::DenseMatrix, weights::Nothing, mean::Nothing, dims::Int) =
+    _unscaled_covzm(x .- Statistics.mean(x, dims=dims), dims)
+_scattermatm(x::DenseMatrix, weights::Nothing, mean, dims::Int=1) =
     _unscaled_covzm(x .- mean, dims)
 
-scattermat(x::DenseMatrix, wv::AbstractWeights; mean=nothing, dims::Int=1) =
-    _scattermatm(x, wv, mean, dims)
-_scattermatm(x::DenseMatrix, wv::AbstractWeights, ::Nothing, dims::Int) =
-    _unscaled_covzm(x .- mean(x, wv, dims=dims), wv, dims)
-_scattermatm(x::DenseMatrix, wv::AbstractWeights, mean, dims::Int) =
-    _unscaled_covzm(x .- mean, wv, dims)
+_scattermatm(x::DenseMatrix, weights::AbstractWeights, mean::Nothing, dims::Int) =
+    _unscaled_covzm(x .- Statistics.mean(x, weights=weights, dims=dims), weights, dims)
+_scattermatm(x::DenseMatrix, weights::AbstractWeights, mean, dims::Int) =
+    _unscaled_covzm(x .- mean, weights, dims)
 
 ## weighted cov
-covm(x::DenseMatrix, mean, w::AbstractWeights, dims::Int=1;
-     corrected::DepBool=nothing) =
-    rmul!(scattermat(x, w, mean=mean, dims=dims), varcorrection(w, depcheck(:covm, corrected)))
+covm(x::DenseMatrix, mean, weights::AbstractWeights, dims::Int=1;
+     corrected::Bool=true) =
+    rmul!(scattermat(x, weights=weights, mean=mean, dims=dims),
+          varcorrection(weights, corrected))
 
-
-cov(x::DenseMatrix, w::AbstractWeights, dims::Int=1; corrected::DepBool=nothing) =
-    covm(x, mean(x, w, dims=dims), w, dims; corrected=depcheck(:cov, corrected))
-
-function corm(x::DenseMatrix, mean, w::AbstractWeights, vardim::Int=1)
-    c = covm(x, mean, w, vardim; corrected=false)
-    s = stdm(x, w, mean, vardim; corrected=false)
+function corm(x::DenseMatrix, mean, weights::AbstractWeights, vardim::Int=1)
+    c = covm(x, mean, weights, vardim; corrected=false)
+    s = std(x, mean=mean, weights=weights, dims=vardim, corrected=false)
     cov2cor!(c, s)
-end
-
-"""
-    cor(X, w::AbstractWeights, dims=1)
-
-Compute the Pearson correlation matrix of `X` along the dimension
-`dims` with a weighting `w` .
-"""
-cor(x::DenseMatrix, w::AbstractWeights, dims::Int=1) =
-    corm(x, mean(x, w, dims=dims), w, dims)
-
-function mean_and_cov(x::DenseMatrix, dims::Int=1; corrected::Bool=true)
-    m = mean(x, dims=dims)
-    return m, covm(x, m, dims, corrected=corrected)
-end
-function mean_and_cov(x::DenseMatrix, wv::AbstractWeights, dims::Int=1;
-                      corrected::DepBool=nothing)
-    m = mean(x, wv, dims=dims)
-    return m, cov(x, wv, dims; corrected=depcheck(:mean_and_cov, corrected))
 end
 
 """
@@ -178,7 +125,8 @@ cov(ce::CovarianceEstimator, x::AbstractVector, y::AbstractVector) =
     error("cov is not defined for $(typeof(ce)), $(typeof(x)) and $(typeof(y))")
 
 """
-    cov(ce::CovarianceEstimator, X::AbstractMatrix, [w::AbstractWeights]; mean=nothing, dims::Int=1)
+    cov(ce::CovarianceEstimator, X::AbstractMatrix; mean=nothing, dims::Int=1,
+        [weights::AbstractWeights])
 
 Compute the covariance matrix of the matrix `X` along dimension `dims`
 using estimator `ce`. A weighting vector `w` can be specified.
@@ -192,18 +140,16 @@ The keyword argument `mean` can be:
   * when `dims=2`, an `AbstractVector` of length `N` or an `AbstractMatrix`
     of size `(N,1)`.
 """
-cov(ce::CovarianceEstimator, X::AbstractMatrix; mean=nothing, dims::Int=1) =
+cov(ce::CovarianceEstimator, X::AbstractMatrix; mean=nothing, dims::Int=1,
+    weights::Union{AbstractWeights, Nothing}=nothing) =
     error("cov is not defined for $(typeof(ce)) and $(typeof(X))")
-
-cov(ce::CovarianceEstimator, X::AbstractMatrix, w::AbstractWeights; mean=nothing, dims::Int=1) =
-    error("cov is not defined for $(typeof(ce)), $(typeof(X)) and $(typeof(w))")
 
 """
     SimpleCovariance(;corrected::Bool=false)
 
 Simple covariance estimator. Estimation calls `cov(x; corrected=corrected)`,
-`cov(x, y; corrected=corrected)` or `cov(X, w, dims; corrected=corrected)`
-where `x`, `y` are vectors, `X` is a matrix and `w` is a weighting vector.
+`cov(x, y; corrected=corrected)` or `cov(X, dims=dims, weights=weights, corrected=corrected)`
+where `x`, `y` are vectors, `X` is a matrix and `weights` is a weighting vector.
 """
 struct SimpleCovariance <: CovarianceEstimator
     corrected::Bool
@@ -216,20 +162,13 @@ cov(sc::SimpleCovariance, x::AbstractVector) =
 cov(sc::SimpleCovariance, x::AbstractVector, y::AbstractVector) =
     cov(x, y; corrected=sc.corrected)
 
-function cov(sc::SimpleCovariance, X::AbstractMatrix; dims::Int=1, mean=nothing)
+function cov(sc::SimpleCovariance, X::AbstractMatrix;
+             dims::Int=1,
+             weights::Union{AbstractWeights, Nothing}=nothing,
+             mean=nothing)
     dims ∈ (1, 2) || throw(ArgumentError("Argument dims can only be 1 or 2 (given: $dims)"))
     if mean === nothing
-        return cov(X; dims=dims, corrected=sc.corrected)
-    else
-        return covm(X, mean, dims, corrected=sc.corrected)
+        mean = Statistics.mean(X, dims=dims, weights=weights)
     end
-end
-
-function cov(sc::SimpleCovariance, X::AbstractMatrix, w::AbstractWeights; dims::Int=1, mean=nothing)
-    dims ∈ (1, 2) || throw(ArgumentError("Argument dims can only be 1 or 2 (given: $dims)"))
-    if mean === nothing
-        return cov(X, w, dims, corrected=sc.corrected)
-    else
-        return covm(X, mean, w, dims, corrected=sc.corrected)
-    end
+    return covm(X, mean, weights, dims, corrected=sc.corrected)
 end

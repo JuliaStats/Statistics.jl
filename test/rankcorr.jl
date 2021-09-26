@@ -1,4 +1,4 @@
-using StatsBase
+using Statistics
 using Test
 
 X = Float64[1 0; 2 1; 3 0; 4 1; 5 10]
@@ -108,8 +108,8 @@ w = repeat(z, n)
 @test corkendall(w[:,1], w) == [1 0 1/3]
 @test corkendall(w, w[:,1]) == [1; 0; 1/3]
 
-StatsBase.midpoint(1,10)        == 5
-StatsBase.midpoint(1,widen(10)) == 5
+Statistics.midpoint(1,10)        == 5
+Statistics.midpoint(1,widen(10)) == 5
 
 
 # NaN handling

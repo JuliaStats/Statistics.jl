@@ -11,8 +11,51 @@ using LinearAlgebra, SparseArrays
 
 using Base: has_offset_axes, require_one_based_indexing
 
-export cor, cov, std, stdm, var, varm, mean!, mean,
-    median!, median, middle, quantile!, quantile
+using Printf: @printf
+
+export std, stdm, var, varm, mean!, mean,
+    median!, median, middle, quantile!, quantile,
+    # moments.jl
+    skewness, kurtosis,
+    # weights.jl
+    AbstractWeights, Weights, AnalyticWeights, FrequencyWeights, ProbabilityWeights, UnitWeights,
+    weights, aweights, eweights, fweights, pweights, uweights,
+    # scalarstats.jl
+    geomean, harmmean, genmean, mode, modes, percentile, span, variation, sem, mad, mad!,
+    iqr, genvar, totalvar, entropy, renyientropy, crossentropy, kldivergence, describe,
+    zscore, zscore!,
+    # cov.jl
+    cor, cov, scattermat, cov2cor, cor2cov, CovarianceEstimator, SimpleCovariance,
+    # partialcor.jl
+    partialcor,
+    # signalcorr.jl
+    autocov!, autocov, autocor!, autocor, crosscov!, crosscov, crosscor!, crosscor,
+    pacf!, pacf,
+    # robust.jl
+    trim, trim!, trimvar, winsor, winsor!,
+    # ranking.jl
+    ordinalrank, competerank, denserank, tiedrank,
+    # rankcorr.jl
+    corkendall, corspearman,
+    # empirical.jl
+    ecdf, ECDF,
+    # hist.jl
+    fit, AbstractHistogram, Histogram, midpoints, norm, normalize, normalize!
+
+include("common.jl")
+include("weights.jl")
+include("wsum.jl")
+include("moments.jl")
+include("scalarstats.jl")
+include("cov.jl")
+include("partialcor.jl")
+include("toeplitzsolvers.jl")
+include("signalcorr.jl")
+include("robust.jl")
+include("ranking.jl")
+include("rankcorr.jl")
+include("empirical.jl")
+include("hist.jl")
 
 ##### mean #####
 
@@ -104,9 +147,14 @@ julia> mean(√, [1 2 3; 4 5 6], dims=2)
 mean(f, A::AbstractArray; dims=:) = _mean(f, A, dims)
 
 """
-    mean!(r, v)
+    mean!(r, v; [weights::AbstractVector])
 
 Compute the mean of `v` over the singleton dimensions of `r`, and write results to `r`.
+If `r` has only one singleton dimension `i`, `weights` can be a vector of length
+`size(v, i)` to compute the weighted mean.
+
+!!! compat "Julia 1.3"
+    The `weights`  argument requires at least Julia 1.3.
 
 # Examples
 ```jldoctest
@@ -127,20 +175,34 @@ julia> mean!([1. 1.], v)
  2.0  3.0
 ```
 """
-function mean!(R::AbstractArray, A::AbstractArray)
+mean!(R::AbstractArray, A::AbstractArray;
+      weights::Union{AbstractArray,Nothing}=nothing) =
+    _mean!(R, A, weights)
+
+function _mean!(R::AbstractArray, A::AbstractArray, weights::Nothing)
     sum!(R, A; init=true)
     x = max(1, length(R)) // length(A)
     R .= R .* x
     return R
 end
 
-"""
-    mean(A::AbstractArray; dims)
+_mean!(R::AbstractArray, A::AbstractArray, w::AbstractArray) =
+    rmul!(wsum!(R, A, weights=w), inv(sum(w)))
 
-Compute the mean of an array over the given dimensions.
+"""
+    mean(A::AbstractArray; [dims], [weights::AbstractArray])
+
+Compute the mean of array `A`.
+If `dims` is provided, return an array of means over these dimensions.
+If `weights` is provided, return the weighted mean(s). `weights` must be
+either an array of the same size as `A` if `dims` is omitted,
+or a vector with the same length as `size(A, dims)` if `dims` is provided.
 
 !!! compat "Julia 1.1"
     `mean` for empty arrays requires at least Julia 1.1.
+
+!!! compat "Julia 1.3"
+    The `weights` keyword argument requires at least Julia 1.3.
 
 # Examples
 ```jldoctest
@@ -159,14 +221,22 @@ julia> mean(A, dims=2)
 2×1 Matrix{Float64}:
  1.5
  3.5
+
+julia> mean(A, weights=[2 1; 2 1])
+2.3333333333333335
+
+julia> mean(A, weights=[2, 1], dims=1)
+1×2 Array{Float64,2}:
+ 1.66667  2.66667
 ```
 """
-mean(A::AbstractArray; dims=:) = _mean(identity, A, dims)
+mean(A::AbstractArray; dims=:, weights::Union{AbstractArray, Nothing}=nothing) =
+    _mean(identity, A, dims, weights)
 
 _mean_promote(x::T, y::S) where {T,S} = convert(promote_type(T, S), y)
 
 # ::Dims is there to force specializing on Colon (as it is a Function)
-function _mean(f, A::AbstractArray, dims::Dims=:) where Dims
+function _mean(f, A::AbstractArray, dims=:, weights::Nothing=nothing) where Dims
     isempty(A) && return sum(f, A, dims=dims)/0
     if dims === (:)
         n = length(A)
@@ -182,12 +252,27 @@ function _mean(f, A::AbstractArray, dims::Dims=:) where Dims
     end
 end
 
-function mean(r::AbstractRange{<:Real})
+function _mean(::typeof(identity), r::AbstractRange{<:Real}, dims::Colon, weights::Nothing)
     isempty(r) && return oftype((first(r) + last(r)) / 2, NaN)
     (first(r) + last(r)) / 2
 end
 
-median(r::AbstractRange{<:Real}) = mean(r)
+# Note: weighted mean currently does not use _mean_promote to avoid overflow
+_mean(::typeof(identity), A::AbstractArray, dims::Colon, w::AbstractArray) =
+    wsum(A, weights=w) / sum(w)
+
+_mean(::typeof(identity), A::AbstractArray, dims, w::AbstractArray) =
+    _mean!(Base.reducedim_init(t -> (t*zero(eltype(w)))/2, Base.add_sum, A, dims), A, w)
+
+function _mean(::typeof(identity), A::AbstractArray, dims, w::UnitWeights)
+    size(A, dims) != length(w) && throw(DimensionMismatch("Inconsistent array dimension."))
+    return mean(A, dims=dims)
+end
+
+function _mean(::typeof(identity), A::AbstractArray, dims::Colon, w::UnitWeights)
+    length(A) != length(w) && throw(DimensionMismatch("Inconsistent array dimension."))
+    return mean(A)
+end
 
 ##### variances #####
 
@@ -195,13 +280,16 @@ median(r::AbstractRange{<:Real}) = mean(r)
 realXcY(x::Real, y::Real) = x*y
 realXcY(x::Complex, y::Complex) = real(x)*real(y) + imag(x)*imag(y)
 
-var(iterable; corrected::Bool=true, mean=nothing) = _var(iterable, corrected, mean)
+function var(iterable; corrected::Bool=true, mean=nothing)
+    s, count = _sumsq(iterable, mean)
+    s / (count - Int(corrected))
+end
 
-function _var(iterable, corrected::Bool, mean)
+function _sumsq(iterable, mean)
     y = iterate(iterable)
     if y === nothing
         T = eltype(iterable)
-        return oftype((abs2(zero(T)) + abs2(zero(T)))/2, NaN)
+        return oftype((abs2(zero(T)) + abs2(zero(T)))/2, NaN), 0
     end
     count = 1
     value, state = y
@@ -219,7 +307,7 @@ function _var(iterable, corrected::Bool, mean)
             S = S + realXcY(value - M, value - new_M)
             M = new_M
         end
-        return S / (count - Int(corrected))
+        return S, count
     elseif isa(mean, Number) # mean provided
         # Cannot use a compensated version, e.g. the one from
         # "Updating Formulae and a Pairwise Algorithm for Computing Sample Variances."
@@ -233,19 +321,19 @@ function _var(iterable, corrected::Bool, mean)
             count += 1
             sum2 += abs2(value - mean)
         end
-        return sum2 / (count - Int(corrected))
+        return sum2, count
     else
         throw(ArgumentError("invalid value of mean, $(mean)::$(typeof(mean))"))
     end
 end
 
-centralizedabs2fun(m) = x -> abs2.(x - m)
 centralize_sumabs2(A::AbstractArray, m) =
-    mapreduce(centralizedabs2fun(m), +, A)
+    mapreduce(x -> abs2.(x - m), +, A)
 centralize_sumabs2(A::AbstractArray, m, ifirst::Int, ilast::Int) =
-    Base.mapreduce_impl(centralizedabs2fun(m), +, A, ifirst, ilast)
+    Base.mapreduce_impl(x -> abs2.(x - m), +, A, ifirst, ilast)
 
-function centralize_sumabs2!(R::AbstractArray{S}, A::AbstractArray, means::AbstractArray) where S
+function centralize_sumabs2!(R::AbstractArray{S}, A::AbstractArray, means::AbstractArray,
+                             w::Union{AbstractArray, Nothing}=nothing) where S
     # following the implementation of _mapreducedim! at base/reducedim.jl
     lsiz = Base.check_reducedims(R,A)
     for i in 1:max(ndims(R), ndims(means))
@@ -256,7 +344,7 @@ function centralize_sumabs2!(R::AbstractArray{S}, A::AbstractArray, means::Abstr
     isempty(R) || fill!(R, zero(S))
     isempty(A) && return R
 
-    if Base.has_fast_linear_indexing(A) && lsiz > 16 && !has_offset_axes(R, means)
+    if w === nothing && Base.has_fast_linear_indexing(A) && lsiz > 16 && !has_offset_axes(R, means)
         nslices = div(length(A), lsiz)
         ibase = first(LinearIndices(A))-1
         for i = 1:nslices
@@ -274,22 +362,34 @@ function centralize_sumabs2!(R::AbstractArray{S}, A::AbstractArray, means::Abstr
             r = R[i1,IR]
             m = means[i1,IR]
             @simd for i in axes(A, 1)
-                r += abs2(A[i,IA] - m)
+                if w === nothing
+                    r += abs2(A[i,IA] - m)
+                else
+                    r += abs2(A[i,IA] - m) * w[i]
+                end
             end
             R[i1,IR] = r
         end
     else
         @inbounds for IA in CartesianIndices(indsAt)
             IR = Broadcast.newindex(IA, keep, Idefault)
+            if w !== nothing
+                wi = w[IA]
+            end
             @simd for i in axes(A, 1)
-                R[i,IR] += abs2(A[i,IA] - means[i,IR])
+                if w === nothing
+                    R[i,IR] += abs2(A[i,IA] - means[i,IR])
+                else
+                    R[i,IR] += abs2(A[i,IA] - means[i,IR]) * wi
+                end
             end
         end
     end
     return R
 end
 
-function varm!(R::AbstractArray{S}, A::AbstractArray, m::AbstractArray; corrected::Bool=true) where S
+function varm!(R::AbstractArray{S}, A::AbstractArray, m::AbstractArray, w::Nothing;
+               corrected::Bool=true) where S
     if isempty(A)
         fill!(R, convert(S, NaN))
     else
@@ -298,6 +398,12 @@ function varm!(R::AbstractArray{S}, A::AbstractArray, m::AbstractArray; correcte
         R .= R .* (1 // rn)
     end
     return R
+end
+
+function varm!(R::AbstractArray, A::AbstractArray, m::AbstractArray, w::AbstractArray;
+               corrected::Bool=true)
+    rmul!(centralize_sumabs2!(R, A, m, values(w)),
+          varcorrection(w, corrected))
 end
 
 """
@@ -324,22 +430,39 @@ over dimensions. In that case, `mean` must be an array with the same shape as
     Use the [`skipmissing`](@ref) function to omit `missing` entries and compute the
     variance of non-missing values.
 """
-varm(A::AbstractArray, m::AbstractArray; corrected::Bool=true, dims=:) = _varm(A, m, corrected, dims)
+varm(A::AbstractArray, m; corrected::Bool=true, dims=:,
+     weights::Union{AbstractWeights, Nothing}=nothing) =
+    _varm(A, m, corrected, dims, weights)
 
-_varm(A::AbstractArray{T}, m, corrected::Bool, region) where {T} =
-    varm!(Base.reducedim_init(t -> abs2(t)/2, +, A, region), A, m; corrected=corrected)
+varm(iterable, m; corrected::Bool=true) =
+    var(iterable, mean=m, corrected=corrected)
 
-varm(A::AbstractArray, m; corrected::Bool=true) = _varm(A, m, corrected, :)
+_varm(A::AbstractArray, m, corrected::Bool, dims, w::Nothing) =
+    varm!(Base.reducedim_init(t -> abs2(t)/2, +, A, dims), A, m, w, corrected=corrected)
 
-function _varm(A::AbstractArray{T}, m, corrected::Bool, ::Colon) where T
+_varm(A::AbstractArray, m, corrected::Bool, dims, w::AbstractWeights{T}) where {T<:Real} =
+    varm!(Base.reducedim_init(t -> (abs2(t)*zero(T))/2, +, A, dims), A, m, w,
+          corrected=corrected)
+
+function _varm(A::AbstractArray{T}, m, corrected::Bool, dims::Colon, w::Nothing) where T
     n = length(A)
     n == 0 && return oftype((abs2(zero(T)) + abs2(zero(T)))/2, NaN)
     return centralize_sumabs2(A, m) / (n - Int(corrected))
 end
 
+function _varm(A::AbstractArray{T}, m, corrected::Bool, dims::Colon,
+               w::AbstractWeights) where T
+    s = (zero(T) - zero(m))^2 * zero(eltype(w))
+    @inbounds @simd for i in eachindex(A, w)
+        z = A[i] - m
+        s += (z * z) * w[i]
+    end
+
+    varcorrection(w, corrected) * s
+end
 
 """
-    var(itr; corrected::Bool=true, mean=nothing[, dims])
+    var(itr; corrected::Bool=true, [weights::AbstractWeights], mean=nothing[, dims])
 
 Compute the sample variance of collection `itr`.
 
@@ -359,29 +482,51 @@ A pre-computed `mean` may be provided. When `dims` is specified, `mean` must be
 an array with the same shape as `mean(itr, dims=dims)` (additional trailing
 singleton dimensions are allowed).
 
+If `itr` is an `AbstractArray`, `weights` can be provided to compute the weighted
+variance. `weights` must be either an array of the same size
+as `A` if `dims` is omitted, or a vector with the same length as `size(A, dims)`
+if `dims` is provided.
+The weighted uncorrected (when `corrected=false`) sample variance
+is defined as:
+```math
+\\frac{1}{\\sum{w}} \\sum_{i=1}^n {w_i\\left({x_i - μ}\\right)^2 }
+```
+where ``n`` is the length of the input and ``μ`` is the mean.
+The unbiased estimate (when `corrected=true`) of the population variance is
+computed by replacing ``\\frac{1}{\\sum{w}}`` with a factor dependent on the type of
+weights used:
+* [`AnalyticWeights`](@ref): ``\\frac{1}{\\sum w - \\sum {w^2} / \\sum w}``
+* [`FrequencyWeights`](@ref): ``\\frac{1}{\\sum{w} - 1}``
+* [`ProbabilityWeights`](@ref): ``\\frac{n}{(n - 1) \\sum w}`` where ``n``
+  equals `count(!iszero, w)`
+* [`Weights`](@ref): `ArgumentError` (bias correction not supported)
+
 !!! note
     If array contains `NaN` or [`missing`](@ref) values, the result is also
     `NaN` or `missing` (`missing` takes precedence if array contains both).
     Use the [`skipmissing`](@ref) function to omit `missing` entries and compute the
     variance of non-missing values.
 """
-var(A::AbstractArray; corrected::Bool=true, mean=nothing, dims=:) = _var(A, corrected, mean, dims)
+var(A::AbstractArray;
+    corrected::Bool=true, mean=nothing, dims=:,
+    weights::Union{AbstractWeights, Nothing}=nothing) =
+    _var(A, corrected, mean, dims, weights)
 
-function _var(A::AbstractArray, corrected::Bool, mean, dims)
+function _var(A::AbstractArray, corrected::Bool, mean, dims,
+              w::Union{AbstractWeights, Nothing})
   if mean === nothing
-      mean = Statistics.mean(A, dims=dims)
+      mean = Statistics.mean(A, dims=dims, weights=w)
   end
-  return varm(A, mean; corrected=corrected, dims=dims)
+  return varm(A, mean; corrected=corrected, dims=dims, weights=w)
 end
 
-function _var(A::AbstractArray, corrected::Bool, mean, ::Colon)
+function _var(A::AbstractArray, corrected::Bool, mean, ::Colon,
+              w::Union{AbstractWeights, Nothing})
   if mean === nothing
-      mean = Statistics.mean(A)
+      mean = Statistics.mean(A, weights=w)
   end
-  return real(varm(A, mean; corrected=corrected))
+  return real(varm(A, mean; corrected=corrected, weights=w))
 end
-
-varm(iterable, m; corrected::Bool=true) = _var(iterable, corrected, m)
 
 ## variances over ranges
 
@@ -423,9 +568,7 @@ stdm(A::AbstractArray, m; corrected::Bool=true) =
     sqrt.(varm(A, m; corrected=corrected))
 
 """
-    std(itr; corrected::Bool=true, mean=nothing[, dims])
-
-Compute the sample standard deviation of collection `itr`.
+    std(itr; corrected::Bool=true, mean=nothing, [weights::AbstractWeights], [dims])
 
 The algorithm returns an estimator of the generative distribution's standard
 deviation under the assumption that each entry of `itr` is a sample drawn from
@@ -437,7 +580,26 @@ whereas the sum is scaled with `n` if `corrected` is
 `false` with `n` the number of elements in `itr`.
 
 If `itr` is an `AbstractArray`, `dims` can be provided to compute the standard deviation
-over dimensions, and `means` may contain means for each dimension of `itr`.
+over dimensions, and `mean` may contain means for each dimension of `itr`.
+
+If `itr` is an `AbstractArray`, `weights` can be provided to compute the weighted
+standard deviation. `weights` must be either an array of the same size
+as `A` if `dims` is omitted, or a vector with the same length as `size(A, dims)`
+if `dims` is provided.
+The weighted uncorrected (when `corrected=false`) sample standard deviation
+is defined as:
+```math
+\\sqrt{\\frac{1}{\\sum{w}} \\sum_{i=1}^n {w_i\\left({x_i - μ}\\right)^2 }}
+```
+where ``n`` is the length of the input and ``μ`` is the mean.
+The unbiased estimate (when `corrected=true`) of the population standard deviation is
+computed by replacing ``\\frac{1}{\\sum{w}}`` with a factor dependent on the type of
+weights used:
+* [`AnalyticWeights`](@ref): ``\\frac{1}{\\sum w - \\sum {w^2} / \\sum w}``
+* [`FrequencyWeights`](@ref): ``\\frac{1}{\\sum{w} - 1}``
+* [`ProbabilityWeights`](@ref): ``\\frac{n}{(n - 1) \\sum w}`` where ``n``
+  equals `count(!iszero, w)`
+* [`Weights`](@ref): `ArgumentError` (bias correction not supported)
 
 A pre-computed `mean` may be provided. When `dims` is specified, `mean` must be
 an array with the same shape as `mean(itr, dims=dims)` (additional trailing
@@ -448,20 +610,29 @@ singleton dimensions are allowed).
     `NaN` or `missing` (`missing` takes precedence if array contains both).
     Use the [`skipmissing`](@ref) function to omit `missing` entries and compute the
     standard deviation of non-missing values.
+
+!!! compat "Julia 1.3"
+    The `weights` keyword argument requires at least Julia 1.3.
 """
-std(A::AbstractArray; corrected::Bool=true, mean=nothing, dims=:) = _std(A, corrected, mean, dims)
+std(A::AbstractArray;
+    corrected::Bool=true, mean=nothing, dims=:,
+    weights::Union{AbstractWeights, Nothing}=nothing) =
+    _std(A, corrected, mean, dims, weights)
 
-_std(A::AbstractArray, corrected::Bool, mean, dims) =
-    sqrt.(var(A; corrected=corrected, mean=mean, dims=dims))
+_std(A::AbstractArray, corrected::Bool, mean, dims,
+     weights::Union{AbstractWeights, Nothing}) =
+    sqrt.(var(A; corrected=corrected, mean=mean, dims=dims, weights=weights))
 
-_std(A::AbstractArray, corrected::Bool, mean, ::Colon) =
-    sqrt.(var(A; corrected=corrected, mean=mean))
+_std(A::AbstractArray, corrected::Bool, mean, ::Colon, w::Union{AbstractWeights, Nothing}) =
+    sqrt.(var(A; corrected=corrected, mean=mean, weights=w))
 
-_std(A::AbstractArray{<:AbstractFloat}, corrected::Bool, mean, dims) =
-    sqrt!(var(A; corrected=corrected, mean=mean, dims=dims))
+_std(A::AbstractArray{<:AbstractFloat}, corrected::Bool, mean, dims,
+     w::Union{AbstractWeights, Nothing}) =
+    sqrt!(var(A; corrected=corrected, mean=mean, dims=dims, weights=w))
 
-_std(A::AbstractArray{<:AbstractFloat}, corrected::Bool, mean, ::Colon) =
-    sqrt.(var(A; corrected=corrected, mean=mean))
+_std(A::AbstractArray{<:AbstractFloat}, corrected::Bool, mean, ::Colon,
+     w::Union{AbstractWeights, Nothing}) =
+    sqrt.(var(A; corrected=corrected, mean=mean, weights=w))
 
 std(iterable; corrected::Bool=true, mean=nothing) =
     sqrt(var(iterable, corrected=corrected, mean=mean))
@@ -510,8 +681,10 @@ function _getnobs(x::AbstractVecOrMat, y::AbstractVecOrMat, vardim::Int)
     return n
 end
 
-_vmean(x::AbstractVector, vardim::Int) = mean(x)
-_vmean(x::AbstractMatrix, vardim::Int) = mean(x, dims=vardim)
+_vmean(x::AbstractVector, vardim::Int, w::Union{AbstractWeights, Nothing}=nothing) =
+    mean(x, weights=w)
+_vmean(x::AbstractMatrix, vardim::Int, w::Union{AbstractWeights, Nothing}=nothing) =
+    mean(x, dims=vardim, weights=w)
 
 # core functions
 
@@ -554,7 +727,7 @@ end
 ## which can't be handled by broadcast
 covm(x::AbstractVector, xmean; corrected::Bool=true) =
     covzm(map(t -> t - xmean, x); corrected=corrected)
-covm(x::AbstractMatrix, xmean, vardim::Int=1; corrected::Bool=true) =
+covm(x::AbstractMatrix, xmean, weights::Nothing=nothing, vardim::Int=1; corrected::Bool=true) =
     covzm(x .- xmean, vardim; corrected=corrected)
 covm(x::AbstractVector, xmean, y::AbstractVector, ymean; corrected::Bool=true) =
     covzm(map(t -> t - xmean, x), map(t -> t - ymean, y); corrected=corrected)
@@ -571,14 +744,24 @@ is scaled with `n-1`, whereas the sum is scaled with `n` if `corrected` is `fals
 cov(x::AbstractVector; corrected::Bool=true) = covm(x, mean(x); corrected=corrected)
 
 """
-    cov(X::AbstractMatrix; dims::Int=1, corrected::Bool=true)
+    cov(X::AbstractMatrix; dims::Int=1, corrected::Bool=true[, weights::AbstractWeights])
 
 Compute the covariance matrix of the matrix `X` along the dimension `dims`. If `corrected`
 is `true` (the default) then the sum is scaled with `n-1`, whereas the sum is scaled with `n`
 if `corrected` is `false` where `n = size(X, dims)`.
+
+If `weights` is provided, the biased covariance matrix (`corrected=false`)
+is computed by multiplying `scattermat(X, w)` by
+``\\frac{1}{\\sum{w}}`` to normalize. However, the unbiased covariance matrix
+(`corrected=true`) is dependent on the type of weights used:
+* `AnalyticWeights`: ``\\frac{1}{\\sum w - \\sum {w^2} / \\sum w}``
+* `FrequencyWeights`: ``\\frac{1}{\\sum{w} - 1}``
+* `ProbabilityWeights`: ``\\frac{n}{(n - 1) \\sum w}`` where ``n`` equals `count(!iszero, w)`
+* `Weights`: `ArgumentError` (bias correction not supported)
 """
-cov(X::AbstractMatrix; dims::Int=1, corrected::Bool=true) =
-    covm(X, _vmean(X, dims), dims; corrected=corrected)
+cov(X::AbstractMatrix; dims::Int=1, corrected::Bool=true,
+    weights::Union{AbstractWeights, Nothing}=nothing) =
+    covm(X, _vmean(X, dims, weights), weights, dims; corrected=corrected)
 
 """
     cov(x::AbstractVector, y::AbstractVector; corrected::Bool=true)
@@ -682,7 +865,8 @@ corzm(x::AbstractMatrix, y::AbstractMatrix, vardim::Int=1) =
 
 corm(x::AbstractVector{T}, xmean) where {T} =
     T === Missing ? missing : one(float(nonmissingtype(T)))
-corm(x::AbstractMatrix, xmean, vardim::Int=1) = corzm(x .- xmean, vardim)
+corm(x::AbstractMatrix, xmean, weights::Nothing=nothing, vardim::Int=1) =
+    corzm(x .- xmean, vardim)
 function corm(x::AbstractVector, mx, y::AbstractVector, my)
     require_one_based_indexing(x, y)
     n = length(x)
@@ -691,8 +875,8 @@ function corm(x::AbstractVector, mx, y::AbstractVector, my)
 
     @inbounds begin
         # Initialize the accumulators
-        xx = zero(sqrt(abs2(one(x[1]))))
-        yy = zero(sqrt(abs2(one(y[1]))))
+        xx = zero(sqrt(abs2(x[1])))
+        yy = zero(sqrt(abs2(y[1])))
         xy = zero(x[1] * y[1]')
 
         @simd for i in eachindex(x, y)
@@ -719,11 +903,13 @@ cor(x::AbstractVector{T}) where {T} =
     T === Missing ? missing : one(float(nonmissingtype(T)))
 
 """
-    cor(X::AbstractMatrix; dims::Int=1)
+    cor(X::AbstractMatrix; dims::Int=1[, weights::AbstractWeights])
 
 Compute the Pearson correlation matrix of the matrix `X` along the dimension `dims`.
+The weighted correlation is computed if `weights` is provided.
 """
-cor(X::AbstractMatrix; dims::Int=1) = corm(X, _vmean(X, dims), dims)
+cor(X::AbstractMatrix; dims::Int=1, weights::Union{AbstractWeights, Nothing}=nothing) =
+    corm(X, _vmean(X, dims, weights), weights, dims)
 
 """
     cor(x::AbstractVector, y::AbstractVector)
@@ -740,7 +926,7 @@ Compute the Pearson correlation between the vectors or matrices `X` and `Y` alon
 cor(x::AbstractVecOrMat, y::AbstractVecOrMat; dims::Int=1) =
     corm(x, _vmean(x, dims), y, _vmean(y, dims), dims)
 
-##### median & quantiles #####
+##### middle, median & quantiles #####
 
 """
     middle(x)
@@ -851,9 +1037,18 @@ julia> median(skipmissing([1, 2, missing, 4]))
 median(itr) = median!(collect(itr))
 
 """
-    median(A::AbstractArray; dims)
+    median(A::AbstractArray; [dims], [weights::AbstractArray])
 
-Compute the median of an array along the given dimensions.
+Compute the median of array `A`.
+If `dims` is provided, return an array of median over these dimensions.
+If `weights` is provided, return the weighted median(s). `weights` must be
+either an array of the same size as `A`. `dims` and `weights` cannot be specified
+at the same time.
+
+See the documentation for [`quantile`](@ref) for more details.
+
+!!! compat "Julia 1.3"
+    The `weights` keyword argument requires at least Julia 1.3c.
 
 # Examples
 ```jl
@@ -862,13 +1057,25 @@ julia> using Statistics
 julia> median([1 2; 3 4], dims=1)
 1×2 Matrix{Float64}:
  2.0  3.0
+
+julia> median([1 2; 3 4], weights=fweights([1 1; 2 1]))
+3.0
 ```
 """
-median(v::AbstractArray; dims=:) = _median(v, dims)
+median(A::AbstractArray; dims=:, weights::Union{AbstractArray, Nothing}=nothing) =
+    _median(A, dims, weights)
 
-_median(v::AbstractArray, dims) = mapslices(median!, v, dims = dims)
+_median(r::AbstractRange{<:Real}, dims::Colon, w::Nothing) = mean(r)
 
-_median(v::AbstractArray{T}, ::Colon) where {T} = median!(copyto!(Array{T,1}(undef, length(v)), v))
+_median(A::AbstractArray, dims, w::Nothing) = mapslices(median!, A, dims = dims)
+
+_median(A::AbstractArray{T}, dims::Colon, w::Nothing) where {T} =
+    median!(copyto!(Array{T,1}(undef, length(A)), A))
+
+_median(v::AbstractArray, dims::Colon, w::AbstractArray) = quantile(v, 0.5, weights=w)
+
+_median(A::AbstractArray, dims, w::AbstractArray) =
+    throw(ArgumentError("weights and dims cannot be specified at the same time"))
 
 """
     quantile!([q::AbstractArray, ] v::AbstractVector, p; sorted=false, alpha::Real=1.0, beta::Real=alpha)
@@ -1010,7 +1217,7 @@ end
 end
 
 """
-    quantile(itr, p; sorted=false, alpha::Real=1.0, beta::Real=alpha)
+    quantile(itr, p; sorted=false, alpha::Real=1.0, beta::Real=alpha, [weights::AbstractWeights])
 
 Compute the quantile(s) of a collection `itr` at a specified probability or vector or tuple of
 probabilities `p` on the interval [0,1]. The keyword argument `sorted` indicates whether
@@ -1034,6 +1241,18 @@ defined in this paper:
 - Def. 7: `alpha=1`, `beta=1` (Julia, R and NumPy default, Excel `PERCENTILE` and `PERCENTILE.INC`, Python `'inclusive'`)
 - Def. 8: `alpha=1/3`, `beta=1/3`
 - Def. 9: `alpha=3/8`, `beta=3/8`
+
+If `itr` is an `AbstractArray`, `weights` can be specified to compute weighted quantiles.
+Weights must not be negative and must have the same length as the data.
+With [`FrequencyWeights`](@ref), the function returns the same result as
+`quantile` for a vector with repeated values. Weights must be integers.
+With non `FrequencyWeights`,  denote ``N`` the length of the vector, ``w`` the vector of weights,
+``h = p (\\sum_{i<= N} w_i - w_1) + w_1`` the cumulative weight corresponding to the
+probability ``p`` and ``S_k = \\sum_{i<=k} w_i`` the cumulative weight for each
+observation, define ``v_{k+1}`` the smallest element of `v` such that ``S_{k+1}``
+is strictly superior to ``h``. The weighted ``p`` quantile is given by ``v_k + \\gamma (v_{k+1} - v_k)``
+with  ``\\gamma = (h - S_k)/(S_{k+1} - S_k)``. In particular, when all weights are equal,
+the function returns the same result as the unweighted `quantile`.
 
 !!! note
     An `ArgumentError` is thrown if `v` contains `NaN` or [`missing`](@ref) values.
@@ -1063,12 +1282,122 @@ julia> quantile(skipmissing([1, 10, missing]), 0.5)
 5.5
 ```
 """
-quantile(itr, p; sorted::Bool=false, alpha::Real=1.0, beta::Real=alpha) =
+quantile(itr, p; sorted::Bool=false, alpha::Real=1.0, beta::Real=alpha,
+         weights::Union{AbstractArray,Nothing}=nothing) =
+    _quantile(itr, p, sorted, alpha, beta, weights)
+
+_quantile(itr, p, sorted::Bool, alpha::Real, beta::Real, weights::Nothing) =
     quantile!(collect(itr), p, sorted=sorted, alpha=alpha, beta=beta)
 
-quantile(v::AbstractVector, p; sorted::Bool=false, alpha::Real=1.0, beta::Real=alpha) =
-    quantile!(sorted ? v : Base.copymutable(v), p; sorted=sorted, alpha=alpha, beta=beta)
+_quantile(itr::AbstractArray, p, sorted::Bool, weights::Nothing) =
+    quantile!(sorted ? itr : Base.copymutable(itr), p; sorted=sorted,
+              alpha=alpha, beta=beta)
 
+function _quantile(v::AbstractArray{V}, p, sorted::Bool, alpha::Real, beta::Real,
+                   w::AbstractArray{W}) where {V,W}
+    # checks
+    alpha == beta == 1 || throw(ArgumentError("only alpha == beta == 1 is supported " *
+                                              "when weights are provided"))
+    isempty(v) && throw(ArgumentError("quantile of an empty array is undefined"))
+    isempty(p) && throw(ArgumentError("empty quantile array"))
+    all(x -> 0 <= x <= 1, p) || throw(ArgumentError("input probability out of [0,1] range"))
+
+    wsum = sum(w)
+    wsum == 0 && throw(ArgumentError("weight vector cannot sum to zero"))
+    size(v) == size(w) || throw(ArgumentError("weights must have the same dimension as data " *
+        "(got $(size(v)) and $(size(w)))"))
+    for x in w
+        isnan(x) && throw(ArgumentError("weight vector cannot contain NaN entries"))
+        x < 0 && throw(ArgumentError("weight vector cannot contain negative entries"))
+    end
+
+    isa(w, FrequencyWeights) && !(eltype(w) <: Integer) && any(!isinteger, w) &&
+        throw(ArgumentError("The values of the vector of `FrequencyWeights` must be numerically" *
+                            "equal to integers. Use `ProbabilityWeights` or `AnalyticWeights` instead."))
+
+    # remove zeros weights and sort
+    nz = .!iszero.(w)
+    vw = sort!(collect(zip(view(v, nz), view(w, nz))))
+    N = length(vw)
+
+    # prepare percentiles
+    ppermute = sortperm(p)
+    p = p[ppermute]
+
+    # prepare out vector
+    out = Vector{typeof(zero(V)/1)}(undef, length(p))
+    fill!(out, vw[end][1])
+
+    @inbounds for x in v
+        isnan(x) && return fill!(out, x)
+    end
+
+    # loop on quantiles
+    Sk, Skold = zero(W), zero(W)
+    vk, vkold = zero(V), zero(V)
+    k = 0
+
+    w1 = vw[1][2]
+    for i in 1:length(p)
+        if isa(w, FrequencyWeights)
+            h = p[i] * (wsum - 1) + 1
+        else
+            h = p[i] * (wsum - w1) + w1
+        end
+        while Sk <= h
+            k += 1
+            if k > N
+               # out was initialized with maximum v
+               return out
+            end
+            Skold, vkold = Sk, vk
+            vk, wk = vw[k]
+            Sk += wk
+        end
+        if isa(w, FrequencyWeights)
+            out[ppermute[i]] = vkold + min(h - Skold, 1) * (vk - vkold)
+        else
+            out[ppermute[i]] = vkold + (h - Skold) / (Sk - Skold) * (vk - vkold)
+        end
+    end
+    return out
+end
+
+function _quantile(v::AbstractArray, p, sorted::Bool,
+                   alpha::Real, beta::Real, w::UnitWeights)
+    length(v) != length(w) && throw(DimensionMismatch("Inconsistent array dimension."))
+    return quantile(v, p)
+end
+
+function _quantile(v::AbstractArray, p::Real, sorted::Bool,
+                   alpha::Real, beta::Real, w::UnitWeights)
+    length(v) != length(w) && throw(DimensionMismatch("Inconsistent array dimension."))
+    return quantile(v, p)
+end
+
+_quantile(v::AbstractArray, p::Real, sorted::Bool, alpha::Real, beta::Real,
+          w::AbstractArray) =
+    _quantile(v, [p], sorted, alpha, beta, w)[1]
+
+_quantile(itr, p, sorted::Bool, alpha::Real, beta::Real, weights) =
+    throw(ArgumentError("weights are only supported with AbstractArrays inputs"))
+
+"""
+    quantile(x, n::Integer)
+
+Return the n-quantiles of collection `x`, i.e. the values which
+partition `v` into `n` subsets of nearly equal size.
+Equivalent to `quantile(x, [0:n]/n)`. For example, `quantile(x, 5)`
+returns a vector of quantiles, respectively at `[0.0, 0.2, 0.4, 0.6, 0.8, 1.0]`.
+"""
+quantile(x, n::Integer) = quantile(x, (0:n)/n)
+
+"""
+    percentile(x, p)
+
+Return the `p`th percentile of a collection `x`, i.e. `quantile(x, p / 100)`.
+"""
+percentile(x, p) = quantile(x, p * 0.01)
 
 ##### SparseArrays optimizations #####
 
@@ -1097,7 +1426,8 @@ function cov(X::SparseMatrixCSC; dims::Int=1, corrected::Bool=true)
 end
 
 # This is the function that does the reduction underlying var/std
-function centralize_sumabs2!(R::AbstractArray{S}, A::SparseMatrixCSC{Tv,Ti}, means::AbstractArray) where {S,Tv,Ti}
+function centralize_sumabs2!(R::AbstractArray{S}, A::SparseMatrixCSC{Tv,Ti}, means::AbstractArray,
+                             w::Nothing) where {S,Tv,Ti}
     require_one_based_indexing(R, A, means)
     lsiz = Base.check_reducedims(R,A)
     for i in 1:max(ndims(R), ndims(means))
@@ -1108,8 +1438,9 @@ function centralize_sumabs2!(R::AbstractArray{S}, A::SparseMatrixCSC{Tv,Ti}, mea
     isempty(R) || fill!(R, zero(S))
     isempty(A) && return R
 
-    rowval = rowvals(A)
-    nzval = nonzeros(A)
+    colptr = A.colptr
+    rowval = A.rowval
+    nzval = A.nzval
     m = size(A, 1)
     n = size(A, 2)
 
@@ -1120,8 +1451,8 @@ function centralize_sumabs2!(R::AbstractArray{S}, A::SparseMatrixCSC{Tv,Ti}, mea
         # Reduction along rows
         @inbounds for col = 1:n
             mu = means[col]
-            r = convert(S, (m - length(nzrange(A, col)))*abs2(mu))
-            @simd for j = nzrange(A, col)
+            r = convert(S, (m-colptr[col+1]+colptr[col])*abs2(mu))
+            @simd for j = colptr[col]:colptr[col+1]-1
                 r += abs2(nzval[j] - mu)
             end
             R[1, col] = r
@@ -1130,7 +1461,7 @@ function centralize_sumabs2!(R::AbstractArray{S}, A::SparseMatrixCSC{Tv,Ti}, mea
         # Reduction along columns
         rownz = fill(convert(Ti, n), m)
         @inbounds for col = 1:n
-            @simd for j = nzrange(A, col)
+            @simd for j = colptr[col]:colptr[col+1]-1
                 row = rowval[j]
                 R[row, 1] += abs2(nzval[j] - means[row])
                 rownz[row] -= 1
@@ -1143,7 +1474,7 @@ function centralize_sumabs2!(R::AbstractArray{S}, A::SparseMatrixCSC{Tv,Ti}, mea
         # Reduction along a dimension > 2
         @inbounds for col = 1:n
             lastrow = 0
-            @simd for j = nzrange(A, col)
+            @simd for j = colptr[col]:colptr[col+1]-1
                 row = rowval[j]
                 for i = lastrow+1:row-1
                     R[i, col] = abs2(means[i, col])

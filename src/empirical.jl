@@ -61,8 +61,8 @@ function ecdf(X::RealVector; weights::AbstractVector{<:Real}=Weights(Float64[]))
     ECDF(X[ord], isempty(weights) ? weights : Weights(weights[ord]))
 end
 
-minimum(ecdf::ECDF) = first(ecdf.sorted_values)
+Base.minimum(ecdf::ECDF) = first(ecdf.sorted_values)
 
-maximum(ecdf::ECDF) = last(ecdf.sorted_values)
+Base.maximum(ecdf::ECDF) = last(ecdf.sorted_values)
 
-extrema(ecdf::ECDF) = (minimum(ecdf), maximum(ecdf))
+Base.extrema(ecdf::ECDF) = (minimum(ecdf), maximum(ecdf))

@@ -1,6 +1,6 @@
 # Rankings and Rank Correlations
 
-This package implements various strategies for computing ranks and rank correlations.
+Various strategies for computing ranks and rank correlations are provided.
 
 ```@docs
 ordinalrank
