@@ -14,6 +14,9 @@ using Base: has_offset_axes, require_one_based_indexing
 
 using Printf: @printf
 
+import Random
+using Random: Sampler, GLOBAL_RNG, AbstractRNG, randexp
+
 export std, stdm, var, varm, mean!, mean,
     median!, median, middle, quantile!, quantile,
     # moments.jl
@@ -46,7 +49,9 @@ export std, stdm, var, varm, mean!, mean,
     unnormalize, unnormalize!,
     AbstractNormalization, MinMaxNormalization, ZScoreNormalization,
     # reliability.jl
-    cronbachalpha, CronbachAlpha
+    cronbachalpha, CronbachAlpha,
+    # sampling.jl
+    sample, sample!, samplepair
 
 include("common.jl")
 include("weights.jl")
@@ -63,6 +68,7 @@ include("empirical.jl")
 include("hist.jl")
 include("transformations.jl")
 include("reliability.jl")
+include("sampling.jl")
 
 ##### mean #####
 

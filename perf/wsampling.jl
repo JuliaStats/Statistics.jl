@@ -1,9 +1,9 @@
 # Benchmark on weighted sampling
 
 using BenchmarkLite
-using StatsBase
+using Statistics
 
-import StatsBase: direct_sample!, alias_sample!, xmultinom_sample!
+import Statistics: direct_sample!, alias_sample!, xmultinom_sample!
 
 ### procedure definition
 
@@ -28,10 +28,10 @@ mutable struct Direct_S <: WithRep end
 tsample!(s::Direct_S, wv, x) = sort!(direct_sample!(1:length(wv), wv, x))
 
 mutable struct Sample_WRep <: WithRep end
-tsample!(s::Sample_WRep, wv, x) = sample!(1:length(wv), wv, x; ordered=false)
+tsample!(s::Sample_WRep, wv, x) = sample!(1:length(wv), x; weights=wv, ordered=false)
 
 mutable struct Sample_WRep_Ord <: WithRep end
-tsample!(s::Sample_WRep_Ord, wv, x) = sample!(1:length(wv), wv, x; ordered=true)
+tsample!(s::Sample_WRep_Ord, wv, x) = sample!(1:length(wv), x; weights=wv, ordered=true)
 
 
 # config is in the form of (n, k)

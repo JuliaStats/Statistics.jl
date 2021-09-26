@@ -2,11 +2,11 @@
 
 # require the BenchmarkLite package
 using BenchmarkLite
-using StatsBase
+using Statistics
 
-import StatsBase: direct_sample!, xmultinom_sample!
-import StatsBase: knuths_sample!, fisher_yates_sample!, self_avoid_sample!
-import StatsBase: seqsample_a!, seqsample_c!, seqsample_d!
+import Statistics: direct_sample!, xmultinom_sample!
+import Statistics: knuths_sample!, fisher_yates_sample!, self_avoid_sample!
+import Statistics: seqsample_a!, seqsample_c!, seqsample_d!
 
 ### generic sampling benchmarking
 
