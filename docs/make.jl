@@ -1,4 +1,4 @@
-using Documenter, StatsBase, Statistics, Random, LinearAlgebra
+using Documenter, Statistics, Random
 
 # Workaround for JuliaLang/julia/pull/28625
 if Base.HOME_PROJECT[] !== nothing
@@ -6,27 +6,19 @@ if Base.HOME_PROJECT[] !== nothing
 end
 
 makedocs(
-    sitename = "StatsBase.jl",
-    modules = [StatsBase],
+    sitename = "Statistics.jl",
+    modules = [Statistics],
     pages = ["index.md",
              "weights.md",
              "scalarstats.md",
-             "robust.md",
-             "deviation.md",
              "cov.md",
-             "counts.md",
+             "robust.md",
              "ranking.md",
-             "sampling.md",
              "empirical.md",
-             "signalcorr.md",
-             "multivariate.md",
-             "misc.md",
-             "statmodels.md",
-             "transformations.md"],
-    strict=true,
-    checkdocs=:exports
+             "transformations.md",
+             "sampling.md"]
 )
 
 deploydocs(
-    repo = "github.com/JuliaStats/StatsBase.jl.git"
+    repo = "github.com/JuliaLang/Statistics.jl.git"
 )

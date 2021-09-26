@@ -4,7 +4,7 @@
 # The reference results are generated from R.
 #
 
-using StatsBase
+using Statistics
 using Test
 
 # random data for testing

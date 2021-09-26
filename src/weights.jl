@@ -1,4 +1,19 @@
 ##### Weight vector #####
+
+"""
+    AbstractWeights <: AbstractVector
+
+The abstract supertype of all vectors of statistical weights.
+
+Object of this type behave like other `AbstractVector`s, but
+they store the sum of their values internally for efficiency.
+Concrete `AbstractWeights` type indicates what correction
+has to be applied when computing statistics which depend on the
+meaning of weights.
+
+!!! compat "Julia 1.3"
+    This type requires at least Julia 1.3.
+"""
 abstract type AbstractWeights{S<:Real, T<:Real, V<:AbstractVector{T}} <: AbstractVector{T} end
 
 """
@@ -17,19 +32,19 @@ macro weights(name)
     end
 end
 
-length(wv::AbstractWeights) = length(wv.values)
-sum(wv::AbstractWeights) = wv.sum
-isempty(wv::AbstractWeights) = isempty(wv.values)
-size(wv::AbstractWeights) = size(wv.values)
+Base.length(wv::AbstractWeights) = length(wv.values)
+Base.sum(wv::AbstractWeights) = wv.sum
+Base.isempty(wv::AbstractWeights) = isempty(wv.values)
+Base.size(wv::AbstractWeights) = size(wv.values)
 
 Base.convert(::Type{Vector}, wv::AbstractWeights) = convert(Vector, wv.values)
 
-@propagate_inbounds function Base.getindex(wv::AbstractWeights, i::Integer)
+Base.@propagate_inbounds function Base.getindex(wv::AbstractWeights, i::Integer)
     @boundscheck checkbounds(wv, i)
     @inbounds wv.values[i]
 end
 
-@propagate_inbounds function Base.getindex(wv::W, i::AbstractArray) where W <: AbstractWeights
+Base.@propagate_inbounds function Base.getindex(wv::W, i::AbstractArray) where W <: AbstractWeights
     @boundscheck checkbounds(wv, i)
     @inbounds v = wv.values[i]
     W(v, sum(v))
@@ -37,7 +52,7 @@ end
 
 Base.getindex(wv::W, ::Colon) where {W <: AbstractWeights} = W(copy(wv.values), sum(wv))
 
-@propagate_inbounds function Base.setindex!(wv::AbstractWeights, v::Real, i::Int)
+Base.@propagate_inbounds function Base.setindex!(wv::AbstractWeights, v::Real, i::Int)
     s = v - wv[i]
     wv.values[i] = v
     wv.sum += s
@@ -65,6 +80,9 @@ A precomputed sum may be provided as `wsum`.
 The `Weights` type describes a generic weights vector which does not support
 all operations possible for [`FrequencyWeights`](@ref), [`AnalyticWeights`](@ref)
 and [`ProbabilityWeights`](@ref).
+
+!!! compat "Julia 1.3"
+    This type requires at least Julia 1.3.
 """ Weights
 
 """
@@ -100,6 +118,9 @@ Analytic weights describe a non-random relative importance (usually between 0 an
 for each observation. These weights may also be referred to as reliability weights,
 precision weights or inverse variance weights. These are typically used when the observations
 being weighted are aggregate values (e.g., averages) with differing variances.
+
+!!! compat "Julia 1.3"
+    This type requires at least Julia 1.3.
 """ AnalyticWeights
 
 """
@@ -107,6 +128,9 @@ being weighted are aggregate values (e.g., averages) with differing variances.
 
 Construct an `AnalyticWeights` vector from array `vs`.
 See the documentation for [`AnalyticWeights`](@ref) for more details.
+
+!!! compat "Julia 1.3"
+    This function requires at least Julia 1.3.
 """
 aweights(vs::RealVector) = AnalyticWeights(vs)
 aweights(vs::RealArray) = AnalyticWeights(vec(vs))
@@ -138,6 +162,9 @@ A precomputed sum may be provided as `wsum`.
 
 Frequency weights describe the number of times (or frequency) each observation
 was observed. These weights may also be referred to as case weights or repeat weights.
+
+!!! compat "Julia 1.3"
+    This type requires at least Julia 1.3.
 """ FrequencyWeights
 
 """
@@ -145,6 +172,9 @@ was observed. These weights may also be referred to as case weights or repeat we
 
 Construct a `FrequencyWeights` vector from a given array.
 See the documentation for [`FrequencyWeights`](@ref) for more details.
+
+!!! compat "Julia 1.3"
+    This function requires at least Julia 1.3.
 """
 fweights(vs::RealVector) = FrequencyWeights(vs)
 fweights(vs::RealArray) = FrequencyWeights(vec(vs))
@@ -176,6 +206,9 @@ A precomputed sum may be provided as `wsum`.
 Probability weights represent the inverse of the sampling probability for each observation,
 providing a correction mechanism for under- or over-sampling certain population groups.
 These weights may also be referred to as sampling weights.
+
+!!! compat "Julia 1.3"
+    This type requires at least Julia 1.3.
 """ ProbabilityWeights
 
 """
@@ -183,6 +216,9 @@ These weights may also be referred to as sampling weights.
 
 Construct a `ProbabilityWeights` vector from a given array.
 See the documentation for [`ProbabilityWeights`](@ref) for more details.
+
+!!! compat "Julia 1.3"
+    This function requires at least Julia 1.3.
 """
 pweights(vs::RealVector) = ProbabilityWeights(vs)
 pweights(vs::RealArray) = ProbabilityWeights(vec(vs))
@@ -272,19 +308,19 @@ Construct a `UnitWeights` vector with length `s` and weight elements of type `T`
 All weight elements are identically one.
 """ UnitWeights
 
-sum(wv::UnitWeights{T}) where T = convert(T, length(wv))
-isempty(wv::UnitWeights) = iszero(wv.len)
-length(wv::UnitWeights) = wv.len
-size(wv::UnitWeights) = tuple(length(wv))
+Base.sum(wv::UnitWeights{T}) where T = convert(T, length(wv))
+Base.isempty(wv::UnitWeights) = iszero(wv.len)
+Base.length(wv::UnitWeights) = wv.len
+Base.size(wv::UnitWeights) = tuple(length(wv))
 
 Base.convert(::Type{Vector}, wv::UnitWeights{T}) where {T} = ones(T, length(wv))
 
-@propagate_inbounds function Base.getindex(wv::UnitWeights{T}, i::Integer) where T
+Base.@propagate_inbounds function Base.getindex(wv::UnitWeights{T}, i::Integer) where T
     @boundscheck checkbounds(wv, i)
     one(T)
 end
 
-@propagate_inbounds function Base.getindex(wv::UnitWeights{T}, i::AbstractArray{<:Int}) where T
+Base.@propagate_inbounds function Base.getindex(wv::UnitWeights{T}, i::AbstractArray{<:Int}) where T
     @boundscheck checkbounds(wv, i)
     UnitWeights{T}(length(i))
 end
@@ -353,13 +389,40 @@ Base.:(==)(x::AbstractWeights, y::AbstractWeights)   = false
 ## weighted sum over vectors
 
 """
-    wsum(v, w::AbstractVector, [dim])
+    wsum(v; weights::AbstractVector[, dims])
 
-Compute the weighted sum of an array `v` with weights `w`, optionally over the dimension `dim`.
+Compute the weighted sum of an array `v` with weights `weights`,
+optionally over the dimension `dim`.
 """
-wsum(v::AbstractVector, w::AbstractVector) = dot(v, w)
-wsum(v::AbstractArray, w::AbstractVector) = dot(vec(v), w)
-wsum(v::AbstractArray, w::AbstractVector, dims::Colon) = wsum(v, w)
+wsum(A::AbstractArray; dims=:, weights::AbstractArray) =
+    _wsum(A, dims, weights)
+
+# Optimized method for weighted sum with BlasReal
+# dot cannot be used for other types as it uses + rather than add_sum for accumulation,
+# and therefore does not return the correct type
+_wsum(A::AbstractArray{<:BlasReal}, dims::Colon, w::AbstractArray{<:BlasReal}) =
+    dot(vec(A), vec(w))
+
+_wsum(A::AbstractArray, dims, w::AbstractArray{<:Real}) =
+    _wsum!(Base.reducedim_init(t -> t*zero(eltype(w)), Base.add_sum, A, dims), A, w)
+
+function _wsum(A::AbstractArray, dims::Colon, w::AbstractArray{<:Real})
+    sw = size(w)
+    sA = size(A)
+    if sw != sA
+        throw(DimensionMismatch("weights must have the same dimension as data (got $sw and $sA)."))
+    end
+    s0 = zero(eltype(A)) * zero(eltype(w))
+    s = Base.add_sum(s0, s0)
+    @inbounds @simd for i in eachindex(A, w)
+        s = Base.add_sum(s, A[i] * w[i])
+    end
+    s
+end
+
+wsum!(r::AbstractArray, A::AbstractArray;
+      init::Bool=true, weights::AbstractArray) =
+    _wsum!(r, A, weights; init=init)
 
 ## wsum along dimension
 #
@@ -389,15 +452,17 @@ wsum(v::AbstractArray, w::AbstractVector, dims::Colon) = wsum(v, w)
 #     (c) A is a contiguous array with eltype <: BlasReal:
 #         dim == 1: treat A like a matrix of size (d1, d2 x ... x dN)
 #         dim == N: treat A like a matrix of size (d1 x ... x d(N-1), dN)
-#         otherwise: decompose A into multiple pages, and apply _wsum2!
+#         otherwise: decompose A into multiple pages, and apply _wsum2_blas!
 #         for each
+#         The internal function that implements this is _wsumN!
 #
 #     (d) A is a general dense array with eltype <: BlasReal:
 #         dim <= 2: delegate to (a) and (b)
 #         otherwise, decompose A into multiple pages
+#         The internal function that implements this is _wsumN!
 
 function _wsum1!(R::AbstractArray, A::AbstractVector, w::AbstractVector, init::Bool)
-    r = wsum(A, w)
+    r = _wsum(A, :, w)
     if init
         R[1] = r
     else
@@ -424,10 +489,14 @@ function _wsumN!(R::StridedArray{T}, A::StridedArray{T,N}, w::StridedVector{T}, 
         _wsum2_blas!(view(R,:), reshape(A, (m, n)), w, 2, init)
     else # 1 < dim < N
         m = 1
-        for i = 1:dim-1; m *= size(A, i); end
+        for i = 1:dim-1
+            m *= size(A, i)
+        end
         n = size(A, dim)
         k = 1
-        for i = dim+1:N; k *= size(A, i); end
+        for i = dim+1:N
+            k *= size(A, i)
+        end
         Av = reshape(A, (m, n, k))
         Rv = reshape(R, (m, k))
         for i = 1:k
@@ -452,71 +521,47 @@ function _wsumN!(R::StridedArray{T}, A::DenseArray{T,N}, w::StridedVector{T}, di
             _wsum2_blas!(view(Rv,:,i), view(A,:,:,i), w, dim, init)
         end
     else
-        _wsum_general!(R, identity, A, w, dim, init)
+        _wsum_general!(R, A, w, dim, init)
     end
     return R
 end
 
 ## general Cartesian-based weighted sum across dimensions
 
-@generated function _wsum_general!(R::AbstractArray{RT}, f::supertype(typeof(abs)),
-                                   A::AbstractArray{T,N}, w::AbstractVector{WT}, dim::Int, init::Bool) where {T,RT,WT,N}
-    quote
-        init && fill!(R, zero(RT))
-        wi = zero(WT)
-        if dim == 1
-            @nextract $N sizeR d->size(R,d)
-            sizA1 = size(A, 1)
-            @nloops $N i d->(d>1 ? (1:size(A,d)) : (1:1)) d->(j_d = sizeR_d==1 ? 1 : i_d) begin
-                @inbounds r = (@nref $N R j)
-                for i_1 = 1:sizA1
-                    @inbounds r += f(@nref $N A i) * w[i_1]
-                end
-                @inbounds (@nref $N R j) = r
-            end
-        else
-            @nloops $N i A d->(if d == dim
-                                   wi = w[i_d]
-                                   j_d = 1
-                               else
-                                   j_d = i_d
-                               end) @inbounds (@nref $N R j) += f(@nref $N A i) * wi
-        end
-        return R
-    end
-end
+function _wsum_general!(R::AbstractArray{S}, A::AbstractArray, w::AbstractVector, dim::Int, init::Bool) where {S}
+    # following the implementation of _mapreducedim!
+    lsiz = Base.check_reducedims(R,A)
+    !isempty(R) && init && fill!(R, zero(S))
+    isempty(A) && return R
 
-@generated function _wsum_centralize!(R::AbstractArray{RT}, f::supertype(typeof(abs)),
-                                      A::AbstractArray{T,N}, w::AbstractVector{WT}, means,
-                                      dim::Int, init::Bool) where {T,RT,WT,N}
-    quote
-        init && fill!(R, zero(RT))
-        wi = zero(WT)
-        if dim == 1
-            @nextract $N sizeR d->size(R,d)
-            sizA1 = size(A, 1)
-            @nloops $N i d->(d>1 ? (1:size(A,d)) : (1:1)) d->(j_d = sizeR_d==1 ? 1 : i_d) begin
-                @inbounds r = (@nref $N R j)
-                @inbounds m = (@nref $N means j)
-                for i_1 = 1:sizA1
-                    @inbounds r += f((@nref $N A i) - m) * w[i_1]
-                end
-                @inbounds (@nref $N R j) = r
+    indsAt, indsRt = Base.safe_tail(axes(A)), Base.safe_tail(axes(R)) # handle d=1 manually
+    keep, Idefault = Broadcast.shapeindexer(indsRt)
+    if Base.reducedim1(R, A)
+        i1 = first(Base.axes1(R))
+        for IA in CartesianIndices(indsAt)
+            IR = Broadcast.newindex(IA, keep, Idefault)
+            r = R[i1,IR]
+            @inbounds @simd for i in axes(A, 1)
+                r += A[i,IA] * w[dim > 1 ? IA[dim-1] : i]
             end
-        else
-            @nloops $N i A d->(if d == dim
-                                   wi = w[i_d]
-                                   j_d = 1
-                               else
-                                   j_d = i_d
-                               end) @inbounds (@nref $N R j) += f((@nref $N A i) - (@nref $N means j)) * wi
+            R[i1,IR] = r
         end
-        return R
+    else
+        for IA in CartesianIndices(indsAt)
+            IR = Broadcast.newindex(IA, keep, Idefault)
+            @inbounds @simd for i in axes(A, 1)
+                R[i,IR] += A[i,IA] * w[dim > 1 ? IA[dim-1] : i]
+            end
+        end
     end
+    return R
 end
 
 # N = 1
 _wsum!(R::StridedArray{T}, A::DenseArray{T,1}, w::StridedVector{T}, dim::Int, init::Bool) where {T<:BlasReal} =
+    _wsum1!(R, A, w, init)
+
+_wsum!(R::AbstractArray, A::AbstractVector, w::AbstractVector, dim::Int, init::Bool) =
     _wsum1!(R, A, w, init)
 
 # N = 2
@@ -528,151 +573,88 @@ _wsum!(R::StridedArray{T}, A::DenseArray{T,N}, w::StridedVector{T}, dim::Int, in
     _wsumN!(R, A, w, dim, init)
 
 _wsum!(R::AbstractArray, A::AbstractArray, w::AbstractVector, dim::Int, init::Bool) =
-    _wsum_general!(R, identity, A, w, dim, init)
+    _wsum_general!(R, A, w, dim, init)
 
-## wsum! and wsum
+function _wsum!(R::AbstractArray, A::AbstractArray{T,N}, w::AbstractArray; init::Bool=true) where {T,N}
+    w isa AbstractVector || throw(ArgumentError("Only vector `weights` are supported"))
 
-wsumtype(::Type{T}, ::Type{W}) where {T,W} = typeof(zero(T) * zero(W) + zero(T) * zero(W))
-wsumtype(::Type{T}, ::Type{T}) where {T<:BlasReal} = T
-
-"""
-    wsum!(R::AbstractArray, A::AbstractArray,
-          w::AbstractWeights{<:Real}, dim::Int;
-          init::Bool=true)
-Compute the weighted sum of `A` with weights `w` over the dimension `dim` and store
-the result in `R`. If `init=false`, the sum is added to `R` rather than starting
-from zero.
-"""
-function wsum!(R::AbstractArray, A::AbstractArray{T,N}, w::AbstractVector, dim::Int; init::Bool=true) where {T,N}
-    1 <= dim <= N || error("dim should be within [1, $N]")
-    ndims(R) <= N || error("ndims(R) should not exceed $N")
-    length(w) == size(A,dim) || throw(DimensionMismatch("Inconsistent array dimension."))
-    # TODO: more careful examination of R's size
+    Base.check_reducedims(R,A)
+    reddims = size(R) .!= size(A)
+    dim = something(findfirst(reddims), ndims(R)+1)
+    if dim > N
+        dim1 = findfirst(==(1), size(A))
+        if dim1 !== nothing
+            dim = dim1
+        end
+    end
+    if findnext(reddims, dim+1) !== nothing
+        throw(ArgumentError("reducing over more than one dimension is not supported with weights"))
+    end
+    lw = length(w)
+    ldim = size(A, dim)
+    if lw != ldim
+        throw(DimensionMismatch("weights must have the same length as the dimension " *
+                                "over which reduction is performed (got $lw and $ldim)."))
+    end
     _wsum!(R, A, w, dim, init)
 end
 
-function wsum(A::AbstractArray{T}, w::AbstractVector{W}, dim::Int) where {T<:Number,W<:Real}
-    length(w) == size(A,dim) || throw(DimensionMismatch("Inconsistent array dimension."))
-    _wsum!(similar(A, wsumtype(T,W), Base.reduced_indices(axes(A), dim)), A, w, dim, true)
-end
-
-function wsum(A::AbstractArray{<:Number}, w::UnitWeights, dim::Int)
-    size(A, dim) != length(w) && throw(DimensionMismatch("Inconsistent array dimension."))
-    return sum(A, dims=dim)
-end
-
-## extended sum! and wsum
-
-"""
-    sum!(R::AbstractArray, A::AbstractArray,
-         w::AbstractWeights{<:Real}, dim::Int;
-         init::Bool=true)
-
-Compute the weighted sum of `A` with weights `w` over the dimension `dim` and store
-the result in `R`. If `init=false`, the sum is added to `R` rather than starting
-from zero.
-"""
-Base.sum!(R::AbstractArray, A::AbstractArray, w::AbstractWeights{<:Real}, dim::Int; init::Bool=true) =
-    wsum!(R, A, w, dim; init=init)
-
-"""
-    sum(v::AbstractArray, w::AbstractVector{<:Real}; [dims])
-
-Compute the weighted sum of an array `v` with weights `w`,
-optionally over the dimension `dims`.
-"""
-Base.sum(A::AbstractArray, w::AbstractWeights{<:Real}; dims::Union{Colon,Int}=:) =
-    wsum(A, w, dims)
-
-function Base.sum(A::AbstractArray, w::UnitWeights; dims::Union{Colon,Int}=:)
-    a = (dims === :) ? length(A) : size(A, dims)
-    a != length(w) && throw(DimensionMismatch("Inconsistent array dimension."))
+function _wsum(A::AbstractArray, dims, w::UnitWeights)
+    size(A, dims) != length(w) && throw(DimensionMismatch("Inconsistent array dimension."))
     return sum(A, dims=dims)
+end
+
+function _wsum(A::AbstractArray, dims::Colon, w::UnitWeights)
+    length(A) != length(w) && throw(DimensionMismatch("Inconsistent array dimension."))
+    return sum(A)
+end
+
+# To fix ambiguity
+function _wsum(A::AbstractArray{<:BlasReal}, dims::Colon, w::UnitWeights)
+    length(A) != length(w) && throw(DimensionMismatch("Inconsistent array dimension."))
+    return sum(A)
 end
 
 ##### Weighted means #####
 
-function wmean(v::AbstractArray{<:Number}, w::AbstractVector)
-    Base.depwarn("wmean is deprecated, use mean(v, weights(w)) instead.", :wmean)
-    mean(v, weights(w))
+# Note: weighted mean currently does not use _mean_promote to avoid overflow
+# contrary non-weighted method
+
+_mean!(R::AbstractArray, A::AbstractArray, w::AbstractArray) =
+    rmul!(wsum!(R, A, weights=w), inv(sum(w)))
+
+_mean(::typeof(identity), A::AbstractArray, dims::Colon, w::AbstractArray) =
+    wsum(A, weights=w) / sum(w)
+
+_mean(::typeof(identity), A::AbstractArray, dims, w::AbstractArray) =
+    _mean!(Base.reducedim_init(t -> (t*zero(eltype(w)))/2, Base.add_sum, A, dims), A, w)
+
+function _mean(::typeof(identity), A::AbstractArray, dims, w::UnitWeights)
+    size(A, dims) != length(w) && throw(DimensionMismatch("Inconsistent array dimension."))
+    return mean(A, dims=dims)
 end
 
-"""
-    mean!(R::AbstractArray, A::AbstractArray, w::AbstractWeights[; dims=nothing])
-
-Compute the weighted mean of array `A` with weight vector `w`
-(of type `AbstractWeights`) along dimension `dims`, and write results to `R`.
-"""
-mean!(R::AbstractArray, A::AbstractArray, w::AbstractWeights; dims::Union{Nothing,Int}=nothing) =
-    _mean!(R, A, w, dims)
-_mean!(R::AbstractArray, A::AbstractArray, w::AbstractWeights, dims::Nothing) =
-    throw(ArgumentError("dims argument must be provided"))
-_mean!(R::AbstractArray, A::AbstractArray, w::AbstractWeights, dims::Int) =
-    rmul!(Base.sum!(R, A, w, dims), inv(sum(w)))
-
-wmeantype(::Type{T}, ::Type{W}) where {T,W} = typeof((zero(T)*zero(W) + zero(T)*zero(W)) / one(W))
-wmeantype(::Type{T}, ::Type{T}) where {T<:BlasReal} = T
-
-"""
-    mean(A::AbstractArray, w::AbstractWeights[, dims::Int])
-
-Compute the weighted mean of array `A` with weight vector `w`
-(of type `AbstractWeights`). If `dim` is provided, compute the
-weighted mean along dimension `dims`.
-
-# Examples
-```julia
-n = 20
-x = rand(n)
-w = rand(n)
-mean(x, weights(w))
-```
-"""
-mean(A::AbstractArray, w::AbstractWeights; dims::Union{Colon,Int}=:) =
-    _mean(A, w, dims)
-_mean(A::AbstractArray, w::AbstractWeights, dims::Colon) =
-    sum(A, w) / sum(w)
-_mean(A::AbstractArray{T}, w::AbstractWeights{W}, dims::Int) where {T,W} =
-    _mean!(similar(A, wmeantype(T, W), Base.reduced_indices(axes(A), dims)), A, w, dims)
-
-function mean(A::AbstractArray, w::UnitWeights; dims::Union{Colon,Int}=:)
-    a = (dims === :) ? length(A) : size(A, dims)
-    a != length(w) && throw(DimensionMismatch("Inconsistent array dimension."))
-    return mean(A, dims=dims)
+function _mean(::typeof(identity), A::AbstractArray, dims::Colon, w::UnitWeights)
+    length(A) != length(w) && throw(DimensionMismatch("Inconsistent array dimension."))
+    return mean(A)
 end
 
 ##### Weighted quantile #####
 
-"""
-    quantile(v, w::AbstractWeights, p)
-
-Compute the weighted quantiles of a vector `v` at a specified set of probability
-values `p`, using weights given by a weight vector `w` (of type `AbstractWeights`).
-Weights must not be negative. The weights and data vectors must have the same length.
-`NaN` is returned if `x` contains any `NaN` values. An error is raised if `w` contains
-any `NaN` values.
-
-With [`FrequencyWeights`](@ref), the function returns the same result as
-`quantile` for a vector with repeated values. Weights must be integers.
-
-With non `FrequencyWeights`,  denote ``N`` the length of the vector, ``w`` the vector of weights,
-``h = p (\\sum_{i<= N} w_i - w_1) + w_1`` the cumulative weight corresponding to the
-probability ``p`` and ``S_k = \\sum_{i<=k} w_i`` the cumulative weight for each
-observation, define ``v_{k+1}`` the smallest element of `v` such that ``S_{k+1}``
-is strictly superior to ``h``. The weighted ``p`` quantile is given by ``v_k + \\gamma (v_{k+1} - v_k)``
-with  ``\\gamma = (h - S_k)/(S_{k+1} - S_k)``. In particular, when all weights are equal,
-the function returns the same result as the unweighted `quantile`.
-"""
-function quantile(v::RealVector{V}, w::AbstractWeights{W}, p::RealVector) where {V,W<:Real}
+function _quantile(v::AbstractArray{V}, p, sorted::Bool, alpha::Real, beta::Real,
+                   w::AbstractArray{W}) where {V,W}
     # checks
+    alpha == beta == 1 || throw(ArgumentError("only alpha == beta == 1 is supported " *
+                                              "when weights are provided"))
     isempty(v) && throw(ArgumentError("quantile of an empty array is undefined"))
     isempty(p) && throw(ArgumentError("empty quantile array"))
     all(x -> 0 <= x <= 1, p) || throw(ArgumentError("input probability out of [0,1] range"))
 
-    w.sum == 0 && throw(ArgumentError("weight vector cannot sum to zero"))
-    length(v) == length(w) || throw(ArgumentError("data and weight vectors must be the same size," *
-        "got $(length(v)) and $(length(w))"))
-    for x in w.values
+    wsum = sum(w)
+    wsum == 0 && throw(ArgumentError("weight vector cannot sum to zero"))
+    size(v) == size(w) || throw(ArgumentError("weights must have the same dimension as data " *
+                                              "(got $(size(v)) and $(size(w)))"))
+    for x in w
         isnan(x) && throw(ArgumentError("weight vector cannot contain NaN entries"))
         x < 0 && throw(ArgumentError("weight vector cannot contain negative entries"))
     end
@@ -682,7 +664,6 @@ function quantile(v::RealVector{V}, w::AbstractWeights{W}, p::RealVector) where 
                             "equal to integers. Use `ProbabilityWeights` or `AnalyticWeights` instead."))
 
     # remove zeros weights and sort
-    wsum = sum(w)
     nz = .!iszero.(w)
     vw = sort!(collect(zip(view(v, nz), view(w, nz))))
     N = length(vw)
@@ -730,19 +711,28 @@ function quantile(v::RealVector{V}, w::AbstractWeights{W}, p::RealVector) where 
     return out
 end
 
-function quantile(v::RealVector, w::UnitWeights, p::RealVector)
+function _quantile(v::AbstractArray, p, sorted::Bool,
+                   alpha::Real, beta::Real, w::UnitWeights)
     length(v) != length(w) && throw(DimensionMismatch("Inconsistent array dimension."))
     return quantile(v, p)
 end
 
-quantile(v::RealVector, w::AbstractWeights{<:Real}, p::Number) = quantile(v, w, [p])[1]
+function _quantile(v::AbstractArray, p::Real, sorted::Bool,
+                   alpha::Real, beta::Real, w::UnitWeights)
+    length(v) != length(w) && throw(DimensionMismatch("Inconsistent array dimension."))
+    return quantile(v, p)
+end
+
+_quantile(v::AbstractArray, p::Real, sorted::Bool, alpha::Real, beta::Real,
+          w::AbstractArray) =
+    _quantile(v, [p], sorted, alpha, beta, w)[1]
+
+_quantile(itr, p, sorted::Bool, alpha::Real, beta::Real, weights) =
+    throw(ArgumentError("weights are only supported with AbstractArrays inputs"))
 
 ##### Weighted median #####
 
-"""
-    median(v::RealVector, w::AbstractWeights)
+_median(v::AbstractArray, dims::Colon, w::AbstractArray) = quantile(v, 0.5, weights=w)
 
-Compute the weighted median of `v` with weights `w`
-(of type `AbstractWeights`). See the documentation for [`quantile`](@ref) for more details.
-"""
-median(v::RealVector, w::AbstractWeights{<:Real}) = quantile(v, w, 0.5)
+_median(A::AbstractArray, dims, w::AbstractArray) =
+    throw(ArgumentError("weights and dims cannot be specified at the same time"))

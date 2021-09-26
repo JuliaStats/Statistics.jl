@@ -1,4 +1,4 @@
-using StatsBase
+using Statistics
 using LinearAlgebra, Random, Test
 
 @testset "Cronbach's Alpha" begin

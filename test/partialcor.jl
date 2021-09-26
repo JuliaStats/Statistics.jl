@@ -1,4 +1,4 @@
-using StatsBase
+using Statistics
 using Test
 
 wechsler = Float32[

@@ -1,16 +1,16 @@
-## StatsBase.jl
+# Statistics.jl
 
-*StatsBase.jl* is a Julia package that provides basic support for statistics. Particularly, it implements a variety of statistics-related functions, such as scalar statistics, high-order moment computation, counting, ranking, covariances, sampling, and empirical density estimation.
+[![Build status](https://github.com/JuliaLang/Statistics.jl/workflows/CI/badge.svg)](https://github.com/JuliaLang/Statistics.jl/actions?query=workflow%3ACI+branch%3Amaster)
 
-- **Build & Testing Status:**
-  [![Build status](https://github.com/JuliaStats/StatsBase.jl/workflows/CI/badge.svg)](https://github.com/JuliaStats/StatsBase.jl/actions?query=workflow%3ACI+branch%3Amaster)
-  [![Coverage Status](https://coveralls.io/repos/JuliaStats/StatsBase.jl/badge.svg?branch=master)](https://coveralls.io/r/JuliaStats/StatsBase.jl?branch=master)
-  [![Coverage Status](http://codecov.io/github/JuliaStats/StatsBase.jl/coverage.svg?branch=master)](http://codecov.io/github/JuliaStats/StatsBase.jl?branch=master)
+Development repository for the Statistics standard library (stdlib) that ships with Julia. 
 
-- **Documentation**: [![][docs-stable-img]][docs-stable-url] [![][docs-latest-img]][docs-latest-url]
+#### Using the development version of Statistics.jl
 
-[docs-latest-img]: https://img.shields.io/badge/docs-latest-blue.svg
-[docs-latest-url]: http://JuliaStats.github.io/StatsBase.jl/latest/
+If you want to develop this package, do the following steps:
+- Clone the repo anywhere.
+- In line 2 of the `Project.toml` file (the line that begins with `uuid = ...`), modify the UUID, e.g. change the `107` to `207`.
+- Change the current directory to the Statistics repo you just cloned and start julia with `julia --project`.
+- `import Statistics` will now load the files in the cloned repo instead of the Statistics stdlib.
+- To test your changes, simply do `include("test/runtests.jl")`.
 
-[docs-stable-img]: https://img.shields.io/badge/docs-stable-blue.svg
-[docs-stable-url]: http://JuliaStats.github.io/StatsBase.jl/stable/
+If you need to build Julia from source with a git checkout of Statistics, then instead use `make DEPS_GIT=Statistics` when building Julia. The `Statistics` repo is in `stdlib/Statistics`, and created initially with a detached `HEAD`. If you're doing this from a pre-existing Julia repository, you may need to `make clean` beforehand.

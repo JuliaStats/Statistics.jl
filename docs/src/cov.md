@@ -1,17 +1,46 @@
-# Scatter Matrix and Covariance
+# Covariances and Correlations
 
-This package implements functions for computing scatter matrix, as well as weighted covariance matrix.
+Functions to computing various types of covariances and correlations are provided.
+
+## Covariance, Correlation and Scatter Matrix
 
 ```@docs
-scattermat
 cov
-cov(::CovarianceEstimator, ::AbstractVector)
-cov(::CovarianceEstimator, ::AbstractVector, ::AbstractVector)
-cov(::CovarianceEstimator, ::AbstractMatrix)
 cor
-mean_and_cov
+scattermat
 cov2cor
 cor2cov
 CovarianceEstimator
 SimpleCovariance
+```
+
+## Partial Correlation
+
+```@docs
+partialcor
+```
+
+## Autocovariance and Autocorrelation
+
+```@docs
+autocov
+autocov!
+autocor
+autocor!
+```
+
+## Cross-covariance and Cross-correlation
+
+```@docs
+crosscov
+crosscov!
+crosscor
+crosscor!
+```
+
+## Partial Autocorrelation Function
+
+```@docs
+pacf
+pacf!
 ```

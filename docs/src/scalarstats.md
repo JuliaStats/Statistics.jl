@@ -2,22 +2,11 @@
 
 The package implements functions for computing various statistics over an array of scalar real numbers.
 
-## Weighted sum and mean
-
-```@docs
-sum
-sum!
-wsum
-wsum!
-mean
-mean!
-```
-
 ## Means
 
-The package provides functions to compute means of different kinds.
-
 ```@docs
+mean
+mean!
 geomean
 harmmean
 genmean
@@ -27,12 +16,17 @@ genmean
 
 ```@docs
 var
+varm
 std
-mean_and_var
-mean_and_std
+stdm
 skewness
 kurtosis
-moment
+```
+
+# Generalizations of Variance
+```@docs
+genvar
+totalvar
 ```
 
 ## Measurements of Variation
@@ -43,13 +37,6 @@ variation
 sem
 mad
 mad!
-```
-
-## Z-scores
-
-```@docs
-zscore
-zscore!
 ```
 
 ## Entropy and Related Functions
@@ -66,9 +53,11 @@ kldivergence
 ```@docs
 percentile
 iqr
-nquantile
 quantile
-Statistics.median(v::StatsBase.RealVector, w::AbstractWeights{<:Real})
+quantile!
+median
+median!
+middle
 ```
 
 ## Mode and Modes
@@ -81,7 +70,6 @@ modes
 ## Summary Statistics
 
 ```@docs
-summarystats
 describe
 ```
 

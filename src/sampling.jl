@@ -5,7 +5,48 @@
 #
 ###########################################################
 
-using Random: Sampler, Random.GLOBAL_RNG
+### Heap implementation copied from DataStructures.jl
+
+# Binary heap indexing
+heapleft(i::Integer) = 2i
+heapright(i::Integer) = 2i + 1
+heapparent(i::Integer) = div(i, 2)
+
+# Binary min-heap percolate down.
+function percolate_down!(xs::AbstractArray, i::Integer, x=xs[i],
+                         o::Base.Order.Ordering=Base.Order.Forward, len::Integer=length(xs))
+    @inbounds while (l = heapleft(i)) <= len
+        r = heapright(i)
+        j = r > len || Base.Order.lt(o, xs[l], xs[r]) ? l : r
+        if Base.Order.lt(o, xs[j], x)
+            xs[i] = xs[j]
+            i = j
+        else
+            break
+        end
+    end
+    xs[i] = x
+end
+
+percolate_down!(xs::AbstractArray, i::Integer, o::Base.Order.Ordering, len::Integer=length(xs)) =
+    percolate_down!(xs, i, xs[i], o, len)
+
+# Turn an arbitrary array into a binary min-heap (by default) in linear time.
+function heapify!(xs::AbstractArray, o::Base.Order.Ordering=Base.Order.Forward)
+    for i in heapparent(length(xs)):-1:1
+        percolate_down!(xs, i, o)
+    end
+    return xs
+end
+
+function heappop!(xs::AbstractArray, o::Base.Sort.Ordering=Base.Order.Forward)
+    x = xs[1]
+    y = pop!(xs)
+    if !isempty(xs)
+        percolate_down!(xs, 1, y, o)
+    end
+    return x
+end
 
 ### Algorithms for sampling with replacement
 
@@ -80,7 +121,7 @@ sample_ordered!(sampler!, rng::AbstractRNG, a::AbstractRange, x::AbstractArray) 
 
 # weighted case:
 sample_ordered!(sampler!, rng::AbstractRNG, a::AbstractArray,
-                wv::AbstractWeights, x::AbstractArray) =
+                wv::AbstractVector, x::AbstractArray) =
     sample_ordered!(rng, a, x) do rng, a, x
         sampler!(rng, a, wv, x)
     end
@@ -420,24 +461,30 @@ seqsample_d!(a::AbstractArray, x::AbstractArray) = seqsample_d!(Random.GLOBAL_RN
 
 ### Interface functions (poly-algorithms)
 """
-    sample([rng], a, [wv::AbstractWeights])
+    sample([rng], a; [weights::AbstractVector])
 
 Select a single random element of `a`. Sampling probabilities are proportional to
-the weights given in `wv`, if provided.
+the weights given in `weights`, if provided.
 
 Optionally specify a random number generator `rng` as the first argument
 (defaults to `Random.GLOBAL_RNG`).
 """
-sample(rng::AbstractRNG, a::AbstractArray) = a[rand(rng, 1:length(a))]
-sample(a::AbstractArray) = sample(Random.GLOBAL_RNG, a)
+sample(rng::AbstractRNG, a::AbstractArray;
+       weights::AbstractVector=UnitWeights{Int}(length(a))) =
+    _sample(rng, a, weights)
+
+sample(a::AbstractArray; weights::AbstractVector=UnitWeights{Int}(length(a))) =
+    _sample(Random.GLOBAL_RNG, a, weights)
+
+_sample(rng::AbstractRNG, a::AbstractArray, w::UnitWeights) = a[rand(rng, 1:length(a))]
 
 
 """
-    sample!([rng], a, [wv::AbstractWeights], x; replace=true, ordered=false)
+    sample!([rng], a, x; [weights::AbstractVector], replace=true, ordered=false)
 
 Draw a random sample of `length(x)` elements from an array `a`
 and store the result in `x`. A polyalgorithm is used for sampling.
-Sampling probabilities are proportional to the weights given in `wv`,
+Sampling probabilities are proportional to the weights given in `weights`,
 if provided. `replace` dictates whether sampling is performed with
 replacement. `ordered` dictates whether
 an ordered sample (also called a sequential sample, i.e. a sample where
@@ -446,8 +493,18 @@ items appear in the same order as in `a`) should be taken.
 Optionally specify a random number generator `rng` as the first argument
 (defaults to `Random.GLOBAL_RNG`).
 """
-function sample!(rng::AbstractRNG, a::AbstractArray, x::AbstractArray;
-                 replace::Bool=true, ordered::Bool=false)
+sample!(rng::AbstractRNG, a::AbstractArray, x::AbstractArray;
+        weights::AbstractVector=UnitWeights{Int}(length(a)),
+        replace::Bool=true, ordered::Bool=false) =
+    _sample!(rng, a, weights, x, replace=replace, ordered=ordered)
+
+sample!(a::AbstractArray, x::AbstractArray;
+        weights::AbstractVector=UnitWeights{Int}(length(a)),
+        replace::Bool=true, ordered::Bool=false) =
+    _sample!(Random.GLOBAL_RNG, a, weights, x; replace=replace, ordered=ordered)
+
+function _sample!(rng::AbstractRNG, a::AbstractArray, wv::UnitWeights, x::AbstractArray;
+                  replace::Bool=true, ordered::Bool=false)
     1 == firstindex(a) == firstindex(x) ||
         throw(ArgumentError("non 1-based arrays are not supported"))
     n = length(a)
@@ -484,16 +541,13 @@ function sample!(rng::AbstractRNG, a::AbstractArray, x::AbstractArray;
     end
     return x
 end
-sample!(a::AbstractArray, x::AbstractArray; replace::Bool=true, ordered::Bool=false) =
-    sample!(Random.GLOBAL_RNG, a, x; replace=replace, ordered=ordered)
-
 
 """
-    sample([rng], a, [wv::AbstractWeights], n::Integer; replace=true, ordered=false)
+    sample([rng], a, n::Integer; [weights::AbstractVector], replace=true, ordered=false)
 
 Select a random, optionally weighted sample of size `n` from an array `a`
 using a polyalgorithm. Sampling probabilities are proportional to the weights
-given in `wv`, if provided. `replace` dictates whether sampling is performed
+given in `weights`, if provided. `replace` dictates whether sampling is performed
 with replacement. `ordered` dictates whether
 an ordered sample (also called a sequential sample, i.e. a sample where
 items appear in the same order as in `a`) should be taken.
@@ -501,20 +555,25 @@ items appear in the same order as in `a`) should be taken.
 Optionally specify a random number generator `rng` as the first argument
 (defaults to `Random.GLOBAL_RNG`).
 """
-function sample(rng::AbstractRNG, a::AbstractArray{T}, n::Integer;
-                replace::Bool=true, ordered::Bool=false) where T
-    sample!(rng, a, Vector{T}(undef, n); replace=replace, ordered=ordered)
-end
-sample(a::AbstractArray, n::Integer; replace::Bool=true, ordered::Bool=false) =
-    sample(Random.GLOBAL_RNG, a, n; replace=replace, ordered=ordered)
+sample(rng::AbstractRNG, a::AbstractArray{T}, n::Integer;
+       weights::AbstractVector=UnitWeights{Int}(length(a)),
+       replace::Bool=true, ordered::Bool=false) where {T} =
+    _sample!(rng, a, weights, Vector{T}(undef, n);
+            replace=replace, ordered=ordered)
 
+sample(a::AbstractArray{T}, n::Integer;
+       weights::AbstractVector=UnitWeights{Int}(length(a)),
+       replace::Bool=true, ordered::Bool=false) where {T} =
+    _sample!(Random.GLOBAL_RNG, a, weights, Vector{T}(undef, n);
+             replace=replace, ordered=ordered)
 
 """
-    sample([rng], a, [wv::AbstractWeights], dims::Dims; replace=true, ordered=false)
+    sample([rng], a, size::Dims;
+           [weights::AbstractVector], replace=true, ordered=false)
 
 Select a random, optionally weighted sample from an array `a` specifying
-the dimensions `dims` of the output array. Sampling probabilities are
-proportional to the weights given in `wv`, if provided. `replace` dictates
+the dimensions `size` of the output array. Sampling probabilities are
+proportional to the weights given in `weights`, if provided. `replace` dictates
 whether sampling is performed with replacement. `ordered` dictates whether
 an ordered sample (also called a sequential sample, i.e. a sample where
 items appear in the same order as in `a`) should be taken.
@@ -522,12 +581,19 @@ items appear in the same order as in `a`) should be taken.
 Optionally specify a random number generator `rng` as the first argument
 (defaults to `Random.GLOBAL_RNG`).
 """
-function sample(rng::AbstractRNG, a::AbstractArray{T}, dims::Dims;
-                replace::Bool=true, ordered::Bool=false) where T
-    sample!(rng, a, Array{T}(undef, dims); replace=replace, ordered=ordered)
-end
-sample(a::AbstractArray, dims::Dims; replace::Bool=true, ordered::Bool=false) =
-    sample(Random.GLOBAL_RNG, a, dims; replace=replace, ordered=ordered)
+sample(rng::AbstractRNG, a::AbstractArray, size::Dims;
+       weights::AbstractVector=UnitWeights{Int}(length(a)),
+       replace::Bool=true, ordered::Bool=false) =
+    _sample(rng, a, size, weights; replace=replace, ordered=ordered)
+
+sample(a::AbstractArray, size::Dims;
+       weights::AbstractVector=UnitWeights{Int}(length(a)),
+       replace::Bool=true, ordered::Bool=false) =
+    _sample(Random.GLOBAL_RNG, a, size, weights; replace=replace, ordered=ordered)
+
+_sample(rng::AbstractRNG, a::AbstractArray{T}, size::Dims, w::AbstractVector;
+        replace::Bool=true, ordered::Bool=false) where {T} =
+    _sample!(rng, a, w, Array{T}(undef, size); replace=replace, ordered=ordered)
 
 ################################################################
 #
@@ -536,15 +602,21 @@ sample(a::AbstractArray, dims::Dims; replace::Bool=true, ordered::Bool=false) =
 ################################################################
 
 """
-    sample([rng], wv::AbstractWeights)
+    sample([rng]; weights::AbstractVector)
 
-Select a single random integer in `1:length(wv)` with probabilities
-proportional to the weights given in `wv`.
+Select a single random integer in `1:length(weights)` with probabilities
+proportional to the weights given in `weights`.
 
 Optionally specify a random number generator `rng` as the first argument
 (defaults to `Random.GLOBAL_RNG`).
 """
-function sample(rng::AbstractRNG, wv::AbstractWeights)
+sample(rng::AbstractRNG; weights::AbstractVector=UnitWeights{Int}(length(a))) =
+    _sample(rng, weights)
+
+sample(; weights::AbstractVector=UnitWeights{Int}(length(a))) =
+    _sample(Random.GLOBAL_RNG, weights)
+
+function _sample(rng::AbstractRNG, wv::AbstractVector)
     t = rand(rng) * sum(wv)
     n = length(wv)
     i = 1
@@ -555,13 +627,10 @@ function sample(rng::AbstractRNG, wv::AbstractWeights)
     end
     return i
 end
-sample(wv::AbstractWeights) = sample(Random.GLOBAL_RNG, wv)
-
-sample(rng::AbstractRNG, a::AbstractArray, wv::AbstractWeights) = a[sample(rng, wv)]
-sample(a::AbstractArray, wv::AbstractWeights) = sample(Random.GLOBAL_RNG, a, wv)
+_sample(rng::AbstractRNG, a::AbstractArray, wv::AbstractVector) = a[sample(rng, wv)]
 
 """
-    direct_sample!([rng], a::AbstractArray, wv::AbstractWeights, x::AbstractArray)
+    direct_sample!([rng], a::AbstractArray, wv::AbstractVector, x::AbstractArray)
 
 Direct sampling.
 
@@ -573,15 +642,15 @@ Noting `k=length(x)` and `n=length(a)`, this algorithm:
 * requires no additional memory space.
 """
 function direct_sample!(rng::AbstractRNG, a::AbstractArray,
-                        wv::AbstractWeights, x::AbstractArray)
+                        wv::AbstractVector, x::AbstractArray)
     n = length(a)
     length(wv) == n || throw(DimensionMismatch("Inconsistent lengths."))
     for i = 1:length(x)
-        x[i] = a[sample(rng, wv)]
+        x[i] = a[sample(rng, weights=wv)]
     end
     return x
 end
-direct_sample!(a::AbstractArray, wv::AbstractWeights, x::AbstractArray) =
+direct_sample!(a::AbstractArray, wv::AbstractVector, x::AbstractArray) =
     direct_sample!(Random.GLOBAL_RNG, a, wv, x)
 
 function make_alias_table!(w::AbstractVector{Float64}, wsum::Float64,
@@ -644,7 +713,7 @@ function make_alias_table!(w::AbstractVector{Float64}, wsum::Float64,
 end
 
 """
-    alias_sample!([rng], a::AbstractArray, wv::AbstractWeights, x::AbstractArray)
+    alias_sample!([rng], a::AbstractArray, wv::AbstractVector, x::AbstractArray)
 
 Alias method.
 
@@ -656,7 +725,7 @@ with General Distributions." *ACM Transactions on Mathematical Software* 3 (3): 
 Noting `k=length(x)` and `n=length(a)`, this algorithm takes ``O(n \\log n)`` time
 for building the alias table, and then ``O(1)`` to draw each sample. It consumes ``2 k`` random numbers.
 """
-function alias_sample!(rng::AbstractRNG, a::AbstractArray, wv::AbstractWeights, x::AbstractArray)
+function alias_sample!(rng::AbstractRNG, a::AbstractArray, wv::AbstractVector, x::AbstractArray)
     n = length(a)
     length(wv) == n || throw(DimensionMismatch("Inconsistent lengths."))
 
@@ -673,11 +742,11 @@ function alias_sample!(rng::AbstractRNG, a::AbstractArray, wv::AbstractWeights, 
     end
     return x
 end
-alias_sample!(a::AbstractArray, wv::AbstractWeights, x::AbstractArray) =
+alias_sample!(a::AbstractArray, wv::AbstractVector, x::AbstractArray) =
     alias_sample!(Random.GLOBAL_RNG, a, wv, x)
 
 """
-    naive_wsample_norep!([rng], a::AbstractArray, wv::AbstractWeights, x::AbstractArray)
+    naive_wsample_norep!([rng], a::AbstractArray, wv::AbstractVector, x::AbstractArray)
 
 Naive implementation of weighted sampling without replacement.
 
@@ -688,7 +757,7 @@ Noting `k=length(x)` and `n=length(a)`, this algorithm consumes ``O(k)`` random 
 and has overall time complexity ``O(n k)``.
 """
 function naive_wsample_norep!(rng::AbstractRNG, a::AbstractArray,
-                              wv::AbstractWeights, x::AbstractArray)
+                              wv::AbstractVector, x::AbstractArray)
     n = length(a)
     length(wv) == n || throw(DimensionMismatch("Inconsistent lengths."))
     k = length(x)
@@ -711,13 +780,13 @@ function naive_wsample_norep!(rng::AbstractRNG, a::AbstractArray,
     end
     return x
 end
-naive_wsample_norep!(a::AbstractArray, wv::AbstractWeights, x::AbstractArray) =
+naive_wsample_norep!(a::AbstractArray, wv::AbstractVector, x::AbstractArray) =
     naive_wsample_norep!(Random.GLOBAL_RNG, a, wv, x)
 
 # Weighted sampling without replacement
 # Instead of keys u^(1/w) where u = random(0,1) keys w/v where v = randexp(1) are used.
 """
-    efraimidis_a_wsample_norep!([rng], a::AbstractArray, wv::AbstractWeights, x::AbstractArray)
+    efraimidis_a_wsample_norep!([rng], a::AbstractArray, wv::AbstractVector, x::AbstractArray)
 
 Weighted sampling without replacement using Efraimidis-Spirakis A algorithm.
 
@@ -728,7 +797,7 @@ Noting `k=length(x)` and `n=length(a)`, this algorithm takes ``O(n + k \\log k)`
 processing time to draw ``k`` elements. It consumes ``n`` random numbers.
 """
 function efraimidis_a_wsample_norep!(rng::AbstractRNG, a::AbstractArray,
-                                     wv::AbstractWeights, x::AbstractArray)
+                                     wv::AbstractVector, x::AbstractArray)
     n = length(a)
     length(wv) == n || throw(DimensionMismatch("a and wv must be of same length (got $n and $(length(wv)))."))
     k = length(x)
@@ -736,7 +805,7 @@ function efraimidis_a_wsample_norep!(rng::AbstractRNG, a::AbstractArray,
     # calculate keys for all items
     keys = randexp(rng, n)
     for i in 1:n
-        @inbounds keys[i] = wv.values[i]/keys[i]
+        @inbounds keys[i] = wv[i]/keys[i]
     end
 
     # return items with largest keys
@@ -746,13 +815,13 @@ function efraimidis_a_wsample_norep!(rng::AbstractRNG, a::AbstractArray,
     end
     return x
 end
-efraimidis_a_wsample_norep!(a::AbstractArray, wv::AbstractWeights, x::AbstractArray) =
+efraimidis_a_wsample_norep!(a::AbstractArray, wv::AbstractVector, x::AbstractArray) =
     efraimidis_a_wsample_norep!(Random.GLOBAL_RNG, a, wv, x)
 
 # Weighted sampling without replacement
 # Instead of keys u^(1/w) where u = random(0,1) keys w/v where v = randexp(1) are used.
 """
-    efraimidis_ares_wsample_norep!([rng], a::AbstractArray, wv::AbstractWeights, x::AbstractArray)
+    efraimidis_ares_wsample_norep!([rng], a::AbstractArray, wv::AbstractVector, x::AbstractArray)
 
 Implementation of weighted sampling without replacement using Efraimidis-Spirakis A-Res algorithm.
 
@@ -763,7 +832,7 @@ Noting `k=length(x)` and `n=length(a)`, this algorithm takes ``O(k \\log(k) \\lo
 processing time to draw ``k`` elements. It consumes ``n`` random numbers.
 """
 function efraimidis_ares_wsample_norep!(rng::AbstractRNG, a::AbstractArray,
-                                        wv::AbstractWeights, x::AbstractArray)
+                                        wv::AbstractVector, x::AbstractArray)
     n = length(a)
     length(wv) == n || throw(DimensionMismatch("a and wv must be of same length (got $n and $(length(wv)))."))
     k = length(x)
@@ -775,7 +844,7 @@ function efraimidis_ares_wsample_norep!(rng::AbstractRNG, a::AbstractArray,
     s = 0
     @inbounds for _s in 1:n
         s = _s
-        w = wv.values[s]
+        w = wv[s]
         w < 0 && error("Negative weight found in weight vector at index $s")
         if w > 0
             i += 1
@@ -790,7 +859,7 @@ function efraimidis_ares_wsample_norep!(rng::AbstractRNG, a::AbstractArray,
     @inbounds threshold = pq[1].first
 
     @inbounds for i in s+1:n
-        w = wv.values[i]
+        w = wv[i]
         w < 0 && error("Negative weight found in weight vector at index $i")
         w > 0 || continue
         key = w/randexp(rng)
@@ -812,13 +881,13 @@ function efraimidis_ares_wsample_norep!(rng::AbstractRNG, a::AbstractArray,
     end
     return x
 end
-efraimidis_ares_wsample_norep!(a::AbstractArray, wv::AbstractWeights, x::AbstractArray) =
+efraimidis_ares_wsample_norep!(a::AbstractArray, wv::AbstractVector, x::AbstractArray) =
     efraimidis_ares_wsample_norep!(Random.GLOBAL_RNG, a, wv, x)
 
 # Weighted sampling without replacement
 # Instead of keys u^(1/w) where u = random(0,1) keys w/v where v = randexp(1) are used.
 """
-    efraimidis_aexpj_wsample_norep!([rng], a::AbstractArray, wv::AbstractWeights, x::AbstractArray)
+    efraimidis_aexpj_wsample_norep!([rng], a::AbstractArray, wv::AbstractVector, x::AbstractArray)
 
 Implementation of weighted sampling without replacement using Efraimidis-Spirakis A-ExpJ algorithm.
 
@@ -829,7 +898,7 @@ Noting `k=length(x)` and `n=length(a)`, this algorithm takes ``O(k \\log(k) \\lo
 processing time to draw ``k`` elements. It consumes ``O(k \\log(n / k))`` random numbers.
 """
 function efraimidis_aexpj_wsample_norep!(rng::AbstractRNG, a::AbstractArray,
-                                         wv::AbstractWeights, x::AbstractArray;
+                                         wv::AbstractVector, x::AbstractArray;
                                          ordered::Bool=false)
     n = length(a)
     length(wv) == n || throw(DimensionMismatch("a and wv must be of same length (got $n and $(length(wv)))."))
@@ -842,7 +911,7 @@ function efraimidis_aexpj_wsample_norep!(rng::AbstractRNG, a::AbstractArray,
     s = 0
     @inbounds for _s in 1:n
         s = _s
-        w = wv.values[s]
+        w = wv[s]
         w < 0 && error("Negative weight found in weight vector at index $s")
         if w > 0
             i += 1
@@ -858,7 +927,7 @@ function efraimidis_aexpj_wsample_norep!(rng::AbstractRNG, a::AbstractArray,
     X = threshold*randexp(rng)
 
     @inbounds for i in s+1:n
-        w = wv.values[i]
+        w = wv[i]
         w < 0 && error("Negative weight found in weight vector at index $i")
         w > 0 || continue
         X -= w
@@ -887,12 +956,12 @@ function efraimidis_aexpj_wsample_norep!(rng::AbstractRNG, a::AbstractArray,
     end
     return x
 end
-efraimidis_aexpj_wsample_norep!(a::AbstractArray, wv::AbstractWeights, x::AbstractArray;
+efraimidis_aexpj_wsample_norep!(a::AbstractArray, wv::AbstractVector, x::AbstractArray;
                                 ordered::Bool=false) =
     efraimidis_aexpj_wsample_norep!(Random.GLOBAL_RNG, a, wv, x; ordered=ordered)
 
-function sample!(rng::AbstractRNG, a::AbstractArray, wv::AbstractWeights, x::AbstractArray;
-                 replace::Bool=true, ordered::Bool=false)
+function _sample!(rng::AbstractRNG, a::AbstractArray, wv::AbstractVector, x::AbstractArray;
+                  replace::Bool=true, ordered::Bool=false)
     1 == firstindex(a) == firstindex(wv) == firstindex(x) ||
         throw(ArgumentError("non 1-based arrays are not supported"))
     n = length(a)
@@ -901,7 +970,7 @@ function sample!(rng::AbstractRNG, a::AbstractArray, wv::AbstractWeights, x::Abs
     if replace
         if ordered
             sample_ordered!(rng, a, wv, x) do rng, a, wv, x
-                sample!(rng, a, wv, x; replace=true, ordered=false)
+                sample!(rng, a, x, weights=wv, replace=true, ordered=false)
             end
         else
             if n < 40
@@ -921,93 +990,20 @@ function sample!(rng::AbstractRNG, a::AbstractArray, wv::AbstractWeights, x::Abs
     end
     return x
 end
-sample!(a::AbstractArray, wv::AbstractWeights, x::AbstractArray;
-        replace::Bool=true, ordered::Bool=false) =
-    sample!(Random.GLOBAL_RNG, a, wv, x; replace=replace, ordered=ordered)
-
-sample(rng::AbstractRNG, a::AbstractArray{T}, wv::AbstractWeights, n::Integer;
-       replace::Bool=true, ordered::Bool=false) where {T} =
-    sample!(rng, a, wv, Vector{T}(undef, n); replace=replace, ordered=ordered)
-sample(a::AbstractArray, wv::AbstractWeights, n::Integer;
-       replace::Bool=true, ordered::Bool=false) =
-    sample(Random.GLOBAL_RNG, a, wv, n; replace=replace, ordered=ordered)
-
-sample(rng::AbstractRNG, a::AbstractArray{T}, wv::AbstractWeights, dims::Dims;
-       replace::Bool=true, ordered::Bool=false) where {T} =
-    sample!(rng, a, wv, Array{T}(undef, dims); replace=replace, ordered=ordered)
-sample(a::AbstractArray, wv::AbstractWeights, dims::Dims;
-       replace::Bool=true, ordered::Bool=false) =
-    sample(Random.GLOBAL_RNG, a, wv, dims; replace=replace, ordered=ordered)
-
-# wsample interface
-
-"""
-    wsample!([rng], a, w, x; replace=true, ordered=false)
-
-Select a weighted sample from an array `a` and store the result in `x`. Sampling
-probabilities are proportional to the weights given in `w`. `replace` dictates
-whether sampling is performed with replacement. `ordered` dictates whether
-an ordered sample (also called a sequential sample, i.e. a sample where
-items appear in the same order as in `a`) should be taken.
-
-Optionally specify a random number generator `rng` as the first argument
-(defaults to `Random.GLOBAL_RNG`).
-"""
-wsample!(rng::AbstractRNG, a::AbstractArray, w::RealVector, x::AbstractArray;
+_sample!(a::AbstractArray, x::AbstractArray, wv::AbstractVector;
          replace::Bool=true, ordered::Bool=false) =
-    sample!(rng, a, weights(w), x; replace=replace, ordered=ordered)
-wsample!(a::AbstractArray, w::RealVector, x::AbstractArray;
-         replace::Bool=true, ordered::Bool=false) =
-    sample!(Random.GLOBAL_RNG, a, weights(w), x; replace=replace, ordered=ordered)
+    _sample!(Random.GLOBAL_RNG, a, wv, x; replace=replace, ordered=ordered)
 
-"""
-    wsample([rng], [a], w)
-
-Select a weighted random sample of size 1 from `a` with probabilities proportional
-to the weights given in `w`. If `a` is not present, select a random weight from `w`.
-
-Optionally specify a random number generator `rng` as the first argument
-(defaults to `Random.GLOBAL_RNG`).
-"""
-wsample(rng::AbstractRNG, w::RealVector) = sample(rng, weights(w))
-wsample(w::RealVector) = wsample(Random.GLOBAL_RNG, w)
-wsample(rng::AbstractRNG, a::AbstractArray, w::RealVector) = sample(rng, a, weights(w))
-wsample(a::AbstractArray, w::RealVector) = wsample(Random.GLOBAL_RNG, a, w)
-
-
-"""
-    wsample([rng], [a], w, n::Integer; replace=true, ordered=false)
-
-Select a weighted random sample of size `n` from `a` with probabilities proportional
-to the weights given in `w` if `a` is present, otherwise select a random sample of size
-`n` of the weights given in `w`. `replace` dictates whether sampling is performed with
-replacement. `ordered` dictates whether
-an ordered sample (also called a sequential sample, i.e. a sample where
-items appear in the same order as in `a`) should be taken.
-
-Optionally specify a random number generator `rng` as the first argument
-(defaults to `Random.GLOBAL_RNG`).
-"""
-wsample(rng::AbstractRNG, a::AbstractArray{T}, w::RealVector, n::Integer;
+_sample(rng::AbstractRNG, a::AbstractArray{T}, wv::AbstractVector, n::Integer;
         replace::Bool=true, ordered::Bool=false) where {T} =
-    wsample!(rng, a, w, Vector{T}(undef, n); replace=replace, ordered=ordered)
-wsample(a::AbstractArray, w::RealVector, n::Integer;
+    _sample!(rng, a, wv, Vector{T}(undef, n); replace=replace, ordered=ordered)
+_sample(a::AbstractArray, wv::AbstractVector, n::Integer;
         replace::Bool=true, ordered::Bool=false) =
-    wsample(Random.GLOBAL_RNG, a, w, n; replace=replace, ordered=ordered)
+    _sample(Random.GLOBAL_RNG, a, wv, n; replace=replace, ordered=ordered)
 
-"""
-    wsample([rng], [a], w, dims::Dims; replace=true, ordered=false)
-
-Select a weighted random sample from `a` with probabilities proportional to the
-weights given in `w` if `a` is present, otherwise select a random sample of size
-`n` of the weights given in `w`. The dimensions of the output are given by `dims`.
-
-Optionally specify a random number generator `rng` as the first argument
-(defaults to `Random.GLOBAL_RNG`).
-"""
-wsample(rng::AbstractRNG, a::AbstractArray{T}, w::RealVector, dims::Dims;
+_sample(rng::AbstractRNG, a::AbstractArray{T}, wv::AbstractVector, dims::Dims;
         replace::Bool=true, ordered::Bool=false) where {T} =
-    wsample!(rng, a, w, Array{T}(undef, dims); replace=replace, ordered=ordered)
-wsample(a::AbstractArray, w::RealVector, dims::Dims;
+    _sample!(rng, a, wv, Array{T}(undef, dims); replace=replace, ordered=ordered)
+_sample(a::AbstractArray, wv::AbstractVector, dims::Dims;
         replace::Bool=true, ordered::Bool=false) =
-    wsample(Random.GLOBAL_RNG, a, w, dims; replace=replace, ordered=ordered)
+    _sample(Random.GLOBAL_RNG, a, wv, dims; replace=replace, ordered=ordered)
