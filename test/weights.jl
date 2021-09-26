@@ -1,5 +1,6 @@
 using Statistics
 using LinearAlgebra, Random, SparseArrays, Test, Dates
+using Statistics: wsum, wsum!
 
 @testset "Weights" begin
 weight_funcs = (weights, aweights, fweights, pweights)
@@ -107,6 +108,255 @@ end
     @test wv != fweights(fill(1.0, 3))
     @test wv == uweights(3)
     @test wv[[true, false, false]] == uweights(Float64, 1)
+end
+
+## wsum
+
+@testset "wsum" begin
+    x = [6., 8., 9.]
+    w = [2., 3., 4.]
+    p = [1. 2. ; 3. 4.]
+    q = [1., 2., 3., 4.]
+
+    @test wsum(Float64[], weights=Float64[]) === 0.0
+    @test wsum(x, weights=w) === 72.0
+    @test wsum(p, weights=q) === 29.0
+
+    ## wsum along dimension
+
+    @test wsum(x, weights=w, dims=1) == [72.0]
+
+    x  = rand(6, 8)
+    w1 = rand(6)
+    w2 = rand(8)
+
+    @test size(wsum(x, weights=w1, dims=1)) == (1, 8)
+    @test size(wsum(x, weights=w2, dims=2)) == (6, 1)
+
+    @test wsum(x, weights=w1, dims=1) ≈ sum(x .* w1, dims=1)
+    @test wsum(x, weights=w2, dims=2) ≈ sum(x .* w2', dims=2)
+
+    x = rand(6, 5, 4)
+    w1 = rand(6)
+    w2 = rand(5)
+    w3 = rand(4)
+
+    @test size(wsum(x, weights=w1, dims=1)) == (1, 5, 4)
+    @test size(wsum(x, weights=w2, dims=2)) == (6, 1, 4)
+    @test size(wsum(x, weights=w3, dims=3)) == (6, 5, 1)
+
+    @test wsum(x, weights=w1, dims=1) ≈ sum(x .* w1, dims=1)
+    @test wsum(x, weights=w2, dims=2) ≈ sum(x .* w2', dims=2)
+    @test wsum(x, weights=w3, dims=3) ≈ sum(x .* reshape(w3, 1, 1, 4), dims=3)
+
+    v = view(x, 2:4, :, :)
+
+    @test wsum(v, weights=w1[1:3], dims=1) ≈ sum(v .* w1[1:3], dims=1)
+    @test wsum(v, weights=w2, dims=2)      ≈ sum(v .* w2', dims=2)
+    @test wsum(v, weights=w3, dims=3)      ≈ sum(v .* reshape(w3, 1, 1, 4), dims=3)
+
+    ## wsum for Arrays with non-BlasReal elements
+
+    x = rand(1:100, 6, 8)
+    w1 = rand(6)
+    w2 = rand(8)
+
+    @test wsum(x, weights=w1, dims=1) ≈ sum(x .* w1, dims=1)
+    @test wsum(x, weights=w2, dims=2) ≈ sum(x .* w2', dims=2)
+
+    ## wsum!
+
+    x = rand(6)
+    w = rand(6)
+
+    r = ones(1)
+    @test wsum!(r, x, weights=w, init=true) === r
+    @test r ≈ [dot(x, w)]
+
+    r = ones(1)
+    @test wsum!(r, x, weights=w, init=false) === r
+    @test r ≈ [dot(x, w) + 1.0]
+
+    x = rand(6, 8)
+    w1 = rand(6)
+    w2 = rand(8)
+
+    r = ones(1, 8)
+    @test wsum!(r, x, weights=w1, init=true) === r
+    @test r ≈ sum(x .* w1, dims=1)
+
+    r = ones(1, 8)
+    @test wsum!(r, x, weights=w1, init=false) === r
+    @test r ≈ sum(x .* w1, dims=1) .+ 1.0
+
+    r = ones(6, 1)
+    @test wsum!(r, x, weights=w2, init=true) === r
+    @test r ≈ sum(x .* w2', dims=2)
+
+    r = ones(6, 1)
+    @test wsum!(r, x, weights=w2, init=false) === r
+    @test r ≈ sum(x .* w2', dims=2) .+ 1.0
+
+    x = rand(8, 6, 5)
+    w1 = rand(8)
+    w2 = rand(6)
+    w3 = rand(5)
+
+    r = ones(1, 6, 5)
+    @test wsum!(r, x, weights=w1, init=true) === r
+    @test r ≈ sum(x .* w1, dims=1)
+
+    r = ones(1, 6, 5)
+    @test wsum!(r, x, weights=w1, init=false) === r
+    @test r ≈ sum(x .* w1, dims=1) .+ 1.0
+
+    r = ones(8, 1, 5)
+    @test wsum!(r, x, weights=w2, init=true) === r
+    @test r ≈ sum(x .* w2', dims=2)
+
+    r = ones(8, 1, 5)
+    @test wsum!(r, x, weights=w2, init=false) === r
+    @test r ≈ sum(x .* w2', dims=2) .+ 1.0
+
+    r = ones(8, 6, 1)
+    @test wsum!(r, x, weights=w3, init=true) === r
+    @test r ≈ sum(x .* reshape(w3, (1, 1, 5)), dims=3)
+
+    r = ones(8, 6, 1)
+    @test wsum!(r, x, weights=w3, init=false) === r
+    @test r ≈ sum(x .* reshape(w3, (1, 1, 5)), dims=3) .+ 1.0
+
+    # additional tests
+    wts = ([1.4, 2.5, 10.1], [1.4f0, 2.5f0, 10.1f0], [0.0, 2.3, 5.6],
+           [NaN, 2.3, 5.6], [Inf, 2.3, 5.6],
+           [2, 1, 3], Int8[1, 2, 3], [1, 1, 1])
+    for a in (rand(3), rand(Int, 3), rand(Int8, 3))
+        for w in wts
+            res = @inferred wsum(a, weights=w)
+            expected = sum(a.*w)
+            if isfinite(res)
+                @test res ≈ expected
+            else
+                @test isequal(res, expected)
+            end
+            @test typeof(res) == typeof(expected)
+        end
+    end
+    for a in (rand(3, 5), rand(Float32, 3, 5), rand(Int, 3, 5), rand(Int8, 3, 5))
+        for w in wts
+            wr = repeat(w, outer=(1, 5))
+            res = @inferred wsum(a, weights=wr)
+            expected = sum(a.*wr)
+            if isfinite(res)
+                @test res ≈ expected
+            else
+                @test isequal(res, expected)
+            end
+            @test typeof(res) == typeof(expected)
+        end
+    end
+end
+
+@testset "weighted sum over dimensions" begin
+    wts = ([1.4, 2.5, 10.1], [1.4f0, 2.5f0, 10.1f0], [0.0, 2.3, 5.6],
+           [NaN, 2.3, 5.6], [Inf, 2.3, 5.6],
+           [2, 1, 3], Int8[1, 2, 3], [1, 1, 1])
+
+    ainf = rand(3)
+    ainf[1] = Inf
+    anan = rand(3)
+    anan[1] = NaN
+    for a in (rand(3), rand(Float32, 3), ainf, anan,
+              rand(Int, 3), rand(Int8, 3),
+              view(rand(5), 2:4))
+        for w in wts
+            if all(isfinite, a) && all(isfinite, w)
+                expected = sum(a.*w, dims=1)
+                res = @inferred wsum(a, weights=w, dims=1)
+                @test res ≈ expected
+                @test typeof(res) == typeof(expected)
+                x = rand!(similar(expected))
+                y = copy(x)
+                @inferred wsum!(y, a, weights=w)
+                @test y ≈ expected
+                y = copy(x)
+                @inferred wsum!(y, a, weights=w, init=false)
+                @test y ≈ x + expected
+            else
+                expected = sum(a.*w, dims=1)
+                res = @inferred wsum(a, weights=w, dims=1)
+                @test isfinite.(res) == isfinite.(expected)
+                @test typeof(res) == typeof(expected)
+                x = rand!(similar(expected))
+                y = copy(x)
+                @inferred wsum!(y, a, weights=w)
+                @test isfinite.(y) == isfinite.(expected)
+                y = copy(x)
+                @inferred wsum!(y, a, weights=w, init=false)
+                @test isfinite.(y) == isfinite.(expected)
+            end
+        end
+    end
+
+    ainf = rand(3, 3, 3)
+    ainf[1] = Inf
+    anan = rand(3, 3, 3)
+    anan[1] = NaN
+    for a in (rand(3, 3, 3), rand(Float32, 3, 3, 3), ainf, anan,
+              rand(Int, 3, 3, 3), rand(Int8, 3, 3, 3),
+              view(rand(3, 3, 5), :, :, 2:4))
+        for w in wts
+            for (d, rw) in ((1, reshape(w, :, 1, 1)),
+                            (2, reshape(w, 1, :, 1)),
+                            (3, reshape(w, 1, 1, :)))
+                if all(isfinite, a) && all(isfinite, w)
+                    expected = sum(a.*rw, dims=d)
+                    res = @inferred wsum(a, weights=w, dims=d)
+                    @test res ≈ expected
+                    @test typeof(res) == typeof(expected)
+                    x = rand!(similar(expected))
+                    y = copy(x)
+                    @inferred wsum!(y, a, weights=w)
+                    @test y ≈ expected
+                    y = copy(x)
+                    @inferred wsum!(y, a, weights=w, init=false)
+                    @test y ≈ x + expected
+                else
+                    expected = sum(a.*rw, dims=d)
+                    res = @inferred wsum(a, weights=w, dims=d)
+                    @test isfinite.(res) == isfinite.(expected)
+                    @test typeof(res) == typeof(expected)
+                    x = rand!(similar(expected))
+                    y = copy(x)
+                    @inferred wsum!(y, a, weights=w)
+                    @test isfinite.(y) == isfinite.(expected)
+                    y = copy(x)
+                    @inferred wsum!(y, a, weights=w, init=false)
+                    @test isfinite.(y) == isfinite.(expected)
+                end
+            end
+
+            @test_throws DimensionMismatch wsum(a, weights=w, dims=4)
+        end
+    end
+
+    # Corner case with a single row
+    @test wsum([1 2], weights=[2], dims=1) == [2 4]
+end
+
+# sum, mean and quantile
+
+a = reshape(1.0:27.0, 3, 3, 3)
+
+@testset "Sum $f" for f in weight_funcs
+    @test wsum([1.0, 2.0, 3.0], weights=f([1.0, 0.5, 0.5])) ≈ 3.5
+    @test wsum(1:3, weights=f([1.0, 1.0, 0.5]))             ≈ 4.5
+
+    for wt in ([1.0, 1.0, 1.0], [1.0, 0.2, 0.0], [0.2, 0.0, 1.0])
+        @test wsum(a, weights=f(wt), dims=1)  ≈ sum(a.*reshape(wt, length(wt), 1, 1), dims=1)
+        @test wsum(a, weights=f(wt), dims=2)  ≈ sum(a.*reshape(wt, 1, length(wt), 1), dims=2)
+        @test wsum(a, weights=f(wt), dims=3)  ≈ sum(a.*reshape(wt, 1, 1, length(wt)), dims=3)
+    end
 end
 
 @testset "Mean $f" for f in weight_funcs
@@ -343,28 +593,31 @@ end
         quantile(data, 0.5, weights=f(wt)) atol = 1e-5
 end
 
+@testset "Mismatched eltypes" begin
+    @test round(mean(Union{Int,Missing}[1,2], weights=weights([1,2])), digits=3) ≈ 1.667
+end
+
 @testset "Sum, mean, quantiles and variance for unit weights" begin
-    a = reshape(1.0:27.0, 3, 3, 3)
     wt = uweights(Float64, 3)
 
-    @test Statistics.wsum([1.0, 2.0, 3.0], weights=wt) ≈ 6.0
+    @test wsum([1.0, 2.0, 3.0], weights=wt) ≈ 6.0
     @test mean([1.0, 2.0, 3.0], weights=wt) ≈ 2.0
 
-    @test Statistics.wsum(a, weights=wt, dims=1) ≈ sum(a, dims=1)
-    @test Statistics.wsum(a, weights=wt, dims=2) ≈ sum(a, dims=2)
-    @test Statistics.wsum(a, weights=wt, dims=3) ≈ sum(a, dims=3)
+    @test wsum(a, weights=wt, dims=1) ≈ sum(a, dims=1)
+    @test wsum(a, weights=wt, dims=2) ≈ sum(a, dims=2)
+    @test wsum(a, weights=wt, dims=3) ≈ sum(a, dims=3)
 
-    @test Statistics.wsum(a, weights=wt, dims=1) ≈ sum(a, dims=1)
-    @test Statistics.wsum(a, weights=wt, dims=2) ≈ sum(a, dims=2)
-    @test Statistics.wsum(a, weights=wt, dims=3) ≈ sum(a, dims=3)
+    @test wsum(a, weights=wt, dims=1) ≈ sum(a, dims=1)
+    @test wsum(a, weights=wt, dims=2) ≈ sum(a, dims=2)
+    @test wsum(a, weights=wt, dims=3) ≈ sum(a, dims=3)
 
     @test mean(a, weights=wt, dims=1) ≈ mean(a, dims=1)
     @test mean(a, weights=wt, dims=2) ≈ mean(a, dims=2)
     @test mean(a, weights=wt, dims=3) ≈ mean(a, dims=3)
 
-    @test_throws DimensionMismatch Statistics.wsum(a, weights=wt)
-    @test_throws DimensionMismatch Statistics.wsum(a, weights=wt, dims=4)
-    @test_throws DimensionMismatch Statistics.wsum(a, weights=wt, dims=4)
+    @test_throws DimensionMismatch wsum(a, weights=wt)
+    @test_throws DimensionMismatch wsum(a, weights=wt, dims=4)
+    @test_throws DimensionMismatch wsum(a, weights=wt, dims=4)
     @test_throws DimensionMismatch mean(a, weights=wt, dims=4)
 
     @test quantile([1.0, 4.0, 6.0, 8.0, 10.0], [0.5], weights=uweights(5)) ≈ [6.0]

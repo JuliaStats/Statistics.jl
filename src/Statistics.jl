@@ -8,6 +8,7 @@ Standard library module for basic statistics functionality.
 module Statistics
 
 using LinearAlgebra, SparseArrays
+using LinearAlgebra: BlasReal
 
 using Base: has_offset_axes, require_one_based_indexing
 
@@ -44,7 +45,6 @@ export std, stdm, var, varm, mean!, mean,
 
 include("common.jl")
 include("weights.jl")
-include("wsum.jl")
 include("moments.jl")
 include("scalarstats.jl")
 include("cov.jl")
@@ -186,9 +186,6 @@ function _mean!(R::AbstractArray, A::AbstractArray, weights::Nothing)
     return R
 end
 
-_mean!(R::AbstractArray, A::AbstractArray, w::AbstractArray) =
-    rmul!(wsum!(R, A, weights=w), inv(sum(w)))
-
 """
     mean(A::AbstractArray; [dims], [weights::AbstractArray])
 
@@ -255,23 +252,6 @@ end
 function _mean(::typeof(identity), r::AbstractRange{<:Real}, dims::Colon, weights::Nothing)
     isempty(r) && return oftype((first(r) + last(r)) / 2, NaN)
     (first(r) + last(r)) / 2
-end
-
-# Note: weighted mean currently does not use _mean_promote to avoid overflow
-_mean(::typeof(identity), A::AbstractArray, dims::Colon, w::AbstractArray) =
-    wsum(A, weights=w) / sum(w)
-
-_mean(::typeof(identity), A::AbstractArray, dims, w::AbstractArray) =
-    _mean!(Base.reducedim_init(t -> (t*zero(eltype(w)))/2, Base.add_sum, A, dims), A, w)
-
-function _mean(::typeof(identity), A::AbstractArray, dims, w::UnitWeights)
-    size(A, dims) != length(w) && throw(DimensionMismatch("Inconsistent array dimension."))
-    return mean(A, dims=dims)
-end
-
-function _mean(::typeof(identity), A::AbstractArray, dims::Colon, w::UnitWeights)
-    length(A) != length(w) && throw(DimensionMismatch("Inconsistent array dimension."))
-    return mean(A)
 end
 
 ##### variances #####
@@ -1072,11 +1052,6 @@ _median(A::AbstractArray, dims, w::Nothing) = mapslices(median!, A, dims = dims)
 _median(A::AbstractArray{T}, dims::Colon, w::Nothing) where {T} =
     median!(copyto!(Array{T,1}(undef, length(A)), A))
 
-_median(v::AbstractArray, dims::Colon, w::AbstractArray) = quantile(v, 0.5, weights=w)
-
-_median(A::AbstractArray, dims, w::AbstractArray) =
-    throw(ArgumentError("weights and dims cannot be specified at the same time"))
-
 """
     quantile!([q::AbstractArray, ] v::AbstractVector, p; sorted=false, alpha::Real=1.0, beta::Real=alpha)
 
@@ -1292,95 +1267,6 @@ _quantile(itr, p, sorted::Bool, alpha::Real, beta::Real, weights::Nothing) =
 _quantile(itr::AbstractArray, p, sorted::Bool, weights::Nothing) =
     quantile!(sorted ? itr : Base.copymutable(itr), p; sorted=sorted,
               alpha=alpha, beta=beta)
-
-function _quantile(v::AbstractArray{V}, p, sorted::Bool, alpha::Real, beta::Real,
-                   w::AbstractArray{W}) where {V,W}
-    # checks
-    alpha == beta == 1 || throw(ArgumentError("only alpha == beta == 1 is supported " *
-                                              "when weights are provided"))
-    isempty(v) && throw(ArgumentError("quantile of an empty array is undefined"))
-    isempty(p) && throw(ArgumentError("empty quantile array"))
-    all(x -> 0 <= x <= 1, p) || throw(ArgumentError("input probability out of [0,1] range"))
-
-    wsum = sum(w)
-    wsum == 0 && throw(ArgumentError("weight vector cannot sum to zero"))
-    size(v) == size(w) || throw(ArgumentError("weights must have the same dimension as data " *
-        "(got $(size(v)) and $(size(w)))"))
-    for x in w
-        isnan(x) && throw(ArgumentError("weight vector cannot contain NaN entries"))
-        x < 0 && throw(ArgumentError("weight vector cannot contain negative entries"))
-    end
-
-    isa(w, FrequencyWeights) && !(eltype(w) <: Integer) && any(!isinteger, w) &&
-        throw(ArgumentError("The values of the vector of `FrequencyWeights` must be numerically" *
-                            "equal to integers. Use `ProbabilityWeights` or `AnalyticWeights` instead."))
-
-    # remove zeros weights and sort
-    nz = .!iszero.(w)
-    vw = sort!(collect(zip(view(v, nz), view(w, nz))))
-    N = length(vw)
-
-    # prepare percentiles
-    ppermute = sortperm(p)
-    p = p[ppermute]
-
-    # prepare out vector
-    out = Vector{typeof(zero(V)/1)}(undef, length(p))
-    fill!(out, vw[end][1])
-
-    @inbounds for x in v
-        isnan(x) && return fill!(out, x)
-    end
-
-    # loop on quantiles
-    Sk, Skold = zero(W), zero(W)
-    vk, vkold = zero(V), zero(V)
-    k = 0
-
-    w1 = vw[1][2]
-    for i in 1:length(p)
-        if isa(w, FrequencyWeights)
-            h = p[i] * (wsum - 1) + 1
-        else
-            h = p[i] * (wsum - w1) + w1
-        end
-        while Sk <= h
-            k += 1
-            if k > N
-               # out was initialized with maximum v
-               return out
-            end
-            Skold, vkold = Sk, vk
-            vk, wk = vw[k]
-            Sk += wk
-        end
-        if isa(w, FrequencyWeights)
-            out[ppermute[i]] = vkold + min(h - Skold, 1) * (vk - vkold)
-        else
-            out[ppermute[i]] = vkold + (h - Skold) / (Sk - Skold) * (vk - vkold)
-        end
-    end
-    return out
-end
-
-function _quantile(v::AbstractArray, p, sorted::Bool,
-                   alpha::Real, beta::Real, w::UnitWeights)
-    length(v) != length(w) && throw(DimensionMismatch("Inconsistent array dimension."))
-    return quantile(v, p)
-end
-
-function _quantile(v::AbstractArray, p::Real, sorted::Bool,
-                   alpha::Real, beta::Real, w::UnitWeights)
-    length(v) != length(w) && throw(DimensionMismatch("Inconsistent array dimension."))
-    return quantile(v, p)
-end
-
-_quantile(v::AbstractArray, p::Real, sorted::Bool, alpha::Real, beta::Real,
-          w::AbstractArray) =
-    _quantile(v, [p], sorted, alpha, beta, w)[1]
-
-_quantile(itr, p, sorted::Bool, alpha::Real, beta::Real, weights) =
-    throw(ArgumentError("weights are only supported with AbstractArrays inputs"))
 
 """
     quantile(x, n::Integer)

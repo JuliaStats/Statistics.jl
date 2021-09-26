@@ -889,7 +889,6 @@ end
 end
 
 include("weights.jl")
-include("wsum.jl")
 include("moments.jl")
 include("cov.jl")
 include("partialcor.jl")
