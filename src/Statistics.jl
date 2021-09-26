@@ -44,7 +44,9 @@ export std, stdm, var, varm, mean!, mean,
     fit, AbstractHistogram, Histogram, midpoints, norm, normalize, normalize!,
     # transformations
     unnormalize, unnormalize!,
-    AbstractNormalization, MinMaxNormalization, ZScoreNormalization
+    AbstractNormalization, MinMaxNormalization, ZScoreNormalization,
+    # reliability.jl
+    cronbachalpha, CronbachAlpha
 
 include("common.jl")
 include("weights.jl")
@@ -60,6 +62,7 @@ include("rankcorr.jl")
 include("empirical.jl")
 include("hist.jl")
 include("transformations.jl")
+include("reliability.jl")
 
 ##### mean #####
 

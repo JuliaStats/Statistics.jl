@@ -33,7 +33,7 @@ Returns a `CronbachAlpha` object that holds:
 
 # Example
 ```jldoctest
-julia> using StatsBase
+julia> using Statistics
 
 julia> cov_X = [10 6 6 6;
                 6 11 6 6;

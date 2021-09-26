@@ -72,3 +72,9 @@ modes
 ```@docs
 describe
 ```
+
+## Reliability Measures
+
+```@docs
+cronbachalpha
+```
