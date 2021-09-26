@@ -14,7 +14,8 @@ makedocs(
              "cov.md",
              "robust.md",
              "ranking.md",
-             "empirical.md"]
+             "empirical.md",
+             "transformations.md"]
 )
 
 deploydocs(

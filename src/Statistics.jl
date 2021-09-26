@@ -41,7 +41,10 @@ export std, stdm, var, varm, mean!, mean,
     # empirical.jl
     ecdf, ECDF,
     # hist.jl
-    fit, AbstractHistogram, Histogram, midpoints, norm, normalize, normalize!
+    fit, AbstractHistogram, Histogram, midpoints, norm, normalize, normalize!,
+    # transformations
+    unnormalize, unnormalize!,
+    AbstractNormalization, MinMaxNormalization, ZScoreNormalization
 
 include("common.jl")
 include("weights.jl")
@@ -56,6 +59,7 @@ include("ranking.jl")
 include("rankcorr.jl")
 include("empirical.jl")
 include("hist.jl")
+include("transformations.jl")
 
 ##### mean #####
 

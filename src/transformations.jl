@@ -1,61 +1,61 @@
-### Transformations
+### Normalizations
 
-abstract type AbstractDataTransform end
+abstract type AbstractNormalization end
 
-# apply the transform
+# apply the normalization
 """
-    transform!(t::AbstractDataTransform, x)
+    normalize!(t::AbstractNormalization, x)
 
-Apply transformation `t` to vector or matrix `x` in place.
+Apply normalization `t` to vector or matrix `x` in place.
 """
-transform!(t::AbstractDataTransform, x::AbstractMatrix{<:Real}) =
-    transform!(x, t, x)
-transform!(t::AbstractDataTransform, x::AbstractVector{<:Real}) =
-    (transform!(t, reshape(x, :, 1)); x)
-
-"""
-    transform(t::AbstractDataTransform, x)
-
-Return a standardized copy of vector or matrix `x` using transformation `t`.
-"""
-transform(t::AbstractDataTransform, x::AbstractMatrix{<:Real}) =
-    transform!(similar(x), t, x)
-transform(t::AbstractDataTransform, x::AbstractVector{<:Real}) =
-    vec(transform(t, reshape(x, :, 1)))
-
-# reconstruct the original data from transformed values
-"""
-    reconstruct!(t::AbstractDataTransform, y)
-
-Perform an in-place reconstruction into an original data scale from a transformed
-vector or matrix `y` using transformation `t`.
-"""
-reconstruct!(t::AbstractDataTransform, y::AbstractMatrix{<:Real}) =
-    reconstruct!(y, t, y)
-reconstruct!(t::AbstractDataTransform, y::AbstractVector{<:Real}) =
-    (reconstruct!(t, reshape(y, :, 1)); y)
+LinearAlgebra.normalize!(t::AbstractNormalization, x::AbstractMatrix{<:Real}) =
+    normalize!(x, t, x)
+LinearAlgebra.normalize!(t::AbstractNormalization, x::AbstractVector{<:Real}) =
+    (normalize!(t, reshape(x, :, 1)); x)
 
 """
-    reconstruct(t::AbstractDataTransform, y)
+    normalize(t::AbstractNormalization, x)
 
-Return a reconstruction of an originally scaled data from a transformed vector
-or matrix `y` using transformation `t`.
+Return a standardized copy of vector or matrix `x` using normalization `t`.
 """
-reconstruct(t::AbstractDataTransform, y::AbstractMatrix{<:Real}) =
-    reconstruct!(similar(y), t, y)
-reconstruct(t::AbstractDataTransform, y::AbstractVector{<:Real}) =
-    vec(reconstruct(t, reshape(y, :, 1)))
+LinearAlgebra.normalize(t::AbstractNormalization, x::AbstractMatrix{<:Real}) =
+    normalize!(similar(x), t, x)
+LinearAlgebra.normalize(t::AbstractNormalization, x::AbstractVector{<:Real}) =
+    vec(normalize(t, reshape(x, :, 1)))
+
+# unnormalize the original data from normalized values
+"""
+    unnormalize(t::AbstractNormalization, y)
+
+Perform an in-place unnormalizeion into an original data scale from
+vector or matrix `y` transformed using normalization `t`.
+"""
+unnormalize!(t::AbstractNormalization, y::AbstractMatrix{<:Real}) =
+    unnormalize!(y, t, y)
+unnormalize!(t::AbstractNormalization, y::AbstractVector{<:Real}) =
+    (unnormalize!(t, reshape(y, :, 1)); y)
 
 """
-Standardization (Z-score transformation)
+    unnormalize(t::AbstractNormalization, y)
+
+Return a unnormalizeion of an originally scaled data from a vector
+or matrix `y` transformed using normalization `t`.
 """
-struct ZScoreTransform{T<:Real, U<:AbstractVector{T}} <: AbstractDataTransform
+unnormalize(t::AbstractNormalization, y::AbstractMatrix{<:Real}) =
+    unnormalize!(similar(y), t, y)
+unnormalize(t::AbstractNormalization, y::AbstractVector{<:Real}) =
+    vec(unnormalize(t, reshape(y, :, 1)))
+
+"""
+Standardization (Z-score normalization)
+"""
+struct ZScoreNormalization{T<:Real, U<:AbstractVector{T}} <: AbstractNormalization
     len::Int
     dims::Int
     mean::U
     scale::U
 
-    function ZScoreTransform(l::Int, dims::Int, m::U, s::U) where {T<:Real, U<:AbstractVector{T}}
+    function ZScoreNormalization(l::Int, dims::Int, m::U, s::U) where {T<:Real, U<:AbstractVector{T}}
         lenm = length(m)
         lens = length(s)
         lenm == l || lenm == 0 || throw(DimensionMismatch("Inconsistent dimensions."))
@@ -64,24 +64,16 @@ struct ZScoreTransform{T<:Real, U<:AbstractVector{T}} <: AbstractDataTransform
     end
 end
 
-function Base.getproperty(t::ZScoreTransform, p::Symbol)
-    if p === :indim || p === :outdim
-        return t.len
-    else
-        return getfield(t, p)
-    end
-end
-
 """
-    fit(ZScoreTransform, X; dims=nothing, center=true, scale=true)
+    fit(ZScoreNormalization, X; dims, center=true, scale=true)
 
 Fit standardization parameters to vector or matrix `X`
-and return a `ZScoreTransform` transformation object.
+and return a `ZScoreNormalization` object.
 
 # Keyword arguments
 
 * `dims`: if `1` fit standardization parameters in column-wise fashion;
-  if `2` fit in row-wise fashion. The default is `nothing`, which is equivalent to `dims=2` with a deprecation warning.
+  if `2` fit in row-wise fashion.
 
 * `center`: if `true` (the default) center data so that its mean is zero.
 
@@ -90,53 +82,51 @@ and return a `ZScoreTransform` transformation object.
 # Examples
 
 ```jldoctest
-julia> using StatsBase
+julia> using Statistics
 
 julia> X = [0.0 -0.5 0.5; 0.0 1.0 2.0]
 2×3 Matrix{Float64}:
  0.0  -0.5  0.5
  0.0   1.0  2.0
 
-julia> dt = fit(ZScoreTransform, X, dims=2)
-ZScoreTransform{Float64, Vector{Float64}}(2, 2, [0.0, 1.0], [0.5, 1.0])
+julia> dt = fit(ZScoreNormalization, X, dims=2)
+ZScoreNormalization{Float64, Vector{Float64}}(2, 2, [0.0, 1.0], [0.5, 1.0])
 
-julia> StatsBase.transform(dt, X)
+julia> normalize(dt, X)
 2×3 Matrix{Float64}:
   0.0  -1.0  1.0
  -1.0   0.0  1.0
 ```
 """
-function fit(::Type{ZScoreTransform}, X::AbstractMatrix{<:Real};
-             dims::Union{Integer,Nothing}=nothing, center::Bool=true, scale::Bool=true)
-    if dims === nothing
-        Base.depwarn("fit(t, x) is deprecated: use fit(t, x, dims=2) instead", :fit)
-        dims = 2
-    end
+function fit(::Type{ZScoreNormalization}, X::AbstractMatrix{<:Real};
+             dims::Integer, center::Bool=true, scale::Bool=true)
     if dims == 1
         n, l = size(X)
         n >= 2 || error("X must contain at least two rows.")
-        m, s = mean_and_std(X, 1)
     elseif dims == 2
         l, n = size(X)
         n >= 2 || error("X must contain at least two columns.")
-        m, s = mean_and_std(X, 2)
     else
         throw(DomainError(dims, "fit only accept dims to be 1 or 2."))
     end
-    return ZScoreTransform(l, dims, (center ? vec(m) : similar(m, 0)),
+    m = mean(X, dims=dims)
+    s = std(X, mean=m, dims=dims)
+    return ZScoreNormalization(l, dims, (center ? vec(m) : similar(m, 0)),
                                     (scale ? vec(s) : similar(s, 0)))
 end
 
-function fit(::Type{ZScoreTransform}, X::AbstractVector{<:Real};
+function fit(::Type{ZScoreNormalization}, X::AbstractVector{<:Real};
              dims::Integer=1, center::Bool=true, scale::Bool=true)
     if dims != 1
         throw(DomainError(dims, "fit only accepts dims=1 over a vector. Try fit(t, x, dims=1)."))
     end
 
-    return fit(ZScoreTransform, reshape(X, :, 1); dims=dims, center=center, scale=scale)
+    return fit(ZScoreNormalization, reshape(X, :, 1); dims=dims, center=center, scale=scale)
 end
 
-function transform!(y::AbstractMatrix{<:Real}, t::ZScoreTransform, x::AbstractMatrix{<:Real})
+function LinearAlgebra.normalize!(y::AbstractMatrix{<:Real},
+                                  t::ZScoreNormalization,
+                                  x::AbstractMatrix{<:Real})
     if t.dims == 1
         l = t.len
         size(x,2) == size(y,2) == l || throw(DimensionMismatch("Inconsistent dimensions."))
@@ -162,13 +152,13 @@ function transform!(y::AbstractMatrix{<:Real}, t::ZScoreTransform, x::AbstractMa
             end
         end
     elseif t.dims == 2
-        t_ = ZScoreTransform(t.len, 1, t.mean, t.scale)
-        transform!(y', t_, x')
+        t_ = ZScoreNormalization(t.len, 1, t.mean, t.scale)
+        normalize!(y', t_, x')
     end
     return y
 end
 
-function reconstruct!(x::AbstractMatrix{<:Real}, t::ZScoreTransform, y::AbstractMatrix{<:Real})
+function unnormalize!(x::AbstractMatrix{<:Real}, t::ZScoreNormalization, y::AbstractMatrix{<:Real})
     if t.dims == 1
         l = t.len
         size(x,2) == size(y,2) == l || throw(DimensionMismatch("Inconsistent dimensions."))
@@ -194,83 +184,71 @@ function reconstruct!(x::AbstractMatrix{<:Real}, t::ZScoreTransform, y::Abstract
             end
         end
     elseif t.dims == 2
-        t_ = ZScoreTransform(t.len, 1, t.mean, t.scale)
-        reconstruct!(x', t_, y')
+        t_ = ZScoreNormalization(t.len, 1, t.mean, t.scale)
+        unnormalize!(x', t_, y')
     end
     return x
 end
 
 """
-Unit range normalization
+Min-max normalization
 """
-struct UnitRangeTransform{T<:Real, U<:AbstractVector}  <: AbstractDataTransform
+struct MinMaxNormalization{T<:Real, U<:AbstractVector}  <: AbstractNormalization
     len::Int
     dims::Int
-    unit::Bool
+    zero::Bool
     min::U
     scale::U
 
-    function UnitRangeTransform(l::Int, dims::Int, unit::Bool, min::U, max::U) where {T, U<:AbstractVector{T}}
+    function MinMaxNormalization(l::Int, dims::Int, zero::Bool, min::U, max::U) where {T, U<:AbstractVector{T}}
         lenmin = length(min)
         lenmax = length(max)
         lenmin == l || lenmin == 0 || throw(DimensionMismatch("Inconsistent dimensions."))
         lenmax == l || lenmax == 0 || throw(DimensionMismatch("Inconsistent dimensions."))
-        new{T, U}(l, dims, unit, min, max)
+        new{T, U}(l, dims, zero, min, max)
     end
 end
 
-function Base.getproperty(t::UnitRangeTransform, p::Symbol)
-    if p === :indim || p === :outdim
-        return t.len
-    else
-        return getfield(t, p)
-    end
-end
-
-# fit a unit transform
+# fit a min-max normalization
 """
-    fit(UnitRangeTransform, X; dims=nothing, unit=true)
+    fit(MinMaxNormalization, X; dims, zero=true)
 
 Fit a scaling parameters to vector or matrix `X`
-and return a `UnitRangeTransform` transformation object.
+and return a `MinMaxNormalization` object.
 
 # Keyword arguments
 
 * `dims`: if `1` fit standardization parameters in column-wise fashion;
- if `2` fit in row-wise fashion. The default is `nothing`.
+ if `2` fit in row-wise fashion.
 
-* `unit`: if `true` (the default) shift the minimum data to zero.
+* `zero`: if `true` (the default) shift the minimum data to zero.
 
 # Examples
 
 ```jldoctest
-julia> using StatsBase
+julia> using Statistics
 
 julia> X = [0.0 -0.5 0.5; 0.0 1.0 2.0]
 2×3 Matrix{Float64}:
  0.0  -0.5  0.5
  0.0   1.0  2.0
 
-julia> dt = fit(UnitRangeTransform, X, dims=2)
-UnitRangeTransform{Float64, Vector{Float64}}(2, 2, true, [-0.5, 0.0], [1.0, 0.5])
+julia> dt = fit(MinMaxNormalization, X, dims=2)
+MinMaxNormalization{Float64, Vector{Float64}}(2, 2, true, [-0.5, 0.0], [1.0, 0.5])
 
-julia> StatsBase.transform(dt, X)
+julia> normalize(dt, X)
 2×3 Matrix{Float64}:
  0.5  0.0  1.0
  0.0  0.5  1.0
 ```
 """
-function fit(::Type{UnitRangeTransform}, X::AbstractMatrix{<:Real};
-             dims::Union{Integer,Nothing}=nothing, unit::Bool=true)
-    if dims === nothing
-        Base.depwarn("fit(t, x) is deprecated: use fit(t, x, dims=2) instead", :fit)
-        dims = 2
-    end
+function fit(::Type{MinMaxNormalization}, X::AbstractMatrix{<:Real};
+             dims::Integer, zero::Bool=true)
     dims ∈ (1, 2) || throw(DomainError(dims, "fit only accept dims to be 1 or 2."))
     tmin, tmax = _compute_extrema(X, dims)
     @. tmax = 1 / (tmax - tmin)
     l = length(tmin)
-    return UnitRangeTransform(l, dims, unit, tmin, tmax)
+    return MinMaxNormalization(l, dims, zero, tmin, tmax)
 end
 
 function _compute_extrema(X::AbstractMatrix, dims::Integer)
@@ -284,17 +262,19 @@ function _compute_extrema(X::AbstractMatrix, dims::Integer)
     return tmin, tmax
 end
 
-function fit(::Type{UnitRangeTransform}, X::AbstractVector{<:Real};
-             dims::Integer=1, unit::Bool=true)
+function fit(::Type{MinMaxNormalization}, X::AbstractVector{<:Real};
+             dims::Integer=1, zero::Bool=true)
     if dims != 1
         throw(DomainError(dims, "fit only accept dims=1 over a vector. Try fit(t, x, dims=1)."))
     end
     tmin, tmax = extrema(X)
     tmax = 1 / (tmax - tmin)
-    return UnitRangeTransform(1, dims, unit, [tmin], [tmax])
+    return MinMaxNormalization(1, dims, zero, [tmin], [tmax])
 end
 
-function transform!(y::AbstractMatrix{<:Real}, t::UnitRangeTransform, x::AbstractMatrix{<:Real})
+function LinearAlgebra.normalize!(y::AbstractMatrix{<:Real},
+                                  t::MinMaxNormalization,
+                                  x::AbstractMatrix{<:Real})
     if t.dims == 1
         l = t.len
         size(x,2) == size(y,2) == l || throw(DimensionMismatch("Inconsistent dimensions."))
@@ -304,19 +284,19 @@ function transform!(y::AbstractMatrix{<:Real}, t::UnitRangeTransform, x::Abstrac
         tmin = t.min
         tscale = t.scale
 
-        if t.unit
+        if t.zero
             broadcast!((x,s,m)->(x-m)*s, y, x, tscale', tmin')
         else
             broadcast!(*, y, x, tscale')
         end
     elseif t.dims == 2
-        t_ = UnitRangeTransform(t.len, 1, t.unit, t.min, t.scale)
-        transform!(y', t_, x')
+        t_ = MinMaxNormalization(t.len, 1, t.zero, t.min, t.scale)
+        normalize!(y', t_, x')
     end
     return y
 end
 
-function reconstruct!(x::AbstractMatrix{<:Real}, t::UnitRangeTransform, y::AbstractMatrix{<:Real})
+function unnormalize!(x::AbstractMatrix{<:Real}, t::MinMaxNormalization, y::AbstractMatrix{<:Real})
     if t.dims == 1
         l = t.len
         size(x,2) == size(y,2) == l || throw(DimensionMismatch("Inconsistent dimensions."))
@@ -326,43 +306,43 @@ function reconstruct!(x::AbstractMatrix{<:Real}, t::UnitRangeTransform, y::Abstr
         tmin = t.min
         tscale = t.scale
 
-        if t.unit
+        if t.zero
             broadcast!((y,s,m)->y/s+m, x, y, tscale', tmin')
         else
             broadcast!(/, x, y, tscale')
         end
     elseif t.dims == 2
-        t_ = UnitRangeTransform(t.len, 1, t.unit, t.min, t.scale)
-        reconstruct!(x', t_, y')
+        t_ = MinMaxNormalization(t.len, 1, t.zero, t.min, t.scale)
+        unnormalize!(x', t_, y')
     end
     return x
 end
 
 """
-    standardize(DT, X; dims=nothing, kwargs...)
+    normalize(DT, X; dims=nothing, kwargs...)
 
- Return a standardized copy of vector or matrix `X` along dimensions `dims`
- using transformation `DT` which is a subtype of `AbstractDataTransform`:
+ Return a normalized copy of vector or matrix `X` along dimensions `dims`
+ using normalization `DT` which is a subtype of `AbstractNormalization`:
 
-- `ZScoreTransform`
-- `UnitRangeTransform`
+- `ZScoreNormalization`
+- `MinMaxNormalization`
 
 # Example
 
 ```jldoctest
-julia> using StatsBase
+julia> using Statistics
 
-julia> standardize(ZScoreTransform, [0.0 -0.5 0.5; 0.0 1.0 2.0], dims=2)
+julia> normalize(ZScoreNormalization, [0.0 -0.5 0.5; 0.0 1.0 2.0], dims=2)
 2×3 Matrix{Float64}:
   0.0  -1.0  1.0
  -1.0   0.0  1.0
 
-julia> standardize(UnitRangeTransform, [0.0 -0.5 0.5; 0.0 1.0 2.0], dims=2)
+julia> normalize(MinMaxNormalization, [0.0 -0.5 0.5; 0.0 1.0 2.0], dims=2)
 2×3 Matrix{Float64}:
  0.5  0.0  1.0
  0.0  0.5  1.0
 ```
 """
-function standardize(::Type{DT}, X::AbstractVecOrMat{<:Real}; kwargs...) where {DT <: AbstractDataTransform}
-    return transform(fit(DT, X; kwargs...), X)
-end
+LinearAlgebra.normalize(::Type{DT}, X::AbstractVecOrMat{<:Real}; kwargs...) where
+    {DT <: AbstractNormalization} =
+    normalize(fit(DT, X; kwargs...), X)

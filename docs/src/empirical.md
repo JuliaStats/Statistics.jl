@@ -18,8 +18,9 @@ merge!
 merge
 midpoints
 norm
-normalize
-normalize!
+normalize(h::Histogram{T,N}) where {T<:AbstractFloat,N}
+normalize(h::Histogram{T,N}, aux_weights::Array{T,N}...) where {T<:AbstractFloat,N}
+normalize!(h::Histogram{T,N}, aux_weights::Array{T,N}...) where {T<:AbstractFloat,N}
 zero
 ```
 

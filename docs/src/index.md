@@ -11,6 +11,6 @@ corrections where necessary.
 
 ```@contents
 Pages = ["weights.md", "scalarstats.md", "cov.md", "robust.md", "ranking.jl",
-         "empirical.md"]
+         "empirical.md", "transformations.md"]
 Depth = 2
 ```
