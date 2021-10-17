@@ -948,7 +948,7 @@ end
 function quantile!(v::AbstractVector, p::Union{AbstractArray, Tuple{Vararg{Real}}};
                    sorted::Bool=false, alpha::Real=1., beta::Real=alpha)
     if !isempty(p)
-        _quantilesort!(v, sorted, p isa Tuple : collect(p) ? p)
+        _quantilesort!(v, sorted, p isa Tuple ? collect(p) : p)
     end
     return map(x->_quantile(v, x, alpha=alpha, beta=beta), p)
 end
