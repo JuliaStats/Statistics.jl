@@ -976,7 +976,6 @@ function _quantilesort!(v::AbstractArray, sorted::Bool, p::AbstractVector{<:Real
     end
     return v
 end
-                                                    
 # Core quantile lookup function: assumes `v` sorted
 @inline function _quantile(v::AbstractVector, p::Real; alpha::Real=1.0, beta::Real=alpha)
     0 <= p <= 1 || throw(ArgumentError("input probability out of [0,1] range"))
