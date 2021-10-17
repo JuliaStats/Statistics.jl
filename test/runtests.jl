@@ -603,7 +603,7 @@ end
 
     # randomized partialsort correctness test
     Random.seed!(1234)
-    for i in 1:100, j in 1:20
+    for i in 1:200, j in 1:20
         x = rand(2000)
         p = rand(j)
         @test quantile(x, p) == [quantile(x, v) for v in p]
