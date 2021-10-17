@@ -956,7 +956,7 @@ end
 quantile!(v::AbstractVector, p::Real; sorted::Bool=false, alpha::Real=1., beta::Real=alpha) =
     _quantile(_quantilesort!(v, sorted, [p]), p, alpha=alpha, beta=beta)
 
-function _quantilesort!(v::AbstractArray, sorted::Bool, p::AbstractVector{<:Real})
+function _quantilesort!(v::AbstractArray, sorted::Bool, p::AbstractArray)
     isempty(v) && throw(ArgumentError("empty data vector"))
     require_one_based_indexing(v)
 
