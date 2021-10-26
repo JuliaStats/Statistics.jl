@@ -519,7 +519,11 @@ unscaled_covzm(x::AbstractVector{<:Number})    = sum(abs2, x)
 unscaled_covzm(x::AbstractVector)              = sum(t -> t*t', x)
 unscaled_covzm(x::AbstractMatrix, vardim::Int) = (vardim == 1 ? _conj(x'x) : x * x')
 
-unscaled_covzm(x::AbstractVector, y::AbstractVector) = dot(y, x)
+function unscaled_covzm(x::AbstractVector, y::AbstractVector)
+    (isempty(x) || isempty(y)) &&
+        throw(ArgumentError("covariance only defined for non-empty vectors"))
+    return dot(y, x)
+end
 unscaled_covzm(x::AbstractVector, y::AbstractMatrix, vardim::Int) =
     (vardim == 1 ? *(transpose(x), _conj(y)) : *(transpose(x), transpose(_conj(y))))
 unscaled_covzm(x::AbstractMatrix, y::AbstractVector, vardim::Int) =

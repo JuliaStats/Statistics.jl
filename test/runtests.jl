@@ -899,3 +899,31 @@ end
         @test isfinite.(cov_sparse) == isfinite.(cov_dense)
     end
 end
+
+@testset "var, std, cov and cor on empty inputs" begin
+    @test isnan(var(Int[]))
+    @test isnan(std(Int[]))
+    @test isequal(cov(Int[]), -0.0)
+    @test isequal(cor(Int[]), 1.0)
+
+    @test_throws ArgumentError cov(Int[], Int[])
+    @test_throws ArgumentError cor(Int[], Int[])
+
+    mx = Matrix{Int}(undef, 0, 2)
+    my = Matrix{Int}(undef, 0, 3)
+
+    @test isequal(var(mx, dims=1), fill(NaN, 1, 2))
+    @test isequal(std(mx, dims=1), fill(NaN, 1, 2))
+    @test isequal(var(mx, dims=2), fill(NaN, 0, 1))
+    @test isequal(std(mx, dims=2), fill(NaN, 0, 1))
+
+    @test isequal(cov(mx, my), fill(-0.0, 2, 3))
+    @test isequal(cor(mx, my), fill(NaN, 2, 3))
+    @test isequal(cov(my, mx, dims=1), fill(-0.0, 3, 2))
+    @test isequal(cor(my, mx, dims=1), fill(NaN, 3, 2))
+
+    @test isequal(cov(mx, Int[]), fill(-0.0, 2, 1))
+    @test isequal(cor(mx, Int[]), fill(NaN, 2, 1))
+    @test isequal(cov(Int[], my), fill(-0.0, 1, 3))
+    @test isequal(cor(Int[], my), fill(NaN, 1, 3))
+end
