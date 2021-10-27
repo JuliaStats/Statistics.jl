@@ -448,6 +448,16 @@ Y = [6.0  2.0;
             cov(reshape(A, :, 1))[1] ≈ cov(reshape(A, :, 1))[1] ≈
             var(A)
     end
+
+    @testset "cov with missing" begin
+        @test cov([missing]) === cov([1, missing]) === missing
+        @test cov([1, missing], [2, 3]) === cov([1, 3], [2, missing]) === missing
+        @test_throws MethodError cov([1 missing; 2 3])
+        @test_throws MethodError cov([1 missing; 2 3], [1, 2])
+        @test_throws MethodError cov([1, 2], [1 missing; 2 3])
+        @test isequal(cov([1 2; 2 3], [1, missing]), [missing missing]')
+        @test isequal(cov([1, missing], [1 2; 2 3]), [missing missing])
+    end
 end
 
 function safe_cor(x, y, zm::Bool)
@@ -548,6 +558,17 @@ end
     @test_throws MethodError Statistics.corm(Any[0.0, 1.0], 0.5)
     @test Statistics.corzm([true]) === 1.0
     @test_throws MethodError Statistics.corzm(Any[0.0, 1.0])
+
+    @testset "cor with missing" begin
+        @test cor([missing]) === missing
+        @test cor([1, missing]) == 1
+        @test cor([1, missing], [2, 3]) === cor([1, 3], [2, missing]) === missing
+        @test_throws MethodError cor([1 missing; 2 3])
+        @test_throws MethodError cor([1 missing; 2 3], [1, 2])
+        @test_throws MethodError cor([1, 2], [1 missing; 2 3])
+        @test isequal(cor([1 2; 2 3], [1, missing]), [missing missing]')
+        @test isequal(cor([1, missing], [1 2; 2 3]), [missing missing])
+    end
 end
 
 @testset "quantile" begin
