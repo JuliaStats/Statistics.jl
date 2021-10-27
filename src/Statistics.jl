@@ -522,7 +522,7 @@ unscaled_covzm(x::AbstractMatrix, vardim::Int) = (vardim == 1 ? _conj(x'x) : x *
 function unscaled_covzm(x::AbstractVector, y::AbstractVector)
     (isempty(x) || isempty(y)) &&
         throw(ArgumentError("covariance only defined for non-empty vectors"))
-    return dot(y, x)
+    return *(adjoint(y), x)
 end
 unscaled_covzm(x::AbstractVector, y::AbstractMatrix, vardim::Int) =
     (vardim == 1 ? *(transpose(x), _conj(y)) : *(transpose(x), transpose(_conj(y))))
