@@ -107,6 +107,8 @@ mean(f, A::AbstractArray; dims=:) = _mean(f, A, dims)
     mean!(r, v)
 
 Compute the mean of `v` over the singleton dimensions of `r`, and write results to `r`.
+Note that since the mean! It is intended to operate without making any allocations,
+the target should not alias with the source.
 
 # Examples
 ```jldoctest
@@ -990,9 +992,9 @@ end
     require_one_based_indexing(v)
 
     n = length(v)
-    
+
     @assert n > 0 # this case should never happen here
-    
+
     m = alpha + p * (one(alpha) - alpha - beta)
     aleph = n*p + oftype(p, m)
     j = clamp(trunc(Int, aleph), 1, n-1)
@@ -1005,7 +1007,7 @@ end
         a = v[j]
         b = v[j + 1]
     end
-    
+
     if isfinite(a) && isfinite(b)
         return a + γ*(b-a)
     else
