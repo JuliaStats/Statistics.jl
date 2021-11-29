@@ -860,7 +860,7 @@ median(itr) = median!(collect(itr))
 Compute the median of an array along the given dimensions.
 
 # Examples
-```jl
+```jldoctest
 julia> using Statistics
 
 julia> median([1 2; 3 4], dims=1)
