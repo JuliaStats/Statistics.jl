@@ -259,6 +259,7 @@ end
     @test std([1.0,2,3]; mean=0) ≈ sqrt(7.0)
     @test std([1.0,2,3]; mean=0, corrected=false) ≈ sqrt(14.0/3)
 
+    @test stdm([1.0,2,3], [0]; dims=1, corrected=false)[] ≈ sqrt(14.0/3)
     @test std([1.0,2,3]; dims=1)[] ≈ 1.
     @test std([1.0,2,3]; dims=1, corrected=false)[] ≈ sqrt(2.0/3)
     @test std([1.0,2,3]; dims=1, mean=[0])[] ≈ sqrt(7.0)
@@ -270,6 +271,8 @@ end
     @test std((1,2,3); mean=0) ≈ sqrt(7.0)
     @test std((1,2,3); mean=0, corrected=false) ≈ sqrt(14.0/3)
 
+    @test stdm([1 2 3 4 5; 6 7 8 9 10], [3.0,8.0], dims=2) ≈ sqrt.([2.5 2.5]')
+    @test stdm([1 2 3 4 5; 6 7 8 9 10], [3.0,8.0], dims=2; corrected=false) ≈ sqrt.([2.0 2.0]')
     @test std([1 2 3 4 5; 6 7 8 9 10], dims=2) ≈ sqrt.([2.5 2.5]')
     @test std([1 2 3 4 5; 6 7 8 9 10], dims=2; corrected=false) ≈ sqrt.([2.0 2.0]')
 
