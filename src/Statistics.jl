@@ -198,18 +198,16 @@ realXcY(x::Complex, y::Complex) = real(x)*real(y) + imag(x)*imag(y)
 var(iterable; corrected::Bool=true, mean=nothing) = _var(iterable, corrected, mean)
 
 function _var(iterable, corrected::Bool, mean)
-    y = iterate(iterable)
-    if y === nothing
+    if isempty(iterable)
         # Return the NaN of the type that we would get for a nonempty x
         T = eltype(iterable)
         _mean = (mean === nothing) ? zero(T) / 1 : mean
         z = abs2(zero(T) - _mean)
         return oftype((z + z) / 2, NaN)
-    end
-    count = 1
-    value, state = y
-    y = iterate(iterable, state)
-    if mean === nothing
+    elseif mean === nothing
+        count = 1
+        value, state = y
+        y = iterate(iterable, state)
         # Use Welford algorithm as seen in (among other places)
         # Knuth's TAOCP, Vol 2, page 232, 3rd edition.
         M = value / 1
@@ -229,6 +227,9 @@ function _var(iterable, corrected::Bool, mean)
         # by Chan, Golub, and LeVeque, Technical Report STAN-CS-79-773,
         # Department of Computer Science, Stanford University,
         # because user can provide mean value that is different to mean(iterable)
+        count = 1
+        value, state = y
+        y = iterate(iterable, state)
         sum2 = abs2(value - mean::Number)
         while y !== nothing
             value, state = y
