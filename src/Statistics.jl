@@ -231,7 +231,7 @@ function _var(x, corrected::Bool, mean)
             sse += abs2(value - mean)
         end
     end
-    return sse / (n - corrected)
+    return sse / (n - Int(corrected))
 end
 
 centralizedabs2fun(m) = x -> abs2.(x - m)
