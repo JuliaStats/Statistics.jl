@@ -197,50 +197,41 @@ realXcY(x::Complex, y::Complex) = real(x)*real(y) + imag(x)*imag(y)
 
 var(iterable; corrected::Bool=true, mean=nothing) = _var(iterable, corrected, mean)
 
-function _var(iterable, corrected::Bool, mean)
-    if isempty(iterable)
+function _var(x, corrected::Bool, mean)
+    if isempty(x)
         # Return the NaN of the type that we would get for a nonempty x
-        T = eltype(iterable)
+        T = eltype(x)
         _mean = (mean === nothing) ? zero(T) / 1 : mean
         z = abs2(zero(T) - _mean)
         return oftype((z + z) / 2, NaN)
     elseif mean === nothing
-        y = iterate(iterable)
-        count = 1
+        n = 0
+        y = iterate(x)
         value, state = y
         # Use Welford algorithm as seen in (among other places)
         # Knuth's TAOCP, Vol 2, page 232, 3rd edition.
-        M = value / 1
-        S = real(zero(M))
+        _mean = value / 1
+        sse = real(zero(_mean))
         while y !== nothing
             value, state = y
-            y = iterate(iterable, state)
-            count += 1
-            new_M = M + (value - M) / count
-            S = S + realXcY(value - M, value - new_M)
-            M = new_M
+            y = iterate(x, state)
+            n += 1
+            new_mean = _mean + (value - _mean) / n
+            sse += realXcY(value - _mean, value - new_mean)
+            _mean = new_mean
         end
-        return S / (count - corrected)
-    elseif isa(mean, Number) # mean provided
-        # Cannot use a compensated version, e.g. the one from
-        # "Updating Formulae and a Pairwise Algorithm for Computing Sample Variances."
-        # by Chan, Golub, and LeVeque, Technical Report STAN-CS-79-773,
-        # Department of Computer Science, Stanford University,
-        # because user can provide mean value that is different to mean(iterable)
-        y = iterate(iterable)
-        count = 1
-        value, state = y
-        sum2 = abs2(value - mean)
-        while y !== nothing
-            value, state = y
-            y = iterate(iterable, state)
-            count += 1
-            sum2 += abs2(value - mean)
-        end
-        return sum2 / (count - corrected)
     else
-        throw(ArgumentError("invalid value of mean, $(mean)::$(typeof(mean))"))
+        n = 1
+        y = iterate(x)
+        value, state = y
+        sse = abs2(value - mean)
+        while (y = iterate(x, state)) !== nothing
+            value, state = y
+            n += 1
+            sse += abs2(value - mean)
+        end
     end
+    return sse / (n - corrected)
 end
 
 centralizedabs2fun(m) = x -> abs2.(x - m)
