@@ -201,7 +201,7 @@ function _var(iterable, corrected::Bool, mean)
     y = iterate(iterable)
     if y === nothing
         # Return the NaN of the type that we would get for a nonempty x
-        T = eltype(x)
+        T = eltype(iterable)
         _mean = (mean === nothing) ? zero(T) / 1 : mean
         z = abs2(zero(T) - _mean)
         return oftype((z + z) / 2, NaN)
