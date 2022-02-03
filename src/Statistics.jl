@@ -205,7 +205,7 @@ function _var(iterable, corrected::Bool, mean)
         z = abs2(zero(T) - _mean)
         return oftype((z + z) / 2, NaN)
     elseif mean === nothing
-        y = iterate(iterable, state)
+        y = iterate(iterable)
         count = 1
         value, state = y
         # Use Welford algorithm as seen in (among other places)
@@ -227,10 +227,10 @@ function _var(iterable, corrected::Bool, mean)
         # by Chan, Golub, and LeVeque, Technical Report STAN-CS-79-773,
         # Department of Computer Science, Stanford University,
         # because user can provide mean value that is different to mean(iterable)
-        y = iterate(iterable, state)
+        y = iterate(iterable)
         count = 1
         value, state = y
-        sum2 = abs2(value - mean::Number)
+        sum2 = abs2(value - mean)
         while y !== nothing
             value, state = y
             y = iterate(iterable, state)
