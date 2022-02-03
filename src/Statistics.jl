@@ -220,7 +220,7 @@ function _var(iterable, corrected::Bool, mean)
             S = S + realXcY(value - M, value - new_M)
             M = new_M
         end
-        return S / (count - Int(corrected))
+        return S / (count - corrected)
     elseif isa(mean, Number) # mean provided
         # Cannot use a compensated version, e.g. the one from
         # "Updating Formulae and a Pairwise Algorithm for Computing Sample Variances."
@@ -237,7 +237,7 @@ function _var(iterable, corrected::Bool, mean)
             count += 1
             sum2 += abs2(value - mean)
         end
-        return sum2 / (count - Int(corrected))
+        return sum2 / (count - corrected)
     else
         throw(ArgumentError("invalid value of mean, $(mean)::$(typeof(mean))"))
     end
