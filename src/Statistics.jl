@@ -361,7 +361,7 @@ function var(A::AbstractArray{T,N}; corrected::Bool=true, mean=nothing, dims=:) 
             A = cat(A, zero(eltype(A)); dims=dim)
         end
         v = _var(A, corrected, mean, dims)
-        return v .= oftype(eltype(v), NaN)
+        return v .= convert(eltype(v), NaN)
     else
         return _var(A, corrected, mean, dims)
     end
