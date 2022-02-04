@@ -196,37 +196,35 @@ realXcY(x::Real, y::Real) = x*y
 realXcY(x::Complex, y::Complex) = real(x)*real(y) + imag(x)*imag(y)
 
 function var(iterable; corrected::Bool=true, mean=nothing) 
-    empty = isempty(iterable)
-    if empty
+    y = peel(iterable)
+    if y === nothing
         # Return the NaN of the type that we would get for a nonempty x
         iterable = [zero(eltype(iterable))]
-        return oftype(_var(iterable, corrected, mean), NaN)
-    end 
-    return _var(iterable, corrected, mean)
-end
-
-function _var(iterable, corrected::Bool, mean::Number)
-    # Can't use compensated algorithm, because "mean" arg might not equal sample mean
-    n = 0
-    sse = false
-    for element in iterable
-        n += 1
-        sse += (element - mean)^2
-    end
-    return sse / (n - corrected)
-end
-
-function _var(iterable, corrected::Bool, ::Nothing)
-    # Use Welford algorithm as seen in (among other places)
-    # Knuth's TAOCP, Vol 2, page 232, 3rd edition.
-    n = 0
-    mean = false
-    sse = false
-    for element in iterable
-        n += 1
-        new_mean = mean + (element - mean) / n
-        sse += realXcY(element - mean, element - new_mean)
-        mean = new_mean
+        return oftype(var(iterable; corrected=corrected, mean=mean), NaN)
+    elseif mean isa Number        
+        # Can't use compensated algorithm, because "mean" arg might not equal sample mean
+        first, iterable = y
+        n = 1
+        sse = zero(first)
+        for element in iterable
+            n += 1
+            sse += (element - mean)^2
+        end
+    elseif mean === nothing
+        first, iterable = y
+        # Use Welford algorithm as seen in (among other places)
+        # Knuth's TAOCP, Vol 2, page 232, 3rd edition.
+        n = 1
+        mean = first
+        sse = zero(first)
+        for element in iterable
+            n += 1
+            new_mean = mean + (element - mean) / n
+            sse += realXcY(element - mean, element - new_mean)
+            mean = new_mean
+        end
+    else
+        throw(ArgumentError("mean must be a number or nothing"))
     end
     return sse / (n - corrected)
 end
@@ -316,7 +314,15 @@ over dimensions. In that case, `mean` must be an array with the same shape as
     Use the [`skipmissing`](@ref) function to omit `missing` entries and compute the
     variance of non-missing values.
 """
-varm(A::AbstractArray, m::AbstractArray; corrected::Bool=true, dims=:) = _varm(A, m, corrected, dims)
+function varm(A::AbstractArray, m::AbstractArray; corrected::Bool=true, dims=:) 
+    empty = isempty(iterable)
+    if empty
+        # Return the NaN of the type that we would get for a nonempty x
+        iterable = [zero(eltype(iterable))]
+        return oftype(_var(iterable, corrected, mean), NaN)
+    end
+    return _varm(A, m, corrected, dims)
+end
 
 _varm(A::AbstractArray{T}, m, corrected::Bool, region) where {T} =
     varm!(Base.reducedim_init(t -> abs2(t)/2, +, A, region), A, m; corrected=corrected)
@@ -325,8 +331,7 @@ varm(A::AbstractArray, m; corrected::Bool=true) = _varm(A, m, corrected, :)
 
 function _varm(A::AbstractArray{T}, m, corrected::Bool, ::Colon) where T
     n = length(A)
-    n == 0 && return oftype((abs2(zero(T)) + abs2(zero(T)))/2, NaN)
-    return centralize_sumabs2(A, m) / (n - Int(corrected))
+    return centralize_sumabs2(A, m) / (n - corrected)
 end
 
 

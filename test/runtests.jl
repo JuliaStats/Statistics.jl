@@ -228,6 +228,12 @@ end
     @test isnan(var(1.0f0:1.0f0))
     @test isnan(var(1.0f0:-1.0f0))
 
+    # Type stability test for differently-typed mean and eltype(array)
+    @inferred var(1:3; mean=0f0)
+    @inferred var(Int[]; mean=0f0)
+    @inferred varm(1:3, 0f0)
+    @inferred varm(Int[], 0f0)
+
     @test varm([1,2,3], 2) ≈ 1.
     @test var([1,2,3]) ≈ 1.
     @test var([1,2,3]; corrected=false) ≈ 2.0/3
@@ -246,12 +252,6 @@ end
 
     @test var(collect(1:99), dims=1) ≈ [825]
     @test var(Matrix(transpose(collect(1:99))), dims=2) ≈ [825]
-
-    # Type stable test
-    @inferred var(1:3; mean=0f0)
-    @inferred var(Int[]; mean=0f0)
-    @inferred varm(1:3, 0f0)
-    @inferred varm(Int[], 0f0)
 
 
     @test stdm([1,2,3], 2) ≈ 1.
