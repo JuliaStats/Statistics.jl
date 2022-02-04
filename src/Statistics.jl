@@ -355,7 +355,7 @@ singleton dimensions are allowed).
     Use the [`skipmissing`](@ref) function to omit `missing` entries and compute the
     variance of non-missing values.
 """
-function var(A::AbstractArray{T,N}; corrected::Bool=true, mean=nothing, dims=:)
+function var(A::AbstractArray; corrected::Bool=true, mean=nothing, dims=:)
     if isempty(A)
         A = similar(A, size(A) .+ 1)
         v = _var(A, corrected, mean, dims)
