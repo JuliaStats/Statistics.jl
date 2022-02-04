@@ -205,10 +205,10 @@ function var(iterable; corrected::Bool=true, mean=nothing)
         # Can't use compensated algorithm, because "mean" arg might not equal sample mean
         first, iterable = y
         n = 1
-        sse = zero(first)
+        sse = abs2(first - mean)
         for element in iterable
             n += 1
-            sse += (element - mean)^2
+            sse += abs2(element - mean)
         end
     elseif mean === nothing
         first, iterable = y
@@ -371,7 +371,7 @@ function _var(A::AbstractArray, corrected::Bool, mean, ::Colon)
   return real(varm(A, mean; corrected=corrected))
 end
 
-varm(iterable, m; corrected::Bool=true) = _var(iterable, corrected, m)
+varm(iterable, m; corrected::Bool=true) = var(iterable; corrected=corrected, mean=m)
 
 ## variances over ranges
 
