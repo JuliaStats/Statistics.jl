@@ -199,7 +199,7 @@ function var(iterable; corrected::Bool=true, mean=nothing)
     empty = isempty(iterable)
     if empty
         # Return the NaN of the type that we would get for a nonempty x
-        iterable = Iterators.flatten((zero(eltype(iterable)), iterable))
+        iterable = [zero(eltype(iterable))]
         return oftype(_var(iterable, corrected, mean), NaN)
     end 
     return _var(iterable, corrected, mean)
@@ -217,9 +217,9 @@ function _var(iterable, corrected::Bool, mean::Number)
 end
 
 function _var(iterable, corrected::Bool, ::Nothing)
-    n = 0
     # Use Welford algorithm as seen in (among other places)
     # Knuth's TAOCP, Vol 2, page 232, 3rd edition.
+    n = 0
     mean = false
     sse = false
     for element in iterable
