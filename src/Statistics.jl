@@ -195,43 +195,46 @@ median(r::AbstractRange{<:Real}) = mean(r)
 realXcY(x::Real, y::Real) = x*y
 realXcY(x::Complex, y::Complex) = real(x)*real(y) + imag(x)*imag(y)
 
-var(iterable; corrected::Bool=true, mean=nothing) = _var(iterable, corrected, mean)
-
-function _var(x, corrected::Bool, mean)
-    if isempty(x)
+function var(iterable; corrected::Bool=true, mean=nothing) 
+    empty = isempty(iterable)
+    if empty
         # Return the NaN of the type that we would get for a nonempty x
-        T = eltype(x)
-        _mean = (mean === nothing) ? zero(T) / 1 : mean
-        z = abs2(zero(T) - _mean)
-        return oftype((z + z) / 2, NaN)
-    elseif mean === nothing
-        n = 0
-        y = iterate(x)
+        iterable = [zero(eltype(iterable))]
+        mean = (mean === nothing) ? mean(iterable) : mean
+    end 
+    return _var(iterable, corrected, mean) / !empty  # forces division by 0 -> NaN
+end
+
+function _var(x, corrected::Bool, mean::Number)
+    n = 1
+    y = iterate(x)
+    value, state = y
+    sse = abs2(value - mean)
+    while (y = iterate(x, state)) !== nothing
         value, state = y
-        # Use Welford algorithm as seen in (among other places)
-        # Knuth's TAOCP, Vol 2, page 232, 3rd edition.
-        _mean = value / 1
-        sse = real(zero(_mean))
-        while y !== nothing
-            value, state = y
-            y = iterate(x, state)
-            n += 1
-            new_mean = _mean + (value - _mean) / n
-            sse += realXcY(value - _mean, value - new_mean)
-            _mean = new_mean
-        end
-    else
-        n = 1
-        y = iterate(x)
-        value, state = y
-        sse = abs2(value - mean)
-        while (y = iterate(x, state)) !== nothing
-            value, state = y
-            n += 1
-            sse += abs2(value - mean)
-        end
+        n += 1
+        sse += abs2(value - mean)
     end
-    return sse / (n - Int(corrected))
+    return sse / (n - corrected)
+end
+
+function _var(x, corrected::Bool, ::Nothing)
+    n = 0
+    y = iterate(x)
+    value, state = y
+    # Use Welford algorithm as seen in (among other places)
+    # Knuth's TAOCP, Vol 2, page 232, 3rd edition.
+    mean = value / 1
+    sse = real(zero(mean))
+    while y !== nothing
+        value, state = y
+        y = iterate(x, state)
+        n += 1
+        new_mean = mean + (value - mean) / n
+        sse += realXcY(value - mean, value - new_mean)
+        mean = new_mean
+    end
+    return sse / (n - corrected)
 end
 
 centralizedabs2fun(m) = x -> abs2.(x - m)
