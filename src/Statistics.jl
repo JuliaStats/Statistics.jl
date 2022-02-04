@@ -199,8 +199,7 @@ function var(iterable; corrected::Bool=true, mean=nothing)
     empty = isempty(iterable)
     if empty
         # Return the NaN of the type that we would get for a nonempty x
-        iterable = [zero(eltype(iterable))]
-        corrected = true  # forces division by 0 -> NaN
+        iterable = Iterators.flatten((zero(eltype(iterable)), iterable))
         return oftype(_var(iterable, corrected, mean), NaN)
     end 
     return _var(iterable, corrected, mean)
