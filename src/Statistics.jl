@@ -314,15 +314,7 @@ over dimensions. In that case, `mean` must be an array with the same shape as
     Use the [`skipmissing`](@ref) function to omit `missing` entries and compute the
     variance of non-missing values.
 """
-function varm(A::AbstractArray, m::AbstractArray; corrected::Bool=true, dims=:) 
-    empty = isempty(iterable)
-    if empty
-        # Return the NaN of the type that we would get for a nonempty x
-        iterable = [zero(eltype(iterable))]
-        return oftype(_var(iterable, corrected, mean), NaN)
-    end
-    return _varm(A, m, corrected, dims)
-end
+varm(A::AbstractArray, m::AbstractArray; corrected::Bool=true, dims=:) = _varm(A, m, corrected, dims)
 
 _varm(A::AbstractArray{T}, m, corrected::Bool, region) where {T} =
     varm!(Base.reducedim_init(t -> abs2(t)/2, +, A, region), A, m; corrected=corrected)
@@ -331,7 +323,8 @@ varm(A::AbstractArray, m; corrected::Bool=true) = _varm(A, m, corrected, :)
 
 function _varm(A::AbstractArray{T}, m, corrected::Bool, ::Colon) where T
     n = length(A)
-    return centralize_sumabs2(A, m) / (n - corrected)
+    n == 0 && return oftype((abs2(zero(T)) + abs2(zero(T)))/2, NaN)
+    return centralize_sumabs2(A, m) / (n - Int(corrected))
 end
 
 
