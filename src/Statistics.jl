@@ -368,18 +368,13 @@ end
 _fill!(A::AbstractArray, x) = fill!(A, x)
 _fill!(A, x) = x
 
-function _var(A::AbstractArray, corrected::Bool, mean, dims)
-  if mean === nothing
-      mean = Statistics.mean(A, dims=dims)
-  end
-  return varm(A, mean; corrected=corrected, dims=dims)
+function _var(A::AbstractArray, corrected::Bool, ::Nothing, dims)
+    mean = Statistics.mean(A, dims=dims)
+    return varm(A, mean; corrected=corrected, dims=dims)
 end
 
-function _var(A::AbstractArray, corrected::Bool, mean, ::Colon)
-  if mean === nothing
-      mean = Statistics.mean(A)
-  end
-  return real(varm(A, mean; corrected=corrected))
+function _var(A::AbstractArray, corrected::Bool, mean::Number, dims)
+    return varm(A, mean; corrected=corrected)
 end
 
 varm(iterable, m; corrected::Bool=true) = var(iterable; corrected=corrected, mean=m)
