@@ -359,11 +359,14 @@ function var(A::AbstractArray; corrected::Bool=true, mean=nothing, dims=:)
     if isempty(A)
         A = similar(A, size(A) .+ 1)
         v = _var(A, corrected, mean, dims)
-        return v .= convert(eltype(v), NaN)
+        return _fill!(v, convert(eltype(v), NaN))
     else
         return _var(A, corrected, mean, dims)
     end
 end
+
+_fill!(A::AbstractArray, x) = fill!(A, x)
+_fill!(A, x) = x
 
 function _var(A::AbstractArray, corrected::Bool, mean, dims)
   if mean === nothing
