@@ -464,7 +464,7 @@ std(iterable; corrected::Bool=true, mean=nothing) =
     sqrt(var(iterable, corrected=corrected, mean=mean))
 
 """
-    stdm(itr, mean; corrected::Bool=true, dims)
+    stdm(itr, mean; corrected::Bool=true[, dims])
 
 Compute the sample standard deviation of collection `itr`, with known mean(s) `mean`.
 
