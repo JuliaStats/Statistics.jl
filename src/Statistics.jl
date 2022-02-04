@@ -487,14 +487,11 @@ over dimensions. In that case, `mean` must be an array with the same shape as
     Use the [`skipmissing`](@ref) function to omit `missing` entries and compute the
     standard deviation of non-missing values.
 """
-stdm(A::AbstractArray, m; corrected::Bool=true) =
-    sqrt.(varm(A, m; corrected=corrected))
-
 stdm(A::AbstractArray, m::AbstractArray; corrected::Bool=true, dims=:) =
-    sqrt.(varm(A, m; corrected=corrected, dims=dims))
+    _std(A, corrected, m, dims)
 
 stdm(iterable, m; corrected::Bool=true) =
-    std(iterable, corrected=corrected, mean=m)
+    sqrt(var(iterable, corrected=corrected, mean=mean))
 
 
 ###### covariance ######
