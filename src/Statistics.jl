@@ -357,7 +357,9 @@ singleton dimensions are allowed).
 """
 function var(A::AbstractArray{T,N}; corrected::Bool=true, mean=nothing, dims=:) where {T,N}
     if isempty(A)
-        A = cat(A, zero(eltype(A)); dims=N)
+        for dim in 1:N
+            A = cat(A, zero(eltype(A)); dims=dim)
+        end
         return oftype(_var(A, corrected, mean, dims), NaN)
     else
         return _var(A, corrected, mean, dims)
