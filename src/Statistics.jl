@@ -196,12 +196,12 @@ realXcY(x::Real, y::Real) = x*y
 realXcY(x::Complex, y::Complex) = real(x)*real(y) + imag(x)*imag(y)
 
 function var(iterable; corrected::Bool=true, mean=nothing) 
-    y = peel(iterable)
+    y = Iterators.peel(iterable)
     if y === nothing
         # Return the NaN of the type that we would get for a nonempty x
         iterable = [zero(eltype(iterable))]
         return oftype(var(iterable; corrected=corrected, mean=mean), NaN)
-    elseif mean isa Number        
+    elseif mean isa Number
         # Can't use compensated algorithm, because "mean" arg might not equal sample mean
         first, iterable = y
         n = 1
