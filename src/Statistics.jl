@@ -360,7 +360,8 @@ function var(A::AbstractArray{T,N}; corrected::Bool=true, mean=nothing, dims=:) 
         for dim in 1:N
             A = cat(A, zero(eltype(A)); dims=dim)
         end
-        return oftype(_var(A, corrected, mean, dims), NaN)
+        v = _var(A, corrected, mean, dims)
+        return v .= oftype(eltype(v), NaN)
     else
         return _var(A, corrected, mean, dims)
     end
