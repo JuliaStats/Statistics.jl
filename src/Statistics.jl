@@ -491,7 +491,7 @@ stdm(A::AbstractArray, m::AbstractArray; corrected::Bool=true, dims=:) =
     _std(A, corrected, m, dims)
 
 stdm(iterable, m; corrected::Bool=true) =
-    sqrt(var(iterable, corrected=corrected, mean=mean))
+    sqrt(var(iterable, corrected=corrected, mean=m))
 
 
 ###### covariance ######
