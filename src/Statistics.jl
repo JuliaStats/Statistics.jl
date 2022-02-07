@@ -419,9 +419,6 @@ function sqrt!(A::AbstractArray)
     A
 end
 
-stdm(A::AbstractArray, m; corrected::Bool=true) =
-    sqrt.(varm(A, m; corrected=corrected))
-
 """
     std(itr; corrected::Bool=true, mean=nothing[, dims])
 
@@ -467,7 +464,7 @@ std(iterable; corrected::Bool=true, mean=nothing) =
     sqrt(var(iterable, corrected=corrected, mean=mean))
 
 """
-    stdm(itr, mean; corrected::Bool=true)
+    stdm(itr, mean; corrected::Bool=true[, dims])
 
 Compute the sample standard deviation of collection `itr`, with known mean(s) `mean`.
 
@@ -490,8 +487,11 @@ over dimensions. In that case, `mean` must be an array with the same shape as
     Use the [`skipmissing`](@ref) function to omit `missing` entries and compute the
     standard deviation of non-missing values.
 """
+stdm(A::AbstractArray, m::AbstractArray; corrected::Bool=true, dims=:) =
+    _std(A, corrected, m, dims)
+
 stdm(iterable, m; corrected::Bool=true) =
-    std(iterable, corrected=corrected, mean=m)
+    sqrt(var(iterable, corrected=corrected, mean=m))
 
 
 ###### covariance ######
