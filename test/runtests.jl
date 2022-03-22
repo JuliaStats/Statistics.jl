@@ -612,6 +612,7 @@ end
     @test quantile(Any[1, 2, 3], Float16(0.5)) isa Float16
     @test quantile(Any[1, Float16(2), 3], Float16(0.5)) isa Float16
     @test quantile(Any[1, big(2), 3], Float16(0.5)) isa BigFloat
+    @test quantile(reshape(collect(1:100), (10, 10)), [0.00, 0.25, 0.50, 0.75, 1.00]) == [1.0, 25.75, 50.5, 75.25, 100.0]
 
     # Need a large vector to actually check consequences of partial sorting
     x = rand(50)
