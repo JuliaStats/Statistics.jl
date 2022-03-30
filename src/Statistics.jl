@@ -1073,9 +1073,9 @@ quantile(itr, p; sorted::Bool=false, alpha::Real=1.0, beta::Real=alpha) =
 quantile(v::AbstractVector, p; sorted::Bool=false, alpha::Real=1.0, beta::Real=alpha) =
     quantile!(sorted ? v : Base.copymutable(v), p; sorted=sorted, alpha=alpha, beta=beta)
 
-quantile(arr::AbstractArray, p::Union{AbstractArray,Tuple{Vararg{Real}}};
-    sorted::Bool=false, alpha::Real=1.0, beta::Real=alpha) =
-    quantile!(vec(arr), p, sorted=sorted, alpha=alpha, beta=alpha)
+quantile(arr::AbstractArray, p; sorted::Bool=false, alpha::Real=1.0, beta::Real=alpha) =
+    quantile!(sorted ? vec(arr) : Base.copymutable(vec(arr)), p; sorted=sorted, alpha=alpha, beta=beta)
+
 
 
 ##### SparseArrays optimizations #####
