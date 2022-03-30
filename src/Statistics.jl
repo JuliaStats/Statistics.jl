@@ -958,8 +958,9 @@ function quantile!(v::AbstractVector, p::Union{AbstractArray, Tuple{Vararg{Real}
     end
     return map(x->_quantile(v, x, alpha=alpha, beta=beta), p)
 end
-quantile!(arr::AbstractArray, p::Union{AbstractArray,Tuple{Vararg{Real}}}; sorted::Bool=false, alpha::Real=1.0, beta::Real=alpha) =
-    quantile!(arr[:], p, sorted=sorted, alpha=alpha, beta=alpha)
+quantile!(arr::AbstractArray, p::Union{AbstractArray,Tuple{Vararg{Real}}};
+          sorted::Bool=false, alpha::Real=1.0, beta::Real=alpha) =
+    quantile!(vec(arr), p, sorted=sorted, alpha=alpha, beta=alpha)
 
 quantile!(v::AbstractVector, p::Real; sorted::Bool=false, alpha::Real=1., beta::Real=alpha) =
     _quantile(_quantilesort!(v, sorted, p, p), p, alpha=alpha, beta=beta)
