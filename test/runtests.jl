@@ -640,6 +640,11 @@ end
     @test quantile!(y, x, [0.1, 0.5, 0.9]) === y
     @test y ≈ [1.2, 2.0, 2.8]
 
+    x = reshape(collect(1:100), (10, 10))
+    y = zeros(5)
+    @test quantile!(y, x, [0.00, 0.25, 0.50, 0.75, 1.00]) === y
+    @test y ≈  [1.0, 25.75, 50.5, 75.25, 100.0]
+
     #tests for quantile calculation with configurable alpha and beta parameters
     v = [2, 3, 4, 6, 9, 2, 6, 2, 21, 17]
 
