@@ -44,7 +44,7 @@ julia> mean(skipmissing([1, missing, 3]))
 mean(itr) = mean(identity, itr)
 
 """
-    mean(f::Function, itr)
+    mean(f, itr)
 
 Apply the function `f` to each element of collection `itr` and take the mean.
 
@@ -79,7 +79,7 @@ function mean(f, itr)
 end
 
 """
-    mean(f::Function, A::AbstractArray; dims)
+    mean(f, A::AbstractArray; dims)
 
 Apply the function `f` to each element of array `A` and take the mean over dimensions `dims`.
 
