@@ -625,6 +625,14 @@ end
     @test quantile(skipmissing([1, missing, 2]), 0.5) === 1.5
     @test quantile([1], 0.5) === 1.0
 
+    # randomized partialsort correctness test
+    Random.seed!(1234)
+    for i in 1:200, j in 1:20
+        x = rand(2000)
+        p = rand(j)
+        @test quantile(x, p) == [quantile(x, v) for v in p]
+    end
+
     # make sure that type inference works correctly in normal cases
     for T in [Int, BigInt, Float64, Float16, BigFloat, Rational{Int}, Rational{BigInt}]
         for S in [Float64, Float16, BigFloat, Rational{Int}, Rational{BigInt}]
