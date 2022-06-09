@@ -958,19 +958,19 @@ function quantile!(v::AbstractVector, p::Union{AbstractArray, Tuple{Vararg{Real}
     end
     return map(x->_quantile(v, x, alpha=alpha, beta=beta), p)
 end
-quantile!(arr::AbstractArray, p::Union{AbstractArray,Tuple{Vararg{Real}}};
-    sorted::Bool=false, alpha::Real=1.0, beta::Real=alpha) =
-    quantile!(vec(arr), p, sorted=sorted, alpha=alpha, beta=alpha)
+quantile!(a::AbstractArray, p::Union{AbstractArray,Tuple{Vararg{Real}}};
+          sorted::Bool=false, alpha::Real=1.0, beta::Real=alpha) =
+    quantile!(vec(a), p, sorted=sorted, alpha=alpha, beta=alpha)
 
-quantile!(q::AbstractArray, arr::AbstractArray, p::Union{AbstractArray,Tuple{Vararg{Real}}};
-    sorted::Bool=false, alpha::Real=1.0, beta::Real=alpha) =
-    quantile!(q, vec(arr), p, sorted=sorted, alpha=alpha, beta=alpha)
+quantile!(q::AbstractArray, a::AbstractArray, p::Union{AbstractArray,Tuple{Vararg{Real}}};
+          sorted::Bool=false, alpha::Real=1.0, beta::Real=alpha) =
+    quantile!(q, vec(a), p, sorted=sorted, alpha=alpha, beta=alpha)
 
 quantile!(v::AbstractVector, p::Real; sorted::Bool=false, alpha::Real=1.0, beta::Real=alpha) =
     _quantile(_quantilesort!(v, sorted, p, p), p, alpha=alpha, beta=beta)
 
 # Function to perform partial sort of v for quantiles in given range
-function _quantilesort!(v::AbstractArray, sorted::Bool, minp::Real, maxp::Real)
+function _quantilesort!(v::AbstractVector, sorted::Bool, minp::Real, maxp::Real)
     isempty(v) && throw(ArgumentError("empty data vector"))
     require_one_based_indexing(v)
 
@@ -1079,6 +1079,7 @@ quantile(itr, p; sorted::Bool=false, alpha::Real=1.0, beta::Real=alpha) =
 
 quantile(v::AbstractVector, p; sorted::Bool=false, alpha::Real=1.0, beta::Real=alpha) =
     quantile!(sorted ? v : Base.copymutable(v), p; sorted=sorted, alpha=alpha, beta=beta)
+
 
 ##### SparseArrays optimizations #####
 
