@@ -182,9 +182,9 @@ function _mean(f, A::AbstractArray, dims::Dims=:) where Dims
     end
 end
 
-function mean(r::AbstractRange{<:Real})
-    isempty(r) && return oftype((first(r) + last(r)) / 2, NaN)
-    (first(r) + last(r)) / 2
+function mean(r::AbstractRange{T}) where T
+    isempty(r) && return zero(T)/0
+    return first(r)/2 + last(r)/2
 end
 
 median(r::AbstractRange{<:Real}) = mean(r)
@@ -997,9 +997,9 @@ end
     require_one_based_indexing(v)
 
     n = length(v)
-    
+
     @assert n > 0 # this case should never happen here
-    
+
     m = alpha + p * (one(alpha) - alpha - beta)
     aleph = n*p + oftype(p, m)
     j = clamp(trunc(Int, aleph), 1, n-1)
@@ -1012,7 +1012,7 @@ end
         a = v[j]
         b = v[j + 1]
     end
-    
+
     if isfinite(a) && isfinite(b)
         return a + γ*(b-a)
     else

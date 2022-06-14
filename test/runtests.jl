@@ -171,8 +171,16 @@ end
             @test f(2:0.1:n) ≈ f([2:0.1:n;])
         end
     end
-    @test mean(2:1) === NaN
-    @test mean(big(2):1) isa BigFloat
+    @test mean(2:0.1:4) === 3.0  # N.B. mean([2:0.1:4;]) != 3
+    @test mean(LinRange(2im, 4im, 21)) === 3.0im
+    @test mean(2:1//10:4) === 3//1
+    @test isnan(@inferred(mean(2:1))::Float64)
+    @test isnan(@inferred(mean(big(2):1))::BigFloat)
+    z = @inferred(mean(LinRange(2im, 1im, 0)))::ComplexF64
+    @test isnan(real(z)) & isnan(imag(z))
+    @test_throws DivideError mean(2//1:1)
+    @test mean(typemax(Int):typemax(Int)) === float(typemax(Int))
+    @test mean(prevfloat(Inf):prevfloat(Inf)) === prevfloat(Inf)
 end
 
 @testset "var & std" begin
@@ -547,16 +555,16 @@ end
         @test cor(tmp, tmp) <= 1.0
         @test cor(tmp, tmp2) <= 1.0
     end
-    
+
     @test cor(Int[]) === 1.0
     @test cor([im]) === 1.0 + 0.0im
     @test_throws MethodError cor([])
     @test_throws MethodError cor(Any[1.0])
-    
+
     @test cor([1, missing]) === 1.0
     @test ismissing(cor([missing]))
     @test_throws MethodError cor(Any[1.0, missing])
-    
+
     @test Statistics.corm([true], 1.0) === 1.0
     @test_throws MethodError Statistics.corm(Any[0.0, 1.0], 0.5)
     @test Statistics.corzm([true]) === 1.0
