@@ -21,6 +21,11 @@ Random.seed!(123)
     for T in [Bool,Int8,Int16,Int32,Int64,Int128,UInt8,UInt16,UInt32,UInt64,UInt128,Float16,Float32,Float64]
         @test middle(one(T)) === middle(one(T), one(T))
     end
+
+    @test_throws Exception middle(Int[])
+    @test_throws Exception middle(1:0)
+    @test_throws MethodError middle([1.0im, 2.0im])
+    @test_throws MethodError middle(LinRange(1.0im, 2.0im, 2))
 end
 
 @testset "median" begin
