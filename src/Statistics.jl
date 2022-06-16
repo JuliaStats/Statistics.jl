@@ -765,7 +765,7 @@ equivalent in both value and type to computing their mean (`(x + y) / 2`).
 middle(x::Number, y::Number) = x/2 + y/2
 
 """
-    middle(a)
+    middle(a::AbstractArray)
 
 Compute the middle of an array `a`, which consists of finding its
 extrema and then computing their mean.
@@ -791,7 +791,7 @@ middle(a::AbstractArray) = ((v1, v2) = extrema(a); middle(v1, v2))
 
 function middle(a::AbstractRange)
     isempty(a) && throw(ArgumentError("middle of an empty range is undefined."))
-    return mean(a)
+    return middle(first(r), last(r))
 end
 
 """
