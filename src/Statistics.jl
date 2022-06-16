@@ -789,7 +789,7 @@ julia> middle(a)
 """
 middle(a::AbstractArray) = ((v1, v2) = extrema(a); middle(v1, v2))
 
-function middle(a::AbstractRange{<:Real})
+function middle(a::AbstractRange)
     isempty(a) && throw(ArgumentError("middle of an empty range is undefined."))
     return mean(a)
 end

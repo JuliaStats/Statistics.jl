@@ -24,8 +24,6 @@ Random.seed!(123)
 
     @test_throws Exception middle(Int[])
     @test_throws Exception middle(1:0)
-    @test_throws MethodError middle([1.0im, 2.0im])
-    @test_throws MethodError middle(LinRange(1.0im, 2.0im, 2))
 end
 
 @testset "median" begin
