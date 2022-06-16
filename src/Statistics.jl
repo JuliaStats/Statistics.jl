@@ -791,7 +791,7 @@ middle(a::AbstractArray) = ((v1, v2) = extrema(a); middle(v1, v2))
 
 function middle(a::AbstractRange)
     isempty(a) && throw(ArgumentError("middle of an empty range is undefined."))
-    return middle(first(r), last(r))
+    return middle(first(a), last(a))
 end
 
 """
@@ -990,9 +990,9 @@ end
     require_one_based_indexing(v)
 
     n = length(v)
-    
+
     @assert n > 0 # this case should never happen here
-    
+
     m = alpha + p * (one(alpha) - alpha - beta)
     aleph = n*p + oftype(p, m)
     j = clamp(trunc(Int, aleph), 1, n-1)
@@ -1005,7 +1005,7 @@ end
         a = v[j]
         b = v[j + 1]
     end
-    
+
     if isfinite(a) && isfinite(b)
         return a + γ*(b-a)
     else
