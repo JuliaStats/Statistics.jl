@@ -22,8 +22,8 @@ Random.seed!(123)
         @test middle(one(T)) === middle(one(T), one(T))
     end
 
-    @test_throws Exception middle(Int[])
-    @test_throws Exception middle(1:0)
+    @test_throws MethodError middle(Int[])
+    @test_throws ArgumentError middle(1:0)
 end
 
 @testset "median" begin
