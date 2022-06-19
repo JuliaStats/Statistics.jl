@@ -28,6 +28,8 @@ Random.seed!(123)
         @test_throws MethodError middle(Int[])
     end
     @test_throws ArgumentError middle(1:0)
+
+    @test middle(0:typemax(Int)) === typemax(Int) / 2
 end
 
 @testset "median" begin
