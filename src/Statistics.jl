@@ -765,28 +765,16 @@ equivalent in both value and type to computing their mean (`(x + y) / 2`).
 middle(x::Number, y::Number) = x/2 + y/2
 
 """
-    middle(range)
-
-Compute the middle of a range, which consists of computing the mean of its extrema.
-Since a range is sorted, the mean is performed with the first and last element.
-
-```jldoctest
-julia> using Statistics
-
-julia> middle(1:10)
-5.5
-```
-"""
-middle(a::AbstractRange) = middle(a[1], a[end])
-
-"""
-    middle(a)
+    middle(a::AbstractArray)
 
 Compute the middle of an array `a`, which consists of finding its
 extrema and then computing their mean.
 
 ```jldoctest
 julia> using Statistics
+
+julia> middle(1:10)
+5.5
 
 julia> a = [1,2,3.6,10.9]
 4-element Vector{Float64}:
@@ -800,6 +788,11 @@ julia> middle(a)
 ```
 """
 middle(a::AbstractArray) = ((v1, v2) = extrema(a); middle(v1, v2))
+
+function middle(a::AbstractRange)
+    isempty(a) && throw(ArgumentError("middle of an empty range is undefined."))
+    return middle(first(a), last(a))
+end
 
 """
     median!(v)
@@ -997,9 +990,9 @@ end
     require_one_based_indexing(v)
 
     n = length(v)
-    
+
     @assert n > 0 # this case should never happen here
-    
+
     m = alpha + p * (one(alpha) - alpha - beta)
     aleph = n*p + oftype(p, m)
     j = clamp(trunc(Int, aleph), 1, n-1)
@@ -1012,7 +1005,7 @@ end
         a = v[j]
         b = v[j + 1]
     end
-    
+
     if isfinite(a) && isfinite(b)
         return a + γ*(b-a)
     else
