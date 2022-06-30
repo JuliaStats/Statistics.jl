@@ -183,8 +183,9 @@ function _mean(f, A::AbstractArray, dims::Dims=:) where Dims
 end
 
 function mean(r::AbstractRange{<:Real})
-    isempty(r) && return oftype((first(r) + last(r)) / 2, NaN)
-    (first(r) + last(r)) / 2
+    centralval = first(r) + (last(r) - first(r)) / 2
+    isempty(r) && return oftype(centralval, NaN)
+    centralval
 end
 
 median(r::AbstractRange{<:Real}) = mean(r)

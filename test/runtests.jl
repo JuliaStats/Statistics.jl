@@ -182,6 +182,15 @@ end
     end
     @test mean(2:1) === NaN
     @test mean(big(2):1) isa BigFloat
+
+    @testset "issue #120" begin
+        @test mean(Int8(123):Int8(123)) == 123
+        @test median(Int8(123):Int8(123)) == 123
+        @test mean(Int8(126):Int8(127)) == 126.5
+        @test mean(typemax(Int):typemax(Int)) == float(typemax(Int))
+        @test mean(UInt8(255):UInt8(255)) == 255
+        @test mean(Float16(12345):Float16(54321)) ≈ Float16(mean(Float32(12345):Float32(54321)))
+    end
 end
 
 @testset "var & std" begin
