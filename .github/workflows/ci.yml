@@ -58,6 +58,7 @@ jobs:
       - run: |
           julia --project=docs -e '
             using Pkg
+            Pkg.respect_sysimage_versions(false)
             Pkg.develop(PackageSpec(path=pwd()))
             Pkg.instantiate()'
       - run: julia --project=docs docs/make.jl
