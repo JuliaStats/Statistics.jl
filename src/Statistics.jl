@@ -58,7 +58,7 @@ julia> mean([√1, √2, √3])
 1.3820881233139908
 ```
 """
-function mean(f, itr)
+function mean(f::Function, itr)
     y = iterate(itr)
     if y === nothing
         return Base.mapreduce_empty_iter(f, +, itr,
