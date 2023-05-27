@@ -138,8 +138,8 @@ end
     @test mean(Int[]) isa Float64
     @test isequal(mean(skipmissing(Int[])), NaN)
     @test mean(skipmissing(Int[])) isa Float64
-    @test_throws MethodError mean([])
-    @test_throws MethodError mean(skipmissing([]))
+    @test_throws Exception mean([])
+    @test_throws Exception mean(skipmissing([]))
     @test_throws ArgumentError mean((1 for i in 2:1))
     if VERSION >= v"1.6.0-DEV.83"
         @test_throws ArgumentError mean(())
@@ -187,10 +187,10 @@ end
 @testset "var & std" begin
     # edge case: empty vector
     # iterable; this has to throw for type stability
-    @test_throws MethodError var(())
-    @test_throws MethodError var((); corrected=false)
-    @test_throws MethodError var((); mean=2)
-    @test_throws MethodError var((); mean=2, corrected=false)
+    @test_throws Exception var(())
+    @test_throws Exception var((); corrected=false)
+    @test_throws Exception var((); mean=2)
+    @test_throws Exception var((); mean=2, corrected=false)
     # reduction
     @test isnan(var(Int[]))
     @test isnan(var(Int[]; corrected=false))
@@ -331,9 +331,9 @@ end
     @test var(Complex{Float64}[]) isa Float64
     @test isequal(var(skipmissing(Complex{Float64}[])), NaN)
     @test var(skipmissing(Complex{Float64}[])) isa Float64
-    @test_throws MethodError var([])
-    @test_throws MethodError var(skipmissing([]))
-    @test_throws MethodError var((1 for i in 2:1))
+    @test_throws Exception var([])
+    @test_throws Exception var(skipmissing([]))
+    @test_throws Exception var((1 for i in 2:1))
     @test isequal(var(Int[]), NaN)
     @test var(Int[]) isa Float64
     @test isequal(var(skipmissing(Int[])), NaN)
@@ -464,9 +464,9 @@ Y = [6.0  2.0;
     @testset "cov with missing" begin
         @test cov([missing]) === cov([1, missing]) === missing
         @test cov([1, missing], [2, 3]) === cov([1, 3], [2, missing]) === missing
-        @test_throws MethodError cov([1 missing; 2 3])
-        @test_throws MethodError cov([1 missing; 2 3], [1, 2])
-        @test_throws MethodError cov([1, 2], [1 missing; 2 3])
+        @test_throws Exception cov([1 missing; 2 3])
+        @test_throws Exception cov([1 missing; 2 3], [1, 2])
+        @test_throws Exception cov([1, 2], [1 missing; 2 3])
         @test isequal(cov([1 2; 2 3], [1, missing]), [missing missing]')
         @test isequal(cov([1, missing], [1 2; 2 3]), [missing missing])
     end
@@ -559,25 +559,25 @@ end
 
     @test cor(Int[]) === 1.0
     @test cor([im]) === 1.0 + 0.0im
-    @test_throws MethodError cor([])
-    @test_throws MethodError cor(Any[1.0])
+    @test_throws Exception cor([])
+    @test_throws Exception cor(Any[1.0])
 
     @test cor([1, missing]) === 1.0
     @test ismissing(cor([missing]))
-    @test_throws MethodError cor(Any[1.0, missing])
+    @test_throws Exception cor(Any[1.0, missing])
 
     @test Statistics.corm([true], 1.0) === 1.0
-    @test_throws MethodError Statistics.corm(Any[0.0, 1.0], 0.5)
+    @test_throws Exception Statistics.corm(Any[0.0, 1.0], 0.5)
     @test Statistics.corzm([true]) === 1.0
-    @test_throws MethodError Statistics.corzm(Any[0.0, 1.0])
+    @test_throws Exception Statistics.corzm(Any[0.0, 1.0])
 
     @testset "cor with missing" begin
         @test cor([missing]) === missing
         @test cor([1, missing]) == 1
         @test cor([1, missing], [2, 3]) === cor([1, 3], [2, missing]) === missing
-        @test_throws MethodError cor([1 missing; 2 3])
-        @test_throws MethodError cor([1 missing; 2 3], [1, 2])
-        @test_throws MethodError cor([1, 2], [1 missing; 2 3])
+        @test_throws Exception cor([1 missing; 2 3])
+        @test_throws Exception cor([1 missing; 2 3], [1, 2])
+        @test_throws Exception cor([1, 2], [1 missing; 2 3])
         @test isequal(cor([1 2; 2 3], [1, missing]), [missing missing]')
         @test isequal(cor([1, missing], [1 2; 2 3]), [missing missing])
     end

@@ -444,7 +444,7 @@ whereas the sum is scaled with `n` if `corrected` is
 `false` with `n` the number of elements in `itr`.
 
 If `itr` is an `AbstractArray`, `dims` can be provided to compute the standard deviation
-over dimensions, and `means` may contain means for each dimension of `itr`.
+over dimensions.
 
 A pre-computed `mean` may be provided. When `dims` is specified, `mean` must be
 an array with the same shape as `mean(itr, dims=dims)` (additional trailing
