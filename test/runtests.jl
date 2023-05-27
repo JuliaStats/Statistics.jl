@@ -178,7 +178,7 @@ end
         x::Int
     end
     (t::T)(y) = t.x * y
-    @test @inferred mean(T(2), 3) == 6
+    @test @inferred mean(T(2), 3) === 6.0
 end
 
 @testset "mean/median for ranges" begin
