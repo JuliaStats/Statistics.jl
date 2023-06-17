@@ -876,8 +876,12 @@ output array `q` may also be specified. (If not provided, a new output array is 
 The keyword argument `sorted` indicates whether `v` can be assumed to be sorted; if
 `false` (the default), then the elements of `v` will be partially sorted in-place.
 
+Samples quantile are defined by `Q(p) = (1-γ)*x[j] + γ*x[j+1]`,
+where `x[j]` is the j-th order statistic of `v`, `j = floor(n*p + m)`,
+`m = alpha + p*(1 - alpha - beta)` and `γ = n*p + m - j`.
+
 By default (`alpha = beta = 1`), quantiles are computed via linear interpolation between the points
-`((k-1)/(n-1), v[k])`, for `k = 1:n` where `n = length(v)`. This corresponds to Definition 7
+`((k-1)/(n-1), x[k])`, for `k = 1:n` where `n = length(v)`. This corresponds to Definition 7
 of Hyndman and Fan (1996), and is the same as the R and NumPy default.
 
 The keyword arguments `alpha` and `beta` correspond to the same parameters in Hyndman and Fan,
@@ -1021,12 +1025,11 @@ probabilities `p` on the interval [0,1]. The keyword argument `sorted` indicates
 `itr` can be assumed to be sorted.
 
 Samples quantile are defined by `Q(p) = (1-γ)*x[j] + γ*x[j+1]`,
-where ``x[j]`` is the j-th order statistic, and `γ` is a function of
-`j = floor(n*p + m)`, `m = alpha + p*(1 - alpha - beta)` and
-`g = n*p + m - j`.
+where `x[j]` is the j-th order statistic of `itr`, `j = floor(n*p + m)`,
+`m = alpha + p*(1 - alpha - beta)` and `γ = n*p + m - j`.
 
 By default (`alpha = beta = 1`), quantiles are computed via linear interpolation between the points
-`((k-1)/(n-1), v[k])`, for `k = 1:n` where `n = length(itr)`. This corresponds to Definition 7
+`((k-1)/(n-1), x[k])`, for `k = 1:n` where `n = length(itr)`. This corresponds to Definition 7
 of Hyndman and Fan (1996), and is the same as the R and NumPy default.
 
 The keyword arguments `alpha` and `beta` correspond to the same parameters in Hyndman and Fan,
