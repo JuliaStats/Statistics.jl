@@ -881,7 +881,7 @@ where ``x[j]`` is the j-th order statistic of `v`, `j = floor(n*p + m)`,
 `m = alpha + p*(1 - alpha - beta)` and `γ = n*p + m - j`.
 
 By default (`alpha = beta = 1`), quantiles are computed via linear interpolation between the points
-`((k-1)/(n-1), x[k])`, for `k = 1:n` where `n = length(itr)`. This corresponds to Definition 7
+`((k-1)/(n-1), x[k])`, for `k = 1:n` where `n = length(v)`. This corresponds to Definition 7
 of Hyndman and Fan (1996), and is the same as the R and NumPy default.
 
 The keyword arguments `alpha` and `beta` correspond to the same parameters in Hyndman and Fan,
