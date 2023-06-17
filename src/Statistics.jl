@@ -877,7 +877,7 @@ The keyword argument `sorted` indicates whether `v` can be assumed to be sorted;
 `false` (the default), then the elements of `v` will be partially sorted in-place.
 
 Samples quantile are defined by `Q(p) = (1-γ)*x[j] + γ*x[j+1]`,
-where ``x[j]`` is the j-th order statistic of `v`, `j = floor(n*p + m)`,
+where `x[j]` is the j-th order statistic of `v`, `j = floor(n*p + m)`,
 `m = alpha + p*(1 - alpha - beta)` and `γ = n*p + m - j`.
 
 By default (`alpha = beta = 1`), quantiles are computed via linear interpolation between the points
@@ -1025,7 +1025,7 @@ probabilities `p` on the interval [0,1]. The keyword argument `sorted` indicates
 `itr` can be assumed to be sorted.
 
 Samples quantile are defined by `Q(p) = (1-γ)*x[j] + γ*x[j+1]`,
-where ``x[j]`` is the j-th order statistic of `itr`, `j = floor(n*p + m)`,
+where `x[j]` is the j-th order statistic of `itr`, `j = floor(n*p + m)`,
 `m = alpha + p*(1 - alpha - beta)` and `γ = n*p + m - j`.
 
 By default (`alpha = beta = 1`), quantiles are computed via linear interpolation between the points
