@@ -117,6 +117,8 @@ end
     mean!(r, v)
 
 Compute the mean of `v` over the singleton dimensions of `r`, and write results to `r`.
+Note that since the mean! function is intended to operate without making any allocations,
+the target should not alias with the source.
 
 # Examples
 ```jldoctest
