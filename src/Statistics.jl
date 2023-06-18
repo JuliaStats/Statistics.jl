@@ -103,6 +103,16 @@ julia> mean(√, [1 2 3; 4 5 6], dims=2)
 """
 mean(f, A::AbstractArray; dims=:) = _mean(f, A, dims)
 
+function mean(f::Number, itr::Number)
+    f_value = try
+        f(itr)
+    catch MethodError
+        rethrow(ArgumentError("""mean(f, itr) requires a function and an iterable.
+                                 Perhaps you meant middle(x, y)?""",))
+    end
+    Base.reduce_first(+, f_value)/1
+end
+
 """
     mean!(r, v)
 
