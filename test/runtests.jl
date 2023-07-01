@@ -753,6 +753,18 @@ let y = [0.40003674665581906, 0.4085630862624367, 0.41662034698690303, 0.4166203
     @test issorted(quantile(y, range(0.01, stop=0.99, length=17)))
 end
 
+@testset "issue #144: no overflow with quantile" begin
+    @test quantile(Float16[-9000, 100], 1.0) ≈ 100
+    @test quantile(Float16[-9000, 100], 0.999999999) ≈ 99.99999
+    @test quantile(Float32[-1e9, 100], 1) ≈ 100
+    @test quantile(Float32[-1e9, 100], 0.9999999999) ≈ 99.89999998
+    @test quantile(Float64[-1e20, 100], 1) ≈ 100
+    @test quantile(Float32[-1e15, -1e14, -1e13, -1e12, -1e11, -1e10, -1e9, 100], 1) ≈ 100
+    @test quantile(Int8[-68, 60], 0.5) ≈ -4
+    @test quantile(Int32[-1e9, 2e9], 1.0) ≈ 2.0e9
+    @test quantile(Int[-5e18, -2e18, 9e18], 1.0) ≈ 9.0e18
+end
+
 @testset "variance of complex arrays (#13309)" begin
     z = rand(ComplexF64, 10)
     @test var(z) ≈ invoke(var, Tuple{Any}, z) ≈ cov(z) ≈ var(z,dims=1)[1] ≈ sum(abs2, z .- mean(z))/9
