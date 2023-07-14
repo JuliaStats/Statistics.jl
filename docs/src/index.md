@@ -9,8 +9,6 @@ var
 varm
 cor
 cov
-mean!
-mean
 median!
 median
 middle
