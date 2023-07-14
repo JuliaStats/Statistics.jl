@@ -11,10 +11,183 @@ using LinearAlgebra, SparseArrays
 
 using Base: has_offset_axes, require_one_based_indexing
 
-using Base: mean!, mean
-
 export cor, cov, std, stdm, var, varm, mean!, mean,
     median!, median, middle, quantile!, quantile
+
+##### mean #####
+
+if !isdefined(Base, :mean)
+    """
+        mean(itr)
+
+    Compute the mean of all elements in a collection.
+
+    !!! note
+        If `itr` contains `NaN` or [`missing`](@ref) values, the result is also
+        `NaN` or `missing` (`missing` takes precedence if array contains both).
+        Use the [`skipmissing`](@ref) function to omit `missing` entries and compute the
+        mean of non-missing values.
+
+    # Examples
+    ```jldoctest
+    julia> using Statistics
+
+    julia> mean(1:20)
+    10.5
+
+    julia> mean([1, missing, 3])
+    missing
+
+    julia> mean(skipmissing([1, missing, 3]))
+    2.0
+    ```
+    """
+    mean(itr) = mean(identity, itr)
+
+    """
+        mean(f, itr)
+
+    Apply the function `f` to each element of collection `itr` and take the mean.
+
+    ```jldoctest
+    julia> using Statistics
+
+    julia> mean(√, [1, 2, 3])
+    1.3820881233139908
+
+    julia> mean([√1, √2, √3])
+    1.3820881233139908
+    ```
+    """
+    function mean(f, itr)
+        y = iterate(itr)
+        if y === nothing
+            return Base.mapreduce_empty_iter(f, +, itr,
+                                            Base.IteratorEltype(itr)) / 0
+        end
+        count = 1
+        value, state = y
+        f_value = f(value)/1
+        total = Base.reduce_first(+, f_value)
+        y = iterate(itr, state)
+        while y !== nothing
+            value, state = y
+            total += _mean_promote(total, f(value))
+            count += 1
+            y = iterate(itr, state)
+        end
+        return total/count
+    end
+
+    """
+        mean(f, A::AbstractArray; dims)
+
+    Apply the function `f` to each element of array `A` and take the mean over dimensions `dims`.
+
+    !!! compat "Julia 1.3"
+        This method requires at least Julia 1.3.
+
+    ```jldoctest
+    julia> using Statistics
+
+    julia> mean(√, [1, 2, 3])
+    1.3820881233139908
+
+    julia> mean([√1, √2, √3])
+    1.3820881233139908
+
+    julia> mean(√, [1 2 3; 4 5 6], dims=2)
+    2×1 Matrix{Float64}:
+    1.3820881233139908
+    2.2285192400943226
+    ```
+    """
+    mean(f, A::AbstractArray; dims=:) = _mean(f, A, dims)
+
+    """
+        mean!(r, v)
+
+    Compute the mean of `v` over the singleton dimensions of `r`, and write results to `r`.
+
+    # Examples
+    ```jldoctest
+    julia> using Statistics
+
+    julia> v = [1 2; 3 4]
+    2×2 Matrix{Int64}:
+    1  2
+    3  4
+
+    julia> mean!([1., 1.], v)
+    2-element Vector{Float64}:
+    1.5
+    3.5
+
+    julia> mean!([1. 1.], v)
+    1×2 Matrix{Float64}:
+    2.0  3.0
+    ```
+    """
+    function mean!(R::AbstractArray, A::AbstractArray)
+        sum!(R, A; init=true)
+        x = max(1, length(R)) // length(A)
+        R .= R .* x
+        return R
+    end
+
+    """
+        mean(A::AbstractArray; dims)
+
+    Compute the mean of an array over the given dimensions.
+
+    !!! compat "Julia 1.1"
+        `mean` for empty arrays requires at least Julia 1.1.
+
+    # Examples
+    ```jldoctest
+    julia> using Statistics
+
+    julia> A = [1 2; 3 4]
+    2×2 Matrix{Int64}:
+    1  2
+    3  4
+
+    julia> mean(A, dims=1)
+    1×2 Matrix{Float64}:
+    2.0  3.0
+
+    julia> mean(A, dims=2)
+    2×1 Matrix{Float64}:
+    1.5
+    3.5
+    ```
+    """
+    mean(A::AbstractArray; dims=:) = _mean(identity, A, dims)
+
+    _mean_promote(x::T, y::S) where {T,S} = convert(promote_type(T, S), y)
+
+    # ::Dims is there to force specializing on Colon (as it is a Function)
+    function _mean(f, A::AbstractArray, dims::Dims=:) where Dims
+        isempty(A) && return sum(f, A, dims=dims)/0
+        if dims === (:)
+            n = length(A)
+        else
+            n = mapreduce(i -> size(A, i), *, unique(dims); init=1)
+        end
+        x1 = f(first(A)) / 1
+        result = sum(x -> _mean_promote(x1, f(x)), A, dims=dims)
+        if dims === (:)
+            return result / n
+        else
+            return result ./= n
+        end
+    end
+
+    function mean(r::AbstractRange{<:Real})
+        isempty(r) && return oftype((first(r) + last(r)) / 2, NaN)
+        (first(r) + last(r)) / 2
+    end
+end
 
 ##### variances #####
 
