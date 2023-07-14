@@ -104,6 +104,16 @@ if !isdefined(Base, :mean)
     """
     mean(f, A::AbstractArray; dims=:) = _mean(f, A, dims)
 
+    function mean(f::Number, itr::Number)
+        f_value = try
+            f(itr)
+        catch MethodError
+            rethrow(ArgumentError("""mean(f, itr) requires a function and an iterable.
+                                    Perhaps you meant middle(x, y)?""",))
+        end
+        Base.reduce_first(+, f_value)/1
+    end
+
     """
         mean!(r, v)
 
@@ -434,7 +444,7 @@ whereas the sum is scaled with `n` if `corrected` is
 `false` with `n` the number of elements in `itr`.
 
 If `itr` is an `AbstractArray`, `dims` can be provided to compute the standard deviation
-over dimensions, and `means` may contain means for each dimension of `itr`.
+over dimensions.
 
 A pre-computed `mean` may be provided. When `dims` is specified, `mean` must be
 an array with the same shape as `mean(itr, dims=dims)` (additional trailing
@@ -878,8 +888,12 @@ output array `q` may also be specified. (If not provided, a new output array is 
 The keyword argument `sorted` indicates whether `v` can be assumed to be sorted; if
 `false` (the default), then the elements of `v` will be partially sorted in-place.
 
+Samples quantile are defined by `Q(p) = (1-γ)*x[j] + γ*x[j+1]`,
+where `x[j]` is the j-th order statistic of `v`, `j = floor(n*p + m)`,
+`m = alpha + p*(1 - alpha - beta)` and `γ = n*p + m - j`.
+
 By default (`alpha = beta = 1`), quantiles are computed via linear interpolation between the points
-`((k-1)/(n-1), v[k])`, for `k = 1:n` where `n = length(v)`. This corresponds to Definition 7
+`((k-1)/(n-1), x[k])`, for `k = 1:n` where `n = length(v)`. This corresponds to Definition 7
 of Hyndman and Fan (1996), and is the same as the R and NumPy default.
 
 The keyword arguments `alpha` and `beta` correspond to the same parameters in Hyndman and Fan,
@@ -1023,12 +1037,11 @@ probabilities `p` on the interval [0,1]. The keyword argument `sorted` indicates
 `itr` can be assumed to be sorted.
 
 Samples quantile are defined by `Q(p) = (1-γ)*x[j] + γ*x[j+1]`,
-where ``x[j]`` is the j-th order statistic, and `γ` is a function of
-`j = floor(n*p + m)`, `m = alpha + p*(1 - alpha - beta)` and
-`g = n*p + m - j`.
+where `x[j]` is the j-th order statistic of `itr`, `j = floor(n*p + m)`,
+`m = alpha + p*(1 - alpha - beta)` and `γ = n*p + m - j`.
 
 By default (`alpha = beta = 1`), quantiles are computed via linear interpolation between the points
-`((k-1)/(n-1), v[k])`, for `k = 1:n` where `n = length(itr)`. This corresponds to Definition 7
+`((k-1)/(n-1), x[k])`, for `k = 1:n` where `n = length(itr)`. This corresponds to Definition 7
 of Hyndman and Fan (1996), and is the same as the R and NumPy default.
 
 The keyword arguments `alpha` and `beta` correspond to the same parameters in Hyndman and Fan,
