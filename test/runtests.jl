@@ -763,6 +763,11 @@ end
     @test quantile(Int8[-68, 60], 0.5) ≈ -4
     @test quantile(Int32[-1e9, 2e9], 1.0) ≈ 2.0e9
     @test quantile(Int64[-5e18, -2e18, 9e18], 1.0) ≈ 9.0e18
+
+    # check that quantiles are increasing with a, b and p even in corner cases
+    @test issorted(quantile([1.0, 1.0, 1.0+eps(), 1.0+eps()], range(0, 1, length=100)))
+    @test issorted(quantile([1.0, 1.0+1eps(), 1.0+2eps(), 1.0+3eps()], range(0, 1, length=100)))
+    @test issorted(quantile([1.0, 1.0+2eps(), 1.0+4eps(), 1.0+6eps()], range(0, 1, length=100)))
 end
 
 @testset "variance of complex arrays (#13309)" begin
