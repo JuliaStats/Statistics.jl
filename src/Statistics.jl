@@ -63,7 +63,7 @@ if !isdefined(Base, :mean)
         y = iterate(itr)
         if y === nothing
             return Base.mapreduce_empty_iter(f, +, itr,
-                                            Base.IteratorEltype(itr)) / 0
+                                             Base.IteratorEltype(itr)) / 0
         end
         count = 1
         value, state = y
