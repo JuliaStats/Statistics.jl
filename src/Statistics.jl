@@ -107,9 +107,13 @@ if !isdefined(Base, :mean)
     function mean(f::Number, itr::Number)
         f_value = try
             f(itr)
-        catch MethodError
-            rethrow(ArgumentError("""mean(f, itr) requires a function and an iterable.
-                                    Perhaps you meant mean((x, y))?"""))
+        catch err
+            if err isa MethodError && err.f === f
+                rethrow(ArgumentError("""mean(f, itr) requires a function and an iterable.
+                                         Perhaps you meant mean((x, y))?"""))
+            else
+                rethrow(err)
+            end
         end
         Base.reduce_first(+, f_value)/1
     end

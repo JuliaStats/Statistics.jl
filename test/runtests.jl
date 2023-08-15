@@ -177,8 +177,9 @@ end
     struct T <: Number
         x::Int
     end
-    (t::T)(y) = t.x * y
+    (t::T)(y) = t.x == 0 ? throw(MethodError(T)) : t.x * y
     @test @inferred mean(T(2), 3) === 6.0
+    @test_throws MethodError mean(T(0), 3)
 end
 
 @testset "mean/median for ranges" begin
