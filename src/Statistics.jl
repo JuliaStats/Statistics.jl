@@ -109,7 +109,7 @@ if !isdefined(Base, :mean)
             f(itr)
         catch MethodError
             rethrow(ArgumentError("""mean(f, itr) requires a function and an iterable.
-                                    Perhaps you meant middle(x, y)?""",))
+                                    Perhaps you meant mean((x, y))?"""))
         end
         Base.reduce_first(+, f_value)/1
     end
