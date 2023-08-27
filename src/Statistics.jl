@@ -108,7 +108,7 @@ if !isdefined(Base, :mean)
         f_value = try
             f(itr)
         catch err
-            if err isa MethodError && err.f === f
+            if err isa MethodError && err.f === f && err.args == (itr,)
                 rethrow(ArgumentError("""mean(f, itr) requires a function and an iterable.
                                          Perhaps you meant mean((x, y))?"""))
             else

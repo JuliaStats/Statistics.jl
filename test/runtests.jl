@@ -177,9 +177,14 @@ end
     struct T <: Number
         x::Int
     end
-    (t::T)(y) = t.x == 0 ? throw(MethodError(T)) : t.x * y
-    @test @inferred mean(T(2), 3) === 6.0
-    @test_throws MethodError mean(T(0), 3)
+    (t::T)(y) = t.x == 0 ? t(y, y + 1, y + 2) : t.x * y
+    @test mean(T(2), 3) === 6.0
+    err = @test_throws MethodError mean(T(0), 3)
+    struct U <: Number
+        x::Int
+    end
+    (t::U)(y) = t.x == 0 ? throw(MethodError(T)) : t.x * y
+    @test @inferred mean(U(2), 3) === 6.0
 end
 
 @testset "mean/median for ranges" begin
