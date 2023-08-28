@@ -179,7 +179,7 @@ end
     end
     (t::T)(y) = t.x == 0 ? t(y, y + 1, y + 2) : t.x * y
     @test mean(T(2), 3) === 6.0
-    err = @test_throws MethodError mean(T(0), 3)
+    @test_throws MethodError mean(T(0), 3)
     struct U <: Number
         x::Int
     end
