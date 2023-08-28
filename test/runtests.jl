@@ -173,12 +173,18 @@ end
     @test isnan(@inferred mean(Iterators.filter(x -> true, Float64[])))
 
     # using a number as a "function"
-    @test_throws "ArgumentError: mean(f, itr) requires a function and an iterable.\nPerhaps you meant middle(x, y)" mean(1, 2)
+    @test_throws "ArgumentError: mean(f, itr) requires a function and an iterable.\nPerhaps you meant mean((x, y))" mean(1, 2)
     struct T <: Number
         x::Int
     end
-    (t::T)(y) = t.x * y
-    @test @inferred mean(T(2), 3) === 6.0
+    (t::T)(y) = t.x == 0 ? t(y, y + 1, y + 2) : t.x * y
+    @test mean(T(2), 3) === 6.0
+    @test_throws MethodError mean(T(0), 3)
+    struct U <: Number
+        x::Int
+    end
+    (t::U)(y) = t.x == 0 ? throw(MethodError(T)) : t.x * y
+    @test @inferred mean(U(2), 3) === 6.0
 end
 
 @testset "mean/median for ranges" begin
