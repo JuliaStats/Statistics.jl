@@ -161,7 +161,7 @@ end
                ≈ float(typemax(Int)))
     end
     let x = rand(10000)  # mean should use sum's accurate pairwise algorithm
-        @test mean(x) == sum(x; init=0.0) / length(x)
+        @test mean(x) == sum(x) / length(x)
     end
     @test mean(Number[1, 1.5, 2+3im]) === 1.5+1im # mixed-type array
     @test mean(v for v in Number[1, 1.5, 2+3im]) === 1.5+1im

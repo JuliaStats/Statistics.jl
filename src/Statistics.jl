@@ -180,17 +180,12 @@ if !isdefined(Base, :mean)
     """
     mean(A::AbstractArray; dims=:) = _mean(identity, A, dims)
 
-    struct _InitType end
-
-    Base.add_sum(x::_InitType, y::Any) = y/1
-
-    Base._mapreduce_dim(f, op, ::_InitType, A::Base.AbstractArrayOrBroadcasted, dims) =
-        Base.mapreducedim!(f, op, Base.reducedim_init(f, op, A, dims), A)
-    Base._mapreduce_dim(f, op, ::_InitType, A::Base.AbstractArrayOrBroadcasted, ::Colon) =
-        Base.mapfoldl_impl(f, op, _InitType(), A)
-    promote_add(x::T, y::S) where {T,S} =
-        Base.add_sum(convert(promote_type(T, S), x),
-                     convert(promote_type(T, S), y))
+    promote_add_type(x::S, y::T) where {S, T} =
+        promote_type(typeof(zero(S)/1), typeof(zero(T)/1))
+    function promote_add(x::Any, y::Any)
+        T = promote_add_type(x, y)
+        return Base.add_sum(convert(T, x), convert(T, y))
+    end
 
     function Base.reducedim_init(f, op::typeof(promote_add), A::AbstractArray, region)
         Base._reducedim_init(f, op, zero, mean, A, region)
@@ -198,7 +193,7 @@ if !isdefined(Base, :mean)
     function Base._reducedim_init(f, op::typeof(promote_add), fv, fop, A, region)
         T = Base._realtype(f, Base.promote_union(eltype(A)))
         if T !== Any && applicable(zero, T)
-            x = f(zero(T)/1)
+            x = f(zero(T))/1 # /1 added for mean
             z = op(fv(x), fv(x))
             Tr = z isa T ? T : typeof(z)
         else
@@ -216,7 +211,7 @@ if !isdefined(Base, :mean)
         else
             n = mapreduce(i -> size(A, i), *, unique(dims); init=1)
         end
-        result = mapreduce(f, promote_add, A, dims=dims, init=_InitType())
+        result = mapreduce(f, promote_add, A, dims=dims)
         if dims === (:)
             return result / n
         else
