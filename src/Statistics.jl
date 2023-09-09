@@ -198,8 +198,8 @@ if !isdefined(Base, :mean)
     end
 
     function mean(r::AbstractRange{T}) where T
-        isempty(r) && return zero(T) / 0
-        return first(r) / 2 + last(r) / 2
+        isempty(r) && return zero(T)/0
+        return first(r)/2 + last(r)/2
     end
 end
 
