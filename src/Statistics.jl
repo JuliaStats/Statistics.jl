@@ -201,8 +201,6 @@ function mean(r::AbstractRange{<:Real})
     (first(r) + last(r)) / 2
 end
 
-median(r::AbstractRange{<:Real}) = mean(r)
-
 ##### variances #####
 
 # faster computation of real(conj(x)*y)
@@ -880,6 +878,8 @@ median(v::AbstractArray; dims=:) = _median(v, dims)
 _median(v::AbstractArray, dims) = mapslices(median!, v, dims = dims)
 
 _median(v::AbstractArray{T}, ::Colon) where {T} = median!(copyto!(Array{T,1}(undef, length(v)), v))
+
+median(r::AbstractRange{<:Real}) = mean(r)
 
 """
     quantile!([q::AbstractArray, ] v::AbstractVector, p; sorted=false, alpha::Real=1.0, beta::Real=alpha)
