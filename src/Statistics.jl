@@ -902,7 +902,7 @@ The keyword arguments `alpha` and `beta` correspond to the same parameters in Hy
 setting them to different values allows to calculate quantiles with any of the methods 4-9
 defined in this paper:
 - Def. 4: `alpha=0`, `beta=1`
-- Def. 5: `alpha=0.5`, `beta=0.5`
+- Def. 5: `alpha=0.5`, `beta=0.5` (MATLAB default)
 - Def. 6: `alpha=0`, `beta=0` (Excel `PERCENTILE.EXC`, Python default, Stata `altdef`)
 - Def. 7: `alpha=1`, `beta=1` (Julia, R and NumPy default, Excel `PERCENTILE` and `PERCENTILE.INC`, Python `'inclusive'`)
 - Def. 8: `alpha=1/3`, `beta=1/3`
@@ -1053,7 +1053,7 @@ The keyword arguments `alpha` and `beta` correspond to the same parameters in Hy
 setting them to different values allows to calculate quantiles with any of the methods 4-9
 defined in this paper:
 - Def. 4: `alpha=0`, `beta=1`
-- Def. 5: `alpha=0.5`, `beta=0.5`
+- Def. 5: `alpha=0.5`, `beta=0.5` (MATLAB default)
 - Def. 6: `alpha=0`, `beta=0` (Excel `PERCENTILE.EXC`, Python default, Stata `altdef`)
 - Def. 7: `alpha=1`, `beta=1` (Julia, R and NumPy default, Excel `PERCENTILE` and `PERCENTILE.INC`, Python `'inclusive'`)
 - Def. 8: `alpha=1/3`, `beta=1/3`
