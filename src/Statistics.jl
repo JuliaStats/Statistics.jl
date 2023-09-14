@@ -196,9 +196,9 @@ function _mean(f, A::AbstractArray, dims::Dims=:) where Dims
     end
 end
 
-function mean(r::AbstractRange{<:Real})
-    isempty(r) && return oftype((first(r) + last(r)) / 2, NaN)
-    (first(r) + last(r)) / 2
+function mean(r::AbstractRange{T}) where T
+    isempty(r) && return zero(T)/0
+    return first(r)/2 + last(r)/2
 end
 
 ##### variances #####
