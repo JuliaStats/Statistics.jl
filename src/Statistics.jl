@@ -7,7 +7,7 @@ Standard library module for basic statistics functionality.
 """
 module Statistics
 
-using LinearAlgebra, SparseArrays
+using LinearAlgebra
 
 using Base: has_offset_axes, require_one_based_indexing
 
@@ -16,191 +16,189 @@ export cor, cov, std, stdm, var, varm, mean!, mean,
 
 ##### mean #####
 
-if !isdefined(Base, :mean)
-    """
-        mean(itr)
+"""
+    mean(itr)
 
-    Compute the mean of all elements in a collection.
+Compute the mean of all elements in a collection.
 
-    !!! note
-        If `itr` contains `NaN` or [`missing`](@ref) values, the result is also
-        `NaN` or `missing` (`missing` takes precedence if array contains both).
-        Use the [`skipmissing`](@ref) function to omit `missing` entries and compute the
-        mean of non-missing values.
+!!! note
+    If `itr` contains `NaN` or [`missing`](@ref) values, the result is also
+    `NaN` or `missing` (`missing` takes precedence if array contains both).
+    Use the [`skipmissing`](@ref) function to omit `missing` entries and compute the
+    mean of non-missing values.
 
-    # Examples
-    ```jldoctest
-    julia> using Statistics
+# Examples
+```jldoctest
+julia> using Statistics
 
-    julia> mean(1:20)
-    10.5
+julia> mean(1:20)
+10.5
 
-    julia> mean([1, missing, 3])
-    missing
+julia> mean([1, missing, 3])
+missing
 
-    julia> mean(skipmissing([1, missing, 3]))
-    2.0
-    ```
-    """
-    mean(itr) = mean(identity, itr)
+julia> mean(skipmissing([1, missing, 3]))
+2.0
+```
+"""
+mean(itr) = mean(identity, itr)
 
-    """
-        mean(f, itr)
+"""
+    mean(f, itr)
 
-    Apply the function `f` to each element of collection `itr` and take the mean.
+Apply the function `f` to each element of collection `itr` and take the mean.
 
-    ```jldoctest
-    julia> using Statistics
+```jldoctest
+julia> using Statistics
 
-    julia> mean(√, [1, 2, 3])
-    1.3820881233139908
+julia> mean(√, [1, 2, 3])
+1.3820881233139908
 
-    julia> mean([√1, √2, √3])
-    1.3820881233139908
-    ```
-    """
-    function mean(f, itr)
-        y = iterate(itr)
-        if y === nothing
-            return Base.mapreduce_empty_iter(f, +, itr,
-                                             Base.IteratorEltype(itr)) / 0
-        end
-        count = 1
+julia> mean([√1, √2, √3])
+1.3820881233139908
+```
+"""
+function mean(f, itr)
+    y = iterate(itr)
+    if y === nothing
+        return Base.mapreduce_empty_iter(f, +, itr,
+                                         Base.IteratorEltype(itr)) / 0
+    end
+    count = 1
+    value, state = y
+    f_value = f(value)/1
+    total = Base.reduce_first(+, f_value)
+    y = iterate(itr, state)
+    while y !== nothing
         value, state = y
-        f_value = f(value)/1
-        total = Base.reduce_first(+, f_value)
+        total += _mean_promote(total, f(value))
+        count += 1
         y = iterate(itr, state)
-        while y !== nothing
-            value, state = y
-            total += _mean_promote(total, f(value))
-            count += 1
-            y = iterate(itr, state)
-        end
-        return total/count
     end
+    return total/count
+end
 
-    """
-        mean(f, A::AbstractArray; dims)
+"""
+    mean(f, A::AbstractArray; dims)
 
-    Apply the function `f` to each element of array `A` and take the mean over dimensions `dims`.
+Apply the function `f` to each element of array `A` and take the mean over dimensions `dims`.
 
-    !!! compat "Julia 1.3"
-        This method requires at least Julia 1.3.
+!!! compat "Julia 1.3"
+    This method requires at least Julia 1.3.
 
-    ```jldoctest
-    julia> using Statistics
+```jldoctest
+julia> using Statistics
 
-    julia> mean(√, [1, 2, 3])
-    1.3820881233139908
+julia> mean(√, [1, 2, 3])
+1.3820881233139908
 
-    julia> mean([√1, √2, √3])
-    1.3820881233139908
+julia> mean([√1, √2, √3])
+1.3820881233139908
 
-    julia> mean(√, [1 2 3; 4 5 6], dims=2)
-    2×1 Matrix{Float64}:
-    1.3820881233139908
-    2.2285192400943226
-    ```
-    """
-    mean(f, A::AbstractArray; dims=:) = _mean(f, A, dims)
+julia> mean(√, [1 2 3; 4 5 6], dims=2)
+2×1 Matrix{Float64}:
+ 1.3820881233139908
+ 2.2285192400943226
+```
+"""
+mean(f, A::AbstractArray; dims=:) = _mean(f, A, dims)
 
-    function mean(f::Number, itr::Number)
-        f_value = try
-            f(itr)
-        catch err
-            if err isa MethodError && err.f === f && err.args == (itr,)
-                rethrow(ArgumentError("""mean(f, itr) requires a function and an iterable.
-                                         Perhaps you meant mean((x, y))?"""))
-            else
-                rethrow(err)
-            end
-        end
-        Base.reduce_first(+, f_value)/1
-    end
-
-    """
-        mean!(r, v)
-
-    Compute the mean of `v` over the singleton dimensions of `r`, and write results to `r`.
-
-    # Examples
-    ```jldoctest
-    julia> using Statistics
-
-    julia> v = [1 2; 3 4]
-    2×2 Matrix{Int64}:
-    1  2
-    3  4
-
-    julia> mean!([1., 1.], v)
-    2-element Vector{Float64}:
-    1.5
-    3.5
-
-    julia> mean!([1. 1.], v)
-    1×2 Matrix{Float64}:
-    2.0  3.0
-    ```
-    """
-    function mean!(R::AbstractArray, A::AbstractArray)
-        sum!(R, A; init=true)
-        x = max(1, length(R)) // length(A)
-        R .= R .* x
-        return R
-    end
-
-    """
-        mean(A::AbstractArray; dims)
-
-    Compute the mean of an array over the given dimensions.
-
-    !!! compat "Julia 1.1"
-        `mean` for empty arrays requires at least Julia 1.1.
-
-    # Examples
-    ```jldoctest
-    julia> using Statistics
-
-    julia> A = [1 2; 3 4]
-    2×2 Matrix{Int64}:
-    1  2
-    3  4
-
-    julia> mean(A, dims=1)
-    1×2 Matrix{Float64}:
-    2.0  3.0
-
-    julia> mean(A, dims=2)
-    2×1 Matrix{Float64}:
-    1.5
-    3.5
-    ```
-    """
-    mean(A::AbstractArray; dims=:) = _mean(identity, A, dims)
-
-    _mean_promote(x::T, y::S) where {T,S} = convert(promote_type(T, S), y)
-
-    # ::Dims is there to force specializing on Colon (as it is a Function)
-    function _mean(f, A::AbstractArray, dims::Dims=:) where Dims
-        isempty(A) && return sum(f, A, dims=dims)/0
-        if dims === (:)
-            n = length(A)
+function mean(f::Number, itr::Number)
+    f_value = try
+        f(itr)
+    catch err
+        if err isa MethodError && err.f === f && err.args == (itr,)
+            rethrow(ArgumentError("""mean(f, itr) requires a function and an iterable.
+                                     Perhaps you meant mean((x, y))?"""))
         else
-            n = mapreduce(i -> size(A, i), *, unique(dims); init=1)
-        end
-        x1 = f(first(A)) / 1
-        result = sum(x -> _mean_promote(x1, f(x)), A, dims=dims)
-        if dims === (:)
-            return result / n
-        else
-            return result ./= n
+            rethrow(err)
         end
     end
+    Base.reduce_first(+, f_value)/1
+end
 
-    function mean(r::AbstractRange{T}) where T
-        isempty(r) && return zero(T)/0
-        return first(r)/2 + last(r)/2
+"""
+    mean!(r, v)
+
+Compute the mean of `v` over the singleton dimensions of `r`, and write results to `r`.
+
+# Examples
+```jldoctest
+julia> using Statistics
+
+julia> v = [1 2; 3 4]
+2×2 Matrix{Int64}:
+ 1  2
+ 3  4
+
+julia> mean!([1., 1.], v)
+2-element Vector{Float64}:
+ 1.5
+ 3.5
+
+julia> mean!([1. 1.], v)
+1×2 Matrix{Float64}:
+ 2.0  3.0
+```
+"""
+function mean!(R::AbstractArray, A::AbstractArray)
+    sum!(R, A; init=true)
+    x = max(1, length(R)) // length(A)
+    R .= R .* x
+    return R
+end
+
+"""
+    mean(A::AbstractArray; dims)
+
+Compute the mean of an array over the given dimensions.
+
+!!! compat "Julia 1.1"
+    `mean` for empty arrays requires at least Julia 1.1.
+
+# Examples
+```jldoctest
+julia> using Statistics
+
+julia> A = [1 2; 3 4]
+2×2 Matrix{Int64}:
+ 1  2
+ 3  4
+
+julia> mean(A, dims=1)
+1×2 Matrix{Float64}:
+ 2.0  3.0
+
+julia> mean(A, dims=2)
+2×1 Matrix{Float64}:
+ 1.5
+ 3.5
+```
+"""
+mean(A::AbstractArray; dims=:) = _mean(identity, A, dims)
+
+_mean_promote(x::T, y::S) where {T,S} = convert(promote_type(T, S), y)
+
+# ::Dims is there to force specializing on Colon (as it is a Function)
+function _mean(f, A::AbstractArray, dims::Dims=:) where Dims
+    isempty(A) && return sum(f, A, dims=dims)/0
+    if dims === (:)
+        n = length(A)
+    else
+        n = mapreduce(i -> size(A, i), *, unique(dims); init=1)
     end
+    x1 = f(first(A)) / 1
+    result = sum(x -> _mean_promote(x1, f(x)), A, dims=dims)
+    if dims === (:)
+        return result / n
+    else
+        return result ./= n
+    end
+end
+
+function mean(r::AbstractRange{T}) where T
+    isempty(r) && return zero(T)/0
+    return first(r)/2 + last(r)/2
 end
 
 ##### variances #####
@@ -904,7 +902,7 @@ The keyword arguments `alpha` and `beta` correspond to the same parameters in Hy
 setting them to different values allows to calculate quantiles with any of the methods 4-9
 defined in this paper:
 - Def. 4: `alpha=0`, `beta=1`
-- Def. 5: `alpha=0.5`, `beta=0.5`
+- Def. 5: `alpha=0.5`, `beta=0.5` (MATLAB default)
 - Def. 6: `alpha=0`, `beta=0` (Excel `PERCENTILE.EXC`, Python default, Stata `altdef`)
 - Def. 7: `alpha=1`, `beta=1` (Julia, R and NumPy default, Excel `PERCENTILE` and `PERCENTILE.INC`, Python `'inclusive'`)
 - Def. 8: `alpha=1/3`, `beta=1/3`
@@ -1055,7 +1053,7 @@ The keyword arguments `alpha` and `beta` correspond to the same parameters in Hy
 setting them to different values allows to calculate quantiles with any of the methods 4-9
 defined in this paper:
 - Def. 4: `alpha=0`, `beta=1`
-- Def. 5: `alpha=0.5`, `beta=0.5`
+- Def. 5: `alpha=0.5`, `beta=0.5` (MATLAB default)
 - Def. 6: `alpha=0`, `beta=0` (Excel `PERCENTILE.EXC`, Python default, Stata `altdef`)
 - Def. 7: `alpha=1`, `beta=1` (Julia, R and NumPy default, Excel `PERCENTILE` and `PERCENTILE.INC`, Python `'inclusive'`)
 - Def. 8: `alpha=1/3`, `beta=1/3`
@@ -1095,94 +1093,9 @@ quantile(itr, p; sorted::Bool=false, alpha::Real=1.0, beta::Real=alpha) =
 quantile(v::AbstractVector, p; sorted::Bool=false, alpha::Real=1.0, beta::Real=alpha) =
     quantile!(sorted ? v : Base.copymutable(v), p; sorted=sorted, alpha=alpha, beta=beta)
 
-
-##### SparseArrays optimizations #####
-
-function cov(X::SparseMatrixCSC; dims::Int=1, corrected::Bool=true)
-    vardim = dims
-    a, b = size(X)
-    n, p = vardim == 1 ? (a, b) : (b, a)
-
-    # The covariance can be decomposed into two terms
-    # 1/(n - 1) ∑ (x_i - x̄)*(x_i - x̄)' = 1/(n - 1) (∑ x_i*x_i' - n*x̄*x̄')
-    # which can be evaluated via a sparse matrix-matrix product
-
-    # Compute ∑ x_i*x_i' = X'X using sparse matrix-matrix product
-    out = Matrix(unscaled_covzm(X, vardim))
-
-    # Compute x̄
-    x̄ᵀ = mean(X, dims=vardim)
-
-    # Subtract n*x̄*x̄' from X'X
-    @inbounds for j in 1:p, i in 1:p
-        out[i,j] -= x̄ᵀ[i] * x̄ᵀ[j]' * n
-    end
-
-    # scale with the sample size n or the corrected sample size n - 1
-    return rmul!(out, inv(n - corrected))
-end
-
-# This is the function that does the reduction underlying var/std
-function centralize_sumabs2!(R::AbstractArray{S}, A::SparseMatrixCSC{Tv,Ti}, means::AbstractArray) where {S,Tv,Ti}
-    require_one_based_indexing(R, A, means)
-    lsiz = Base.check_reducedims(R,A)
-    for i in 1:max(ndims(R), ndims(means))
-        if axes(means, i) != axes(R, i)
-            throw(DimensionMismatch("dimension $i of `mean` should have indices $(axes(R, i)), but got $(axes(means, i))"))
-        end
-    end
-    isempty(R) || fill!(R, zero(S))
-    isempty(A) && return R
-
-    rowval = rowvals(A)
-    nzval = nonzeros(A)
-    m = size(A, 1)
-    n = size(A, 2)
-
-    if size(R, 1) == size(R, 2) == 1
-        # Reduction along both columns and rows
-        R[1, 1] = centralize_sumabs2(A, means[1])
-    elseif size(R, 1) == 1
-        # Reduction along rows
-        @inbounds for col = 1:n
-            mu = means[col]
-            r = convert(S, (m - length(nzrange(A, col)))*abs2(mu))
-            @simd for j = nzrange(A, col)
-                r += abs2(nzval[j] - mu)
-            end
-            R[1, col] = r
-        end
-    elseif size(R, 2) == 1
-        # Reduction along columns
-        rownz = fill(convert(Ti, n), m)
-        @inbounds for col = 1:n
-            @simd for j = nzrange(A, col)
-                row = rowval[j]
-                R[row, 1] += abs2(nzval[j] - means[row])
-                rownz[row] -= 1
-            end
-        end
-        for i = 1:m
-            R[i, 1] += rownz[i]*abs2(means[i])
-        end
-    else
-        # Reduction along a dimension > 2
-        @inbounds for col = 1:n
-            lastrow = 0
-            @simd for j = nzrange(A, col)
-                row = rowval[j]
-                for i = lastrow+1:row-1
-                    R[i, col] = abs2(means[i, col])
-                end
-                R[row, col] = abs2(nzval[j] - means[row, col])
-                lastrow = row
-            end
-            for i = lastrow+1:m
-                R[i, col] = abs2(means[i, col])
-            end
-        end
-    end
-    return R
+# If package extensions are not supported in this Julia version
+if !isdefined(Base, :get_extension)
+    include("../ext/SparseArraysExt.jl")
 end
 
 end # module
