@@ -1026,8 +1026,8 @@ end
 
     # When a ≉ b, b-a may overflow
     # When a ≈ b, (1-γ)*a + γ*b may not be increasing with γ due to rounding
-    # Call to float is to work around JuliaLang/julia#50380
-    if isfinite(a) && isfinite(b) && float(a) ≈ float(b)
+    if isfinite(a) && isfinite(b) &&
+        (!(a isa Number) || !(b isa Number) || a ≈ b)
         return a + γ*(b-a)
     else
         return (1-γ)*a + γ*b
