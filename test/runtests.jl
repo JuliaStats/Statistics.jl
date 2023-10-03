@@ -1,6 +1,6 @@
 # This file is a part of Julia. License is MIT: https://julialang.org/license
 
-using Statistics, Test, Random, LinearAlgebra, SparseArrays
+using Statistics, Test, Random, LinearAlgebra, SparseArrays, Dates
 using Test: guardseed
 
 Random.seed!(123)
@@ -782,6 +782,17 @@ end
     @test issorted(quantile([1.0, 1.0, 1.0+eps(), 1.0+eps()], range(0, 1, length=100)))
     @test issorted(quantile([1.0, 1.0+1eps(), 1.0+2eps(), 1.0+3eps()], range(0, 1, length=100)))
     @test issorted(quantile([1.0, 1.0+2eps(), 1.0+4eps(), 1.0+6eps()], range(0, 1, length=100)))
+end
+
+@testset "quantiles with Date and DateTime" begin
+    # this is the historical behavior
+    @test quantile([Date(2023, 09, 02)], .1) == Date(2023, 09, 02)
+    @test quantile([Date(2023, 09, 02), Date(2023, 09, 02)], .1) == Date(2023, 09, 02)
+    @test_throws InexactError quantile([Date(2023, 09, 02), Date(2023, 09, 03)], .1)
+
+    @test quantile([DateTime(2023, 09, 02)], .1) == DateTime(2023, 09, 02)
+    @test quantile([DateTime(2023, 09, 02), DateTime(2023, 09, 02)], .1) == DateTime(2023, 09, 02)
+    @test_throws InexactError quantile([DateTime(2023, 09, 02), DateTime(2023, 09, 03)], .1)
 end
 
 @testset "variance of complex arrays (#13309)" begin
