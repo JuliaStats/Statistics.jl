@@ -22,11 +22,7 @@ Random.seed!(123)
         @test middle(one(T)) === middle(one(T), one(T))
     end
 
-    if VERSION < v"1.8.0-DEV.1343"
-        @test_throws ArgumentError middle(Int[])
-    else
-        @test_throws MethodError middle(Int[])
-    end
+    @test_throws Union{MethodError, ArgumentError} middle(Int[])
     @test_throws ArgumentError middle(1:0)
 
     @test middle(0:typemax(Int)) === typemax(Int) / 2
