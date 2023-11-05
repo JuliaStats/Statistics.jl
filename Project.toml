@@ -6,7 +6,7 @@ desc = "Basic statistics for Julia."
 version = "1.11.0"
 
 [compat]
-julia = "1.9"
+julia = "1.9.4"
 
 [deps]
 LinearAlgebra = "37e2e46d-f89d-539d-b4ee-838fcccc9c8e"
