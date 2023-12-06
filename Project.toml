@@ -3,7 +3,7 @@ uuid = "10745b16-79ce-11e8-11f9-7d13ad32a3b2"
 keywords = ["statistics"]
 license = "MIT"
 desc = "Basic statistics for Julia."
-version = "1.11.0"
+version = "1.11.1"
 
 [compat]
 julia = "1.9.4"
