@@ -915,7 +915,7 @@ defined in this paper:
 - Hyndman, R.J and Fan, Y. (1996) "Sample Quantiles in Statistical Packages",
   *The American Statistician*, Vol. 50, No. 4, pp. 361-365
 
-- [Quantile on Wikipedia](https://en.m.wikipedia.org/wiki/Quantile) details the different quantile definitions
+- [Quantile on Wikipedia](https://en.wikipedia.org/wiki/Quantile) details the different quantile definitions
 
 # Examples
 ```jldoctest
@@ -1068,7 +1068,7 @@ defined in this paper:
 - Hyndman, R.J and Fan, Y. (1996) "Sample Quantiles in Statistical Packages",
   *The American Statistician*, Vol. 50, No. 4, pp. 361-365
 
-- [Quantile on Wikipedia](https://en.m.wikipedia.org/wiki/Quantile) details the different quantile definitions
+- [Quantile on Wikipedia](https://en.wikipedia.org/wiki/Quantile) details the different quantile definitions
 
 # Examples
 ```jldoctest
