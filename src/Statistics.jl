@@ -1094,7 +1094,7 @@ quantile(v::AbstractVector, p; sorted::Bool=false, alpha::Real=1.0, beta::Real=a
     quantile!(sorted ? v : Base.copymutable(v), p; sorted=sorted, alpha=alpha, beta=beta)
 
 # If package extensions are not supported in this Julia version
-if !isdefined(Base, :get_extension)
+if !isdefined(Base, :get_extension) && Base.USE_GPL_LIBS
     include("../ext/SparseArraysExt.jl")
 end
 
