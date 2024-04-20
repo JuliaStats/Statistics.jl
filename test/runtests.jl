@@ -55,6 +55,14 @@ end
     @test isnan(median(Any[NaN,0.0,1.0]))
     @test isequal(median([NaN 0.0; 1.2 4.5], dims=2), reshape([NaN; 2.85], 2, 1))
 
+    # the specific NaN value is propagated from the input
+    @test median([NaN]) === NaN
+    @test median([0.0,NaN]) === NaN
+    @test median([0.0,NaN,NaN]) === NaN
+    @test median([-NaN]) === -NaN
+    @test median([0.0,-NaN]) === -NaN
+    @test median([0.0,-NaN,-NaN]) === -NaN
+
     @test ismissing(median([1, missing]))
     @test ismissing(median([1, 2, missing]))
     @test ismissing(median([NaN, 2.0, missing]))
@@ -111,6 +119,14 @@ end
     @test isnan(mean([NaN]))
     @test isnan(mean([0.0,NaN]))
     @test isnan(mean([NaN,0.0]))
+
+    # the specific NaN value is propagated from the input
+    @test mean([NaN]) === NaN
+    @test mean([0.0,NaN]) === NaN
+    @test mean([0.0,NaN,NaN]) === NaN
+    @test mean([-NaN]) === -NaN
+    @test mean([0.0,-NaN]) === -NaN
+    @test mean([0.0,-NaN,-NaN]) === -NaN
 
     @test isnan(mean([0.,Inf,-Inf]))
     @test isnan(mean([1.,-1.,Inf,-Inf]))
