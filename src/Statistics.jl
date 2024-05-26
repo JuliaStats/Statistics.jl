@@ -604,8 +604,13 @@ default), computes ``\\frac{1}{n-1}\\sum_{i=1}^n (x_i-\\bar x) (y_i-\\bar y)^*``
 ``*`` denotes the complex conjugate and `n = length(x) = length(y)`. If `corrected` is
 `false`, computes ``\\frac{1}{n}\\sum_{i=1}^n (x_i-\\bar x) (y_i-\\bar y)^*``.
 """
-cov(x::AbstractVector, y::AbstractVector; corrected::Bool=true) =
-    covm(x, mean(x), y, mean(y); corrected=corrected)
+function cov(x::AbstractVector, y::AbstractVector; corrected::Bool=true)
+    if x === y
+        cov(x; corrected=corrected)
+    else
+        covm(x, mean(x), y, mean(y); corrected=corrected)
+    end
+end
 
 """
     cov(X::AbstractVecOrMat, Y::AbstractVecOrMat; dims::Int=1, corrected::Bool=true)
@@ -614,8 +619,13 @@ Compute the covariance between the vectors or matrices `X` and `Y` along the dim
 `dims`. If `corrected` is `true` (the default) then the sum is scaled with `n-1`, whereas
 the sum is scaled with `n` if `corrected` is `false` where `n = size(X, dims) = size(Y, dims)`.
 """
-cov(X::AbstractVecOrMat, Y::AbstractVecOrMat; dims::Int=1, corrected::Bool=true) =
-    covm(X, _vmean(X, dims), Y, _vmean(Y, dims), dims; corrected=corrected)
+function cov(X::AbstractVecOrMat, Y::AbstractVecOrMat; dims::Int=1, corrected::Bool=true)
+    if X === Y
+        cov(X; dims=dims, corrected=corrected)
+    else
+        covm(X, _vmean(X, dims), Y, _vmean(Y, dims), dims; corrected=corrected)
+    end
+end
 
 ##### correlation #####
 
@@ -746,15 +756,26 @@ cor(X::AbstractMatrix; dims::Int=1) = corm(X, _vmean(X, dims), dims)
 
 Compute the Pearson correlation between the vectors `x` and `y`.
 """
-cor(x::AbstractVector, y::AbstractVector) = corm(x, mean(x), y, mean(y))
+function cor(x::AbstractVector, y::AbstractVector)
+    if x === y
+        cor(x)
+    else
+        corm(x, mean(x), y, mean(y))
+    end
+end
 
 """
     cor(X::AbstractVecOrMat, Y::AbstractVecOrMat; dims=1)
 
 Compute the Pearson correlation between the vectors or matrices `X` and `Y` along the dimension `dims`.
 """
-cor(x::AbstractVecOrMat, y::AbstractVecOrMat; dims::Int=1) =
-    corm(x, _vmean(x, dims), y, _vmean(y, dims), dims)
+function cor(x::AbstractVecOrMat, y::AbstractVecOrMat; dims::Int=1)
+    if x === y
+        cor(x; dims=dims)
+    else
+        corm(x, _vmean(x, dims), y, _vmean(y, dims), dims)
+    end
+end
 
 ##### median & quantiles #####
 
