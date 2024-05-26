@@ -639,7 +639,7 @@ clampcor(x) = x
 
 # cov2cor!
 
-function cov2cor!(C::AbstractMatrix{T}, xsd::AbstractArray) where T
+function cov2cor!(C::AbstractMatrix{T}, xsd::AbstractArray=sqrt.(view(C, diagind(C)))) where T
     require_one_based_indexing(C, xsd)
     nx = length(xsd)
     size(C) == (nx, nx) || throw(DimensionMismatch("inconsistent dimensions"))
@@ -695,7 +695,7 @@ corzm(x::AbstractVector{T}) where {T} =
     T === Missing ? missing : one(float(nonmissingtype(T)))
 function corzm(x::AbstractMatrix, vardim::Int=1)
     c = unscaled_covzm(x, vardim)
-    return cov2cor!(c, collect(sqrt(c[i,i]) for i in 1:min(size(c)...)))
+    return cov2cor!(c)
 end
 corzm(x::AbstractVector, y::AbstractMatrix, vardim::Int=1) =
     cov2cor!(unscaled_covzm(x, y, vardim), sqrt(sum(abs2, x)), sqrt!(sum(abs2, y, dims=vardim)))
