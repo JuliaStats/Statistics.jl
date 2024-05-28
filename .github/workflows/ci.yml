@@ -12,7 +12,8 @@ jobs:
       fail-fast: false
       matrix:
         version:
-          - '1' # automatically expands to the latest stable 1.x release of Julia
+          - '1' # automatically expands to the latest stable 1.x release of Julia (currently 1.9.x)
+          - '~1.10.0-0'
           - 'nightly'
         os:
           - ubuntu-latest
@@ -58,6 +59,7 @@ jobs:
       - run: |
           julia --project=docs -e '
             using Pkg
+            Pkg.respect_sysimage_versions(false)
             Pkg.develop(PackageSpec(path=pwd()))
             Pkg.instantiate()'
       - run: julia --project=docs docs/make.jl

@@ -1,6 +1,6 @@
 # This file is a part of Julia. License is MIT: https://julialang.org/license
 
-using Statistics, Test, Random, LinearAlgebra, SparseArrays
+using Statistics, Test, Random, LinearAlgebra, SparseArrays, Dates
 using Test: guardseed
 
 Random.seed!(123)
@@ -21,6 +21,11 @@ Random.seed!(123)
     for T in [Bool,Int8,Int16,Int32,Int64,Int128,UInt8,UInt16,UInt32,UInt64,UInt128,Float16,Float32,Float64]
         @test middle(one(T)) === middle(one(T), one(T))
     end
+
+    @test_throws Union{MethodError, ArgumentError} middle(Int[])
+    @test_throws ArgumentError middle(1:0)
+
+    @test middle(0:typemax(Int)) === typemax(Int) / 2
 end
 
 @testset "median" begin
@@ -49,6 +54,14 @@ end
     @test isnan(median([NaN,0.0,1.0]))
     @test isnan(median(Any[NaN,0.0,1.0]))
     @test isequal(median([NaN 0.0; 1.2 4.5], dims=2), reshape([NaN; 2.85], 2, 1))
+
+    # the specific NaN value is propagated from the input
+    @test median([NaN]) === NaN
+    @test median([0.0,NaN]) === NaN
+    @test median([0.0,NaN,NaN]) === NaN
+    @test median([-NaN]) === -NaN
+    @test median([0.0,-NaN]) === -NaN
+    @test median([0.0,-NaN,-NaN]) === -NaN
 
     @test ismissing(median([1, missing]))
     @test ismissing(median([1, 2, missing]))
@@ -107,6 +120,14 @@ end
     @test isnan(mean([0.0,NaN]))
     @test isnan(mean([NaN,0.0]))
 
+    # the specific NaN value is propagated from the input
+    @test mean([NaN]) === NaN
+    @test mean([0.0,NaN]) === NaN
+    @test mean([0.0,NaN,NaN]) === NaN
+    @test mean([-NaN]) === -NaN
+    @test mean([0.0,-NaN]) === -NaN
+    @test mean([0.0,-NaN,-NaN]) === -NaN
+
     @test isnan(mean([0.,Inf,-Inf]))
     @test isnan(mean([1.,-1.,Inf,-Inf]))
     @test isnan(mean([-Inf,Inf]))
@@ -129,8 +150,8 @@ end
     @test mean(Int[]) isa Float64
     @test isequal(mean(skipmissing(Int[])), NaN)
     @test mean(skipmissing(Int[])) isa Float64
-    @test_throws MethodError mean([])
-    @test_throws MethodError mean(skipmissing([]))
+    @test_throws Exception mean([])
+    @test_throws Exception mean(skipmissing([]))
     @test_throws ArgumentError mean((1 for i in 2:1))
     if VERSION >= v"1.6.0-DEV.83"
         @test_throws ArgumentError mean(())
@@ -162,6 +183,20 @@ end
     @test isnan(@inferred mean(Iterators.filter(x -> true, Int[])))
     @test isnan(@inferred mean(Iterators.filter(x -> true, Float32[])))
     @test isnan(@inferred mean(Iterators.filter(x -> true, Float64[])))
+
+    # using a number as a "function"
+    @test_throws "ArgumentError: mean(f, itr) requires a function and an iterable.\nPerhaps you meant mean((x, y))" mean(1, 2)
+    struct T <: Number
+        x::Int
+    end
+    (t::T)(y) = t.x == 0 ? t(y, y + 1, y + 2) : t.x * y
+    @test mean(T(2), 3) === 6.0
+    @test_throws MethodError mean(T(0), 3)
+    struct U <: Number
+        x::Int
+    end
+    (t::U)(y) = t.x == 0 ? throw(MethodError(T)) : t.x * y
+    @test @inferred mean(U(2), 3) === 6.0
 end
 
 @testset "mean/median for ranges" begin
@@ -171,17 +206,25 @@ end
             @test f(2:0.1:n) ≈ f([2:0.1:n;])
         end
     end
-    @test mean(2:1) === NaN
-    @test mean(big(2):1) isa BigFloat
+    @test mean(2:0.1:4) === 3.0  # N.B. mean([2:0.1:4;]) != 3
+    @test mean(LinRange(2im, 4im, 21)) === 3.0im
+    @test mean(2:1//10:4) === 3//1
+    @test isnan(@inferred(mean(2:1))::Float64)
+    @test isnan(@inferred(mean(big(2):1))::BigFloat)
+    z = @inferred(mean(LinRange(2im, 1im, 0)))::ComplexF64
+    @test isnan(real(z)) & isnan(imag(z))
+    @test_throws DivideError mean(2//1:1)
+    @test mean(typemax(Int):typemax(Int)) === float(typemax(Int))
+    @test mean(prevfloat(Inf):prevfloat(Inf)) === prevfloat(Inf)
 end
 
 @testset "var & std" begin
     # edge case: empty vector
     # iterable; this has to throw for type stability
-    @test_throws MethodError var(())
-    @test_throws MethodError var((); corrected=false)
-    @test_throws MethodError var((); mean=2)
-    @test_throws MethodError var((); mean=2, corrected=false)
+    @test_throws Exception var(())
+    @test_throws Exception var((); corrected=false)
+    @test_throws Exception var((); mean=2)
+    @test_throws Exception var((); mean=2, corrected=false)
     # reduction
     @test isnan(var(Int[]))
     @test isnan(var(Int[]; corrected=false))
@@ -259,6 +302,7 @@ end
     @test std([1.0,2,3]; mean=0) ≈ sqrt(7.0)
     @test std([1.0,2,3]; mean=0, corrected=false) ≈ sqrt(14.0/3)
 
+    @test stdm([1.0,2,3], [0]; dims=1, corrected=false)[] ≈ sqrt(14.0/3)
     @test std([1.0,2,3]; dims=1)[] ≈ 1.
     @test std([1.0,2,3]; dims=1, corrected=false)[] ≈ sqrt(2.0/3)
     @test std([1.0,2,3]; dims=1, mean=[0])[] ≈ sqrt(7.0)
@@ -270,6 +314,8 @@ end
     @test std((1,2,3); mean=0) ≈ sqrt(7.0)
     @test std((1,2,3); mean=0, corrected=false) ≈ sqrt(14.0/3)
 
+    @test stdm([1 2 3 4 5; 6 7 8 9 10], [3.0,8.0], dims=2) ≈ sqrt.([2.5 2.5]')
+    @test stdm([1 2 3 4 5; 6 7 8 9 10], [3.0,8.0], dims=2; corrected=false) ≈ sqrt.([2.0 2.0]')
     @test std([1 2 3 4 5; 6 7 8 9 10], dims=2) ≈ sqrt.([2.5 2.5]')
     @test std([1 2 3 4 5; 6 7 8 9 10], dims=2; corrected=false) ≈ sqrt.([2.0 2.0]')
 
@@ -319,9 +365,9 @@ end
     @test var(Complex{Float64}[]) isa Float64
     @test isequal(var(skipmissing(Complex{Float64}[])), NaN)
     @test var(skipmissing(Complex{Float64}[])) isa Float64
-    @test_throws MethodError var([])
-    @test_throws MethodError var(skipmissing([]))
-    @test_throws MethodError var((1 for i in 2:1))
+    @test_throws Exception var([])
+    @test_throws Exception var(skipmissing([]))
+    @test_throws Exception var((1 for i in 2:1))
     @test isequal(var(Int[]), NaN)
     @test var(Int[]) isa Float64
     @test isequal(var(skipmissing(Int[])), NaN)
@@ -452,9 +498,9 @@ Y = [6.0  2.0;
     @testset "cov with missing" begin
         @test cov([missing]) === cov([1, missing]) === missing
         @test cov([1, missing], [2, 3]) === cov([1, 3], [2, missing]) === missing
-        @test_throws MethodError cov([1 missing; 2 3])
-        @test_throws MethodError cov([1 missing; 2 3], [1, 2])
-        @test_throws MethodError cov([1, 2], [1 missing; 2 3])
+        @test_throws Exception cov([1 missing; 2 3])
+        @test_throws Exception cov([1 missing; 2 3], [1, 2])
+        @test_throws Exception cov([1, 2], [1 missing; 2 3])
         @test isequal(cov([1 2; 2 3], [1, missing]), [missing missing]')
         @test isequal(cov([1, missing], [1 2; 2 3]), [missing missing])
     end
@@ -544,28 +590,28 @@ end
         @test cor(tmp, tmp) <= 1.0
         @test cor(tmp, tmp2) <= 1.0
     end
-    
+
     @test cor(Int[]) === 1.0
     @test cor([im]) === 1.0 + 0.0im
-    @test_throws MethodError cor([])
-    @test_throws MethodError cor(Any[1.0])
-    
+    @test_throws Exception cor([])
+    @test_throws Exception cor(Any[1.0])
+
     @test cor([1, missing]) === 1.0
     @test ismissing(cor([missing]))
-    @test_throws MethodError cor(Any[1.0, missing])
-    
+    @test_throws Exception cor(Any[1.0, missing])
+
     @test Statistics.corm([true], 1.0) === 1.0
-    @test_throws MethodError Statistics.corm(Any[0.0, 1.0], 0.5)
+    @test_throws Exception Statistics.corm(Any[0.0, 1.0], 0.5)
     @test Statistics.corzm([true]) === 1.0
-    @test_throws MethodError Statistics.corzm(Any[0.0, 1.0])
+    @test_throws Exception Statistics.corzm(Any[0.0, 1.0])
 
     @testset "cor with missing" begin
         @test cor([missing]) === missing
         @test cor([1, missing]) == 1
         @test cor([1, missing], [2, 3]) === cor([1, 3], [2, missing]) === missing
-        @test_throws MethodError cor([1 missing; 2 3])
-        @test_throws MethodError cor([1 missing; 2 3], [1, 2])
-        @test_throws MethodError cor([1, 2], [1 missing; 2 3])
+        @test_throws Exception cor([1 missing; 2 3])
+        @test_throws Exception cor([1 missing; 2 3], [1, 2])
+        @test_throws Exception cor([1, 2], [1 missing; 2 3])
         @test isequal(cor([1 2; 2 3], [1, missing]), [missing missing]')
         @test isequal(cor([1, missing], [1 2; 2 3]), [missing missing])
     end
@@ -610,6 +656,9 @@ end
     @test quantile(Any[1, Float16(2), 3], Float16(0.5)) isa Float16
     @test quantile(Any[1, big(2), 3], Float16(0.5)) isa BigFloat
 
+    @test quantile(reshape(1:100, (10, 10)), [0.00, 0.25, 0.50, 0.75, 1.00]) ==
+        [1.0, 25.75, 50.5, 75.25, 100.0]
+
     # Need a large vector to actually check consequences of partial sorting
     x = rand(50)
     for sorted in (false, true)
@@ -635,6 +684,11 @@ end
     y = zeros(3)
     @test quantile!(y, x, [0.1, 0.5, 0.9]) === y
     @test y ≈ [1.2, 2.0, 2.8]
+
+    x = reshape(collect(1:100), (10, 10))
+    y = zeros(5)
+    @test quantile!(y, x, [0.00, 0.25, 0.50, 0.75, 1.00]) === y
+    @test y ≈ [1.0, 25.75, 50.5, 75.25, 100.0]
 
     #tests for quantile calculation with configurable alpha and beta parameters
     v = [2, 3, 4, 6, 9, 2, 6, 2, 21, 17]
@@ -723,6 +777,34 @@ end
 # StatsBase issue 164
 let y = [0.40003674665581906, 0.4085630862624367, 0.41662034698690303, 0.41662034698690303, 0.42189053966652057, 0.42189053966652057, 0.42553514344518345, 0.43985732442991354]
     @test issorted(quantile(y, range(0.01, stop=0.99, length=17)))
+end
+
+@testset "issue #144: no overflow with quantile" begin
+    @test quantile(Float16[-9000, 100], 1.0) ≈ 100
+    @test quantile(Float16[-9000, 100], 0.999999999) ≈ 99.99999
+    @test quantile(Float32[-1e9, 100], 1) ≈ 100
+    @test quantile(Float32[-1e9, 100], 0.9999999999) ≈ 99.89999998
+    @test quantile(Float64[-1e20, 100], 1) ≈ 100
+    @test quantile(Float32[-1e15, -1e14, -1e13, -1e12, -1e11, -1e10, -1e9, 100], 1) ≈ 100
+    @test quantile(Int8[-68, 60], 0.5) ≈ -4
+    @test quantile(Int32[-1e9, 2e9], 1.0) ≈ 2.0e9
+    @test quantile(Int64[-5e18, -2e18, 9e18], 1.0) ≈ 9.0e18
+
+    # check that quantiles are increasing with a, b and p even in corner cases
+    @test issorted(quantile([1.0, 1.0, 1.0+eps(), 1.0+eps()], range(0, 1, length=100)))
+    @test issorted(quantile([1.0, 1.0+1eps(), 1.0+2eps(), 1.0+3eps()], range(0, 1, length=100)))
+    @test issorted(quantile([1.0, 1.0+2eps(), 1.0+4eps(), 1.0+6eps()], range(0, 1, length=100)))
+end
+
+@testset "quantiles with Date and DateTime" begin
+    # this is the historical behavior
+    @test quantile([Date(2023, 09, 02)], .1) == Date(2023, 09, 02)
+    @test quantile([Date(2023, 09, 02), Date(2023, 09, 02)], .1) == Date(2023, 09, 02)
+    @test_throws InexactError quantile([Date(2023, 09, 02), Date(2023, 09, 03)], .1)
+
+    @test quantile([DateTime(2023, 09, 02)], .1) == DateTime(2023, 09, 02)
+    @test quantile([DateTime(2023, 09, 02), DateTime(2023, 09, 02)], .1) == DateTime(2023, 09, 02)
+    @test_throws InexactError quantile([DateTime(2023, 09, 02), DateTime(2023, 09, 03)], .1)
 end
 
 @testset "variance of complex arrays (#13309)" begin
