@@ -121,6 +121,7 @@ end
     mean!(r, v)
 
 Compute the mean of `v` over the singleton dimensions of `r`, and write results to `r`.
+Note that the target must not alias with the source.
 
 # Examples
 ```jldoctest
