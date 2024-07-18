@@ -322,7 +322,7 @@ The algorithm returns an estimator of the generative distribution's variance
 under the assumption that each entry of `itr` is a sample drawn from the same
 unknown distribution, with the samples uncorrelated.
 For arrays, this computation is equivalent to calculating
-`sum((itr .- mean(itr)).^2) / (length(itr) - 1)`.
+`sum(abs2.(itr .- mean(itr))) / (length(itr) - 1)`.
 If `corrected` is `true`, then the sum is scaled with `n-1`,
 whereas the sum is scaled with `n` if `corrected` is
 `false` with `n` the number of elements in `itr`.
@@ -360,7 +360,7 @@ The algorithm returns an estimator of the generative distribution's variance
 under the assumption that each entry of `itr` is a sample drawn from the same
 unknown distribution, with the samples uncorrelated.
 For arrays, this computation is equivalent to calculating
-`sum((itr .- mean(itr)).^2) / (length(itr) - 1)`.
+`sum(abs2.(itr .- mean(itr))) / (length(itr) - 1)`.
 If `corrected` is `true`, then the sum is scaled with `n-1`,
 whereas the sum is scaled with `n` if `corrected` is
 `false` where `n` is the number of elements in `itr`.
@@ -441,7 +441,7 @@ The algorithm returns an estimator of the generative distribution's standard
 deviation under the assumption that each entry of `itr` is a sample drawn from
 the same unknown distribution, with the samples uncorrelated.
 For arrays, this computation is equivalent to calculating
-`sqrt(sum((itr .- mean(itr)).^2) / (length(itr) - 1))`.
+`sqrt.(sum(abs2.(itr .- mean(itr))) / (length(itr) - 1))`.
 If `corrected` is `true`, then the sum is scaled with `n-1`,
 whereas the sum is scaled with `n` if `corrected` is
 `false` with `n` the number of elements in `itr`.
@@ -485,7 +485,7 @@ The algorithm returns an estimator of the generative distribution's standard
 deviation under the assumption that each entry of `itr` is a sample drawn from
 the same unknown distribution, with the samples uncorrelated.
 For arrays, this computation is equivalent to calculating
-`sqrt(sum((itr .- mean(itr)).^2) / (length(itr) - 1))`.
+`sqrt.(sum(abs2.(itr .- mean(itr))) / (length(itr) - 1))`.
 If `corrected` is `true`, then the sum is scaled with `n-1`,
 whereas the sum is scaled with `n` if `corrected` is
 `false` with `n` the number of elements in `itr`.
