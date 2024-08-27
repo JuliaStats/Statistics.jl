@@ -504,6 +504,34 @@ Y = [6.0  2.0;
         @test isequal(cov([1 2; 2 3], [1, missing]), [missing missing]')
         @test isequal(cov([1, missing], [1 2; 2 3]), [missing missing])
     end
+
+    @testset "Inconsistencies in cor/cov with missing; issues #63 and #69" begin
+        @test (@inferred cor(Union{Float64, Missing}[missing])) === 1.0
+        @test_broken (@inferred cor([missing])) === 1.0
+        @test_broken (@inferred cor(Any[missing])) === 1.0
+    
+        @test (@inferred cor([1])) === 1.0
+        @test_broken (@inferred cor(Any[1])) === 1.0
+    
+        @test ismissing(cov([1., missing, 1.]))
+        @test_broken ismissing(@inferred Float64 cov([1., missing, 1.]))
+        @test isequal(cov([missing 1.; 2. 3.]), [missing missing; missing 2.0])
+        @test isequal(cov([1. missing; 2. 3.]), [0.5 missing; missing missing])
+        @test isequal(cov([1. 2.; missing 3.]), [missing missing; missing 0.5])
+        @test isequal(cov([1. 2.; 3. missing]), [2.0 missing; missing missing])
+    
+    
+        @test (@inferred Float64 cor([1., missing, 1.])) === (@inferred cor([1., NaN, 1.])) === 1.0
+        @test isequal(cor([missing 1.; 2. 3.]), [1.0 missing; missing 1.0])
+        @test isequal(cor([1. missing; 2. 3.]), [1.0 missing; missing 1.0])
+        @test isequal(cor([1. 2.; missing 3.]), [1.0 missing; missing 1.0])
+        @test isequal(cor([1. 2.; 3. missing]), [1.0 missing; missing 1.0])
+    
+        for n in 1:10
+            @test isequal((@inferred cor(fill(missing, n,n))), fill(missing, n,n))
+            @test isequal((@inferred cov(fill(missing, n,n))), fill(missing, n,n))
+        end
+    end
 end
 
 function safe_cor(x, y, zm::Bool)
