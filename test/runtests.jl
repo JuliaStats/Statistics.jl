@@ -522,9 +522,15 @@ Y = [6.0  2.0;
     @testset "cov with missing" begin
         @test cov([missing]) === cov([1, missing]) === missing
         @test cov([1, missing], [2, 3]) === cov([1, 3], [2, missing]) === missing
-        @test_throws Exception cov([1 missing; 2 3])
-        @test_throws Exception cov([1 missing; 2 3], [1, 2])
-        @test_throws Exception cov([1, 2], [1 missing; 2 3])
+        if isdefined(Base, :_reducedim_init)
+            @test_broken isequal(coalesce.(cov([1 missing; 2 3]), NaN), cov([1 NaN; 2 3]))
+            @test_broken isequal(coalesce.(cov([1 missing; 2 3], [1, 2]), NaN), cov([1 NaN; 2 3], [1, 2]))
+            @test_broken isequal(coalesce.(cov([1, 2], [1 missing; 2 3]), NaN), cov([1, 2], [1 NaN; 2 3]))
+        else
+            @test isequal(coalesce.(cov([1 missing; 2 3]), NaN), cov([1 NaN; 2 3]))
+            @test isequal(coalesce.(cov([1 missing; 2 3], [1, 2]), NaN), cov([1 NaN; 2 3], [1, 2]))
+            @test isequal(coalesce.(cov([1, 2], [1 missing; 2 3]), NaN), cov([1, 2], [1 NaN; 2 3]))
+        end
         @test isequal(cov([1 2; 2 3], [1, missing]), [missing missing]')
         @test isequal(cov([1, missing], [1 2; 2 3]), [missing missing])
     end
@@ -633,9 +639,15 @@ end
         @test cor([missing]) === missing
         @test cor([1, missing]) == 1
         @test cor([1, missing], [2, 3]) === cor([1, 3], [2, missing]) === missing
-        @test_throws Exception cor([1 missing; 2 3])
-        @test_throws Exception cor([1 missing; 2 3], [1, 2])
-        @test_throws Exception cor([1, 2], [1 missing; 2 3])
+        if isdefined(Base, :_reducedim_init)
+            @test_broken isequal(coalesce.(cor([1 missing; 2 3]), NaN), cor([1 NaN; 2 3]))
+            @test_broken isequal(coalesce.(cor([1 missing; 2 3], [1, 2]), NaN), cor([1 NaN; 2 3], [1, 2]))
+            @test_broken isequal(coalesce.(cor([1, 2], [1 missing; 2 3]), NaN), cor([1, 2], [1 NaN; 2 3]))
+        else
+            @test isequal(coalesce.(cor([1 missing; 2 3]), NaN), cor([1 NaN; 2 3]))
+            @test isequal(coalesce.(cor([1 missing; 2 3], [1, 2]), NaN), cor([1 NaN; 2 3], [1, 2]))
+            @test isequal(coalesce.(cor([1, 2], [1 missing; 2 3]), NaN), cor([1, 2], [1 NaN; 2 3]))
+        end
         @test isequal(cor([1 2; 2 3], [1, missing]), [missing missing]')
         @test isequal(cor([1, missing], [1 2; 2 3]), [missing missing])
     end
@@ -1071,4 +1083,20 @@ end
     @test isequal(cor(mx, Int[]), fill(NaN, 2, 1))
     @test isequal(cov(Int[], my), fill(-0.0, 1, 3))
     @test isequal(cor(Int[], my), fill(NaN, 1, 3))
+end
+
+@testset "mean, var, std type stability with Missings; Issue #160" begin
+    @test (@inferred Missing mean(view([1, 2, missing], 1:2))) == (@inferred mean([1,2]))
+    @test (@inferred Missing var(view([1, 2, missing], 1:2))) == (@inferred var([1,2]))
+    @test (@inferred Missing std(view([1, 2, missing], 1:2))) == (@inferred std([1,2]))
+end
+
+@testset "inexact errors; Issues #7 and #126" begin
+    a = [missing missing; 0 1]
+    @test isequal(mean(a;dims=2), [missing; 0.5;;])
+
+    x = [(i==3 && j==3) ? missing : i*j for i in 1:3, j in 1:4]
+    @test ismissing(@inferred Float64 mean(x))
+    @test isequal(mean(x; dims=1), [2. 4. missing 8.])
+    @test isequal(mean(x; dims=2), [2.5; 5.0; missing;;])
 end
