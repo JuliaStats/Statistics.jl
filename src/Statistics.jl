@@ -689,6 +689,7 @@ function cov2cor!(C::AbstractMatrix, xsd::AbstractArray, ysd::AbstractArray)
     end
     return C
 end
+cov2cor!(C::AbstractMatrix{T}, xsd::AbstractArray=[sqrt(C[i,i]) for i in 1:size(C, 1)])
 
 # corzm (non-exported, with centered data)
 
