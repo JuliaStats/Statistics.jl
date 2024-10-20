@@ -218,6 +218,30 @@ end
     @test mean(prevfloat(Inf):prevfloat(Inf)) === prevfloat(Inf)
 end
 
+@testset "means (etc) of ranges; issue #120" begin
+    @test (@inferred mean(Int8(123):Int8(123))) === 123.0
+    @test (@inferred median(Int8(123):Int8(123))) === 123.0
+    @test (@inferred mean(Int8(126):Int8(127))) === 126.5
+    @test (@inferred median(Int8(126):Int8(127))) === 126.5
+    @test (@inferred mean(typemax(Int):typemax(Int))) === typemax(Int)/1
+    @test (@inferred median(typemax(Int):typemax(Int))) === typemax(Int)/1
+    @test (@inferred mean(UInt8(255):UInt8(255))) === 255.0
+    @test (@inferred median(UInt8(255):UInt8(255))) === 255.0
+    @test (@inferred mean(Float16(12345):Float16(12345))) === Float16(12345)
+    @test (@inferred median(Float16(12345):Float16(12345))) === Float16(12345)
+    @test (@inferred mean(Float16(12345):Float16(54321))) === Float16(33333)
+    @test (@inferred median(Float16(12345):Float16(54321))) === Float16(33333)
+
+    for T in (Int8, UInt8, Int32, UInt32, Int64, UInt64)
+        @test (@inferred mean(typemin(T):typemin(T))) === typemin(T)/1
+        @test (@inferred median(typemin(T):typemin(T))) === typemin(T)/1
+        @test (@inferred mean(typemax(T):typemax(T))) === typemax(T)/1
+        @test (@inferred median(typemax(T):typemax(T))) === typemax(T)/1
+        @test (@inferred mean(typemin(T):typemin(T))) === typemin(T)/1
+        @test (@inferred median(typemin(T):typemin(T))) === typemin(T)/1
+    end
+end
+
 @testset "var & std" begin
     # edge case: empty vector
     # iterable; this has to throw for type stability
