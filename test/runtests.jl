@@ -414,6 +414,9 @@ end
     end
 end
 
+is_missing_or_approx_equals(X, Y) =
+    all(splat((x,y) -> isequal(x, y) || isapprox(x, y)), zip(X, Y))
+
 function safe_cov(x, y, zm::Bool, cr::Bool)
     n = length(x)
     if !zm
@@ -522,9 +525,9 @@ Y = [6.0  2.0;
     @testset "cov with missing" begin
         @test cov([missing]) === cov([1, missing]) === missing
         @test cov([1, missing], [2, 3]) === cov([1, 3], [2, missing]) === missing
-        @test_throws Exception cov([1 missing; 2 3])
-        @test_throws Exception cov([1 missing; 2 3], [1, 2])
-        @test_throws Exception cov([1, 2], [1 missing; 2 3])
+        @test isequal(cov([1 missing; 2 3]), [0.5 missing; missing missing])
+        @test isequal(cov([1 missing; 2 3], [1, 2]), [0.5; missing;;])
+        @test isequal(cov([1, 2], [1 missing; 2 3]), [0.5 missing])
         @test isequal(cov([1 2; 2 3], [1, missing]), [missing missing]')
         @test isequal(cov([1, missing], [1 2; 2 3]), [missing missing])
     end
@@ -633,9 +636,9 @@ end
         @test cor([missing]) === missing
         @test cor([1, missing]) == 1
         @test cor([1, missing], [2, 3]) === cor([1, 3], [2, missing]) === missing
-        @test_throws Exception cor([1 missing; 2 3])
-        @test_throws Exception cor([1 missing; 2 3], [1, 2])
-        @test_throws Exception cor([1, 2], [1 missing; 2 3])
+        @test is_missing_or_approx_equals(cor([1 missing; 2 3]), [1 missing; missing 1])
+        @test is_missing_or_approx_equals(cor([1 missing; 2 3], [1, 2]), [1; missing;;])
+        @test is_missing_or_approx_equals(cor([1, 2], [1 missing; 2 3]), transpose([1, missing]))
         @test isequal(cor([1 2; 2 3], [1, missing]), [missing missing]')
         @test isequal(cor([1, missing], [1 2; 2 3]), [missing missing])
     end
