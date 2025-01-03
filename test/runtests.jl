@@ -796,6 +796,11 @@ end
     @test quantile(v, 0.8, alpha=1.0, beta=1.0) ≈ 10.6
     @test quantile(v, 1.0, alpha=0.0, beta=0.0) ≈ 21.0
     @test quantile(v, 1.0, alpha=1.0, beta=1.0) ≈ 21.0
+
+    @testset "avoid some rounding" begin
+        @test [quantile(1:10, i/9) for i in 0:9] == 1:10
+        @test [quantile(1:14, i/13) for i in 0:13] == 1:14
+    end
 end
 
 # StatsBase issue 164

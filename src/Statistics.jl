@@ -1035,8 +1035,10 @@ end
     @assert n > 0 # this case should never happen here
 
     m = alpha + p * (one(alpha) - alpha - beta)
-    aleph = n*p + oftype(p, m)
-    j = clamp(trunc(Int, aleph), 1, n-1)
+    # Using fma here avoids some rounding errors when aleph is an integer
+    # The use of oftype supresses the promotion caused by alpha and beta
+    aleph = fma(n, p, oftype(p, m))
+    j = clamp(trunc(Int, aleph), 1, n - 1)
     γ = clamp(aleph - j, 0, 1)
 
     if n == 1
