@@ -1115,6 +1115,9 @@ julia> quantile(skipmissing([1, 10, missing]), 0.5)
 quantile(itr, p; sorted::Bool=false, alpha::Real=1.0, beta::Real=alpha) =
     quantile!(collect(itr), p, sorted=sorted, alpha=alpha, beta=beta)
 
+quantile(f, v::AbstractVector, p; sorted::Bool=false, alpha::Real=1.0, beta::Real=alpha) =
+    quantile!(f.(v), p; sorted=sorted, alpha=alpha, beta=beta)
+
 quantile(v::AbstractVector, p; sorted::Bool=false, alpha::Real=1.0, beta::Real=alpha) =
     quantile!(sorted ? v : Base.copymutable(v), p; sorted=sorted, alpha=alpha, beta=beta)
 
