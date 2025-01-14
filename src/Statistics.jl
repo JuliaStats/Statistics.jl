@@ -904,6 +904,7 @@ _median(v::AbstractArray{T}, ::Colon) where {T} = median!(copyto!(Array{T,1}(und
 
 median(r::AbstractRange{<:Real}) = mean(r)
 
+median(f, v) = median!(f.(v))
 """
     quantile!([q::AbstractArray, ] v::AbstractVector, p; sorted=false, alpha::Real=1.0, beta::Real=alpha)
 
