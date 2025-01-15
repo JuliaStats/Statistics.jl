@@ -904,7 +904,7 @@ _median(v::AbstractArray{T}, ::Colon) where {T} = median!(copyto!(Array{T,1}(und
 
 median(r::AbstractRange{<:Real}) = mean(r)
 
-median(f, v) = median!(f.(v))
+median(f::Function, v) = median!(f.(v))
 """
     quantile!([q::AbstractArray, ] v::AbstractVector, p; sorted=false, alpha::Real=1.0, beta::Real=alpha)
 
@@ -1116,7 +1116,7 @@ julia> quantile(skipmissing([1, 10, missing]), 0.5)
 quantile(itr, p; sorted::Bool=false, alpha::Real=1.0, beta::Real=alpha) =
     quantile!(collect(itr), p, sorted=sorted, alpha=alpha, beta=beta)
 
-quantile(f, v::AbstractVector, p; sorted::Bool=false, alpha::Real=1.0, beta::Real=alpha) =
+quantile(f::Function, v::AbstractVector, p; sorted::Bool=false, alpha::Real=1.0, beta::Real=alpha) =
     quantile!(f.(v), p; sorted=sorted, alpha=alpha, beta=beta)
 
 quantile(v::AbstractVector, p; sorted::Bool=false, alpha::Real=1.0, beta::Real=alpha) =
