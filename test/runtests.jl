@@ -836,6 +836,20 @@ end
     @test_throws InexactError quantile([DateTime(2023, 09, 02), DateTime(2023, 09, 03)], .1)
 end
 
+@testset "quantile with functions (issue #141, PR #186)" begin
+    let xvec = [3, 1, 2, 4], p = rand()
+        @test quantile(√, xvec, p) ≈ quantile(.√xvec, p)
+        @test quantile(x -> x^2, xvec, p) ≈ quantile(xvec.^2, p)
+    end
+end
+
+@testset "median with functions (issue #141, PR #186)" begin
+    let xvec = [3, 1, 2, 4], p = rand()
+        @test median(√, xvec) ≈ median(.√xvec)
+        @test median(x -> x^2, xvec) ≈ median(xvec.^2)
+    end
+end
+
 @testset "variance of complex arrays (#13309)" begin
     z = rand(ComplexF64, 10)
     @test var(z) ≈ invoke(var, Tuple{Any}, z) ≈ cov(z) ≈ var(z,dims=1)[1] ≈ sum(abs2, z .- mean(z))/9
