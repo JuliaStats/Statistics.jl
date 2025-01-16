@@ -714,9 +714,18 @@ end
     @test quantile!(y, x, [0.00, 0.25, 0.50, 0.75, 1.00]) === y
     @test y ≈ [1.0, 25.75, 50.5, 75.25, 100.0]
 
-    #tests for quantile calculation with configurable alpha and beta parameters
+    # tests for non default quantile calculation methods
     v = [2, 3, 4, 6, 9, 2, 6, 2, 21, 17]
 
+    @test_throws ArgumentError quantile(v, 0.5, type=1, alpha=1.0, beta=1.0)
+    @test_throws ArgumentError quantile(v, 0.5, type=7, alpha=1.0, beta=1.0)
+    @test_throws ArgumentError quantile(v, 0.5, type=7, alpha=1.0)
+    @test_throws ArgumentError quantile(v, 0.5, type=7, beta=1.0)
+    @test quantile(v, 0.3, alpha=1.0) == quantile(v, 0.3, beta=1.0) ==
+        quantile(v, 0.3, alpha=1.0, beta=1.0)
+    @test quantile(v, 0.3, alpha=0.2) == quantile(v, 0.3, alpha=0.2, beta=0.2)
+
+    # configurable alpha and beta arguments
     # tests against scipy.stats.mstats.mquantiles method
     @test quantile(v, 0.0, alpha=0.0, beta=0.0) ≈ 2.0
     @test quantile(v, 0.2, alpha=1.0, beta=1.0) ≈ 2.0
@@ -797,6 +806,46 @@ end
     @test quantile(v, 1.0, alpha=0.0, beta=0.0) ≈ 21.0
     @test quantile(v, 1.0, alpha=1.0, beta=1.0) ≈ 21.0
 
+    # tests against R's quantile with type=1
+    @test quantile(v, 0.0, type=1) === 2
+    @test quantile(v, 0.2, type=1) === 2
+    @test quantile(v, 0.4, type=1) === 3
+    @test quantile(v, 0.45, type=1) === 4
+    @test quantile(v, 0.5, type=1) === 4
+    @test quantile(v, nextfloat(0.5), type=1) === 6
+    @test quantile(v, 0.6, type=1) === 6
+    @test quantile(v, 0.8, type=1) === 9
+    @test quantile(v, 1.0, type=1) === 21
+    @test quantile([1], [0.0, 0.2, 0.4, 0.6, 0.8, 1.0], type=1) == fill(1, 6)
+
+    # tests against R's quantile with type=2
+    @test quantile(v, 0.0, type=2) === 2.0
+    @test quantile(v, 0.2, type=2) === 2.0
+    @test quantile(v, 0.3, type=2) === 2.5
+    @test quantile(v, 0.4, type=2) === 3.5
+    @test quantile(v, nextfloat(0.4), type=2) === 4.0
+    @test quantile(v, 0.45, type=2) === 4.0
+    @test quantile(v, 0.5, type=2) === 5.0
+    @test quantile(v, 0.6, type=2) === 6.0
+    @test quantile(v, 0.8, type=2) === 13.0
+    @test quantile(v, 1.0, type=2) === 21.0
+    @test quantile([1], [0.0, 0.2, 0.4, 0.6, 0.8, 1.0], type=2) == fill(1, 6)
+
+    # tests against R's quantile with type=3
+    @test quantile(v, 0.0, type=3) === 2
+    @test quantile(v, 0.2, type=3) === 2
+    @test quantile(v, 0.3, type=3) === 2
+    @test quantile(v, 0.4, type=3) === 3
+    @test quantile(v, 0.45, type=3) === 3
+    @test quantile(v, nextfloat(0.45), type=3) === 4
+    @test quantile(v, 0.5, type=3) === 4
+    @test quantile(v, prevfloat(0.55), type=3) === 4
+    @test quantile(v, 0.55, type=3) === 6
+    @test quantile(v, 0.6, type=3) === 6
+    @test quantile(v, 0.8, type=3) === 9
+    @test quantile(v, 1.0, type=3) === 21
+    @test quantile([1], [0.0, 0.2, 0.4, 0.6, 0.8, 1.0], type=3) == fill(1, 6)
+
     @testset "avoid some rounding" begin
         @test [quantile(1:10, i/9) for i in 0:9] == 1:10
         @test [quantile(1:14, i/13) for i in 0:13] == 1:14
@@ -829,11 +878,19 @@ end
     # this is the historical behavior
     @test quantile([Date(2023, 09, 02)], .1) == Date(2023, 09, 02)
     @test quantile([Date(2023, 09, 02), Date(2023, 09, 02)], .1) == Date(2023, 09, 02)
-    @test_throws InexactError quantile([Date(2023, 09, 02), Date(2023, 09, 03)], .1)
+    @test_throws ArgumentError quantile([Date(2023, 09, 02), Date(2023, 09, 03)], .1)
+    @test quantile([Date(2023, 09, 02), Date(2023, 09, 03)], .1, type=1) ==
+        Date(2023, 09, 02)
+    @test quantile([Date(2023, 09, 02), Date(2023, 09, 03)], .1, type=3) ==
+        Date(2023, 09, 02)
 
     @test quantile([DateTime(2023, 09, 02)], .1) == DateTime(2023, 09, 02)
     @test quantile([DateTime(2023, 09, 02), DateTime(2023, 09, 02)], .1) == DateTime(2023, 09, 02)
-    @test_throws InexactError quantile([DateTime(2023, 09, 02), DateTime(2023, 09, 03)], .1)
+    @test_throws ArgumentError quantile([DateTime(2023, 09, 02), DateTime(2023, 09, 03)], .1)
+    @test quantile([DateTime(2023, 09, 02), DateTime(2023, 09, 03)], .1, type=1) ==
+        DateTime(2023, 09, 02)
+    @test quantile([DateTime(2023, 09, 02), DateTime(2023, 09, 03)], .1, type=3) ==
+        DateTime(2023, 09, 02)
 end
 
 @testset "quantile and median with functions (issue #141, PR #186)" begin
