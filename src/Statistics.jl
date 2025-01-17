@@ -904,6 +904,24 @@ _median(v::AbstractArray{T}, ::Colon) where {T} = median!(copyto!(Array{T,1}(und
 
 median(r::AbstractRange{<:Real}) = mean(r)
 
+"""
+    median(f, v)
+
+Apply the function `f` to each element of the collection `v` and then compute the median
+
+!!! compat "Julia 1.12"
+    This method requires at least Julia 1.12
+
+```jldoctest
+julia> using Statistics
+
+julia> median(√, [1. , 3. , 2.])
+1.4142135623730951
+
+julia> median([√1. ,√3. , √2.])
+1.4142135623730951
+```
+"""
 median(f::Function, v) = median!(f.(v))
 """
     quantile!([q::AbstractArray, ] v::AbstractVector, p; sorted=false, alpha::Real=1.0, beta::Real=alpha)
@@ -1116,7 +1134,26 @@ julia> quantile(skipmissing([1, 10, missing]), 0.5)
 quantile(itr, p; sorted::Bool=false, alpha::Real=1.0, beta::Real=alpha) =
     quantile!(collect(itr), p, sorted=sorted, alpha=alpha, beta=beta)
 
-quantile(f::Function, v::AbstractVector, p; sorted::Bool=false, alpha::Real=1.0, beta::Real=alpha) =
+
+"""
+    quantile(f, v)
+
+Apply the function `f` to each element of the collection `v` and then compute the median
+
+!!! compat "Julia 1.12"
+    This method requires at least Julia 1.12
+
+```jldoctest
+julia> using Statistics
+
+julia> quantile(√, [1. , 3. , 2.], 0.3)
+1.248528137423857
+
+julia> quantile([√1. ,√3. , √2.], 0.3)
+1.248528137423857
+```
+"""
+quantile(f::Function, v, p; sorted::Bool=false, alpha::Real=1.0, beta::Real=alpha) =
     quantile!(f.(v), p; sorted=sorted, alpha=alpha, beta=beta)
 
 quantile(v::AbstractVector, p; sorted::Bool=false, alpha::Real=1.0, beta::Real=alpha) =
