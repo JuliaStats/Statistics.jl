@@ -642,8 +642,8 @@ end
 end
 
 @testset "quantile" begin
-    @test quantile([1,2,3,4],0.5) ≈ 2.5
-    @test quantile([1,2,3,4],[0.5]) ≈ [2.5]
+    @test @inferred(quantile([1,2,3,4],0.5)) ≈ 2.5
+    @test @inferred(quantile([1,2,3,4],[0.5])) ≈ [2.5]
     @test quantile([1., 3],[.25,.5,.75])[2] ≈ median([1., 3])
     @test quantile(100.0:-1.0:0.0, 0.0:0.1:1.0) ≈ 0.0:10.0:100.0
     @test quantile(0.0:100.0, 0.0:0.1:1.0, sorted=true) ≈ 0.0:10.0:100.0
@@ -721,9 +721,18 @@ end
     @test_throws ArgumentError quantile(v, 0.5, type=7, alpha=1.0, beta=1.0)
     @test_throws ArgumentError quantile(v, 0.5, type=7, alpha=1.0)
     @test_throws ArgumentError quantile(v, 0.5, type=7, beta=1.0)
+    @test_throws ArgumentError quantile(v, 0.5, type=0)
+    @test_throws ArgumentError quantile(v, 0.5, type=10)
     @test quantile(v, 0.3, alpha=1.0) == quantile(v, 0.3, beta=1.0) ==
         quantile(v, 0.3, alpha=1.0, beta=1.0)
     @test quantile(v, 0.3, alpha=0.2) == quantile(v, 0.3, alpha=0.2, beta=0.2)
+
+    for (type, alpha, beta) in zip(4:9,
+                                   (0.0, 1/2, 0.0, 1.0, 1/3, 3/8),
+                                   (1.0, 1/2, 0.0, 1.0, 1/3, 3/8))
+        @test quantile(v, 0.3, type=type) ==
+            quantile(v, 0.3, alpha=alpha, beta=beta)
+    end
 
     # configurable alpha and beta arguments
     # tests against scipy.stats.mstats.mquantiles method
