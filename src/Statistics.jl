@@ -913,10 +913,10 @@ and then compute the median.
 ```jldoctest
 julia> using Statistics
 
-julia> median(√, [1. , 3. , 2.])
+julia> median(√, [1, 3, 2])
 1.4142135623730951
 
-julia> median([√1. ,√3. , √2.])
+julia> median([√1, √3, √2])
 1.4142135623730951
 ```
 """
@@ -1137,17 +1137,17 @@ quantile(itr, p; sorted::Bool=false, alpha::Real=1.0, beta::Real=alpha) =
 """
     quantile(f, v)
 
-Apply the function `f` to each element of the collection `v`
-and then compute the quantule at a specified probability
+Apply the function `f` to each element of collection `v`
+and then compute the quantile(s) at a specified probability
 or vector or tuple of probabilities `p` on the interval [0,1].
 
 ```jldoctest
 julia> using Statistics
 
-julia> quantile(√, [1 , 3 , 2], 0.3)
+julia> quantile(√, [1, 3, 2], 0.3)
 1.248528137423857
 
-julia> quantile([√1 ,√3 , √2], 0.3)
+julia> quantile([√1, √3, √2], 0.3)
 1.248528137423857
 ```
 """
