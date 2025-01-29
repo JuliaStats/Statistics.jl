@@ -844,6 +844,9 @@ end
         @test median(√, xvec) ≈ median(.√xvec)
         @test median(x -> x^2, xvec) ≈ median(xvec.^2)
     end
+
+    y = rand(4)
+    @test all(quantile(√, y, (0.3, 0.4, 0.5)) .≈ quantile(.√y, (0.3, 0.4, 0.5)))
 end
 
 @testset "variance of complex arrays (#13309)" begin
