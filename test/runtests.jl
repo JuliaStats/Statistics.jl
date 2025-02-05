@@ -817,7 +817,7 @@ end
     @test quantile(v, 0.8, alpha=1.0, beta=1.0) ≈ 10.6
     @test quantile(v, 1.0, alpha=0.0, beta=0.0) === 21.0
     @test quantile(v, 1, alpha=1.0, beta=0.0) === 21
-    @test quantile(v, true, alpha=1.0, beta=0.0) === 21.0
+    @test quantile(v, true, alpha=1.0, beta=0.0) === 21
     @test quantile(v, 1//1, alpha=1.0, beta=0.0) === 21//1
     @test quantile(v, 1.0, alpha=1.0, beta=1.0) === 21.0
     @test quantile(v, 1, alpha=1.0, beta=1.0) === 21
