@@ -938,8 +938,8 @@ The keyword argument `sorted` indicates whether `v` can be assumed to be sorted;
 
 By default (`type=7`, or equivalently `alpha = beta = 1`),
 quantiles are computed via linear interpolation between the points
-`((k-1)/(n-1), x[k])`, for `k = 1:n` where `x[j]` is the j-th order statistic of `itr`
-and `n = length(itr)`. This corresponds to Definition 7
+`((k-1)/(n-1), x[k])`, for `k = 1:n` where `x[j]` is the j-th order statistic of `v`
+and `n = length(v)`. This corresponds to Definition 7
 of Hyndman and Fan (1996), and is the same as the R and NumPy default.
 
 The keyword argument `type` can be used to choose among the 9 definitions
@@ -949,7 +949,7 @@ kinds of arguments at the same time.
 
 Definitions 1 to 3 are discontinuous:
 - `type=1`: `Q(p) = x[ceil(n*p)]` (SAS-3)
-- `type=2`: `Q(p) = middle(x[ceil(n*p), floor(n*p + 1)])` (SAS-5, Stata)
+- `type=2`: `Q(p) = middle(x[ceil(n*p)], x[floor(n*p + 1)])` (SAS-5, Stata)
 - `type=3`: `Q(p) = x[round(n*p)]` (SAS-2)
 
 Definitions 4 to 9 use linear interpolation between consecutive order statistics.
@@ -962,6 +962,9 @@ where `j = floor(n*p + m)`, `m = alpha + p*(1 - alpha - beta)` and `γ = n*p + m
   `PERCENTILE.INC`, Python `'inclusive'`)
 - `type=8`: `alpha=1/3`, `beta=1/3`
 - `type=9`: `alpha=3/8`, `beta=3/8`
+
+For all 9 definitions, `x[j]` refers to the minimum value when `j < 1` and
+to the maximum value when `j > length(x)`.
 
 Definitions 1 and 3 have the advantage that they work with types that do not support
 all arithmetic operations, such as `Date`.
@@ -1156,7 +1159,7 @@ kinds of arguments at the same time.
 
 Definitions 1 to 3 are discontinuous:
 - `type=1`: `Q(p) = x[ceil(n*p)]` (SAS-3)
-- `type=2`: `Q(p) = middle(x[ceil(n*p), floor(n*p + 1)])` (SAS-5, Stata)
+- `type=2`: `Q(p) = middle(x[ceil(n*p)], x[floor(n*p + 1)])` (SAS-5, Stata)
 - `type=3`: `Q(p) = x[round(n*p)]` (SAS-2)
 
 Definitions 4 to 9 use linear interpolation between consecutive order statistics.
@@ -1170,11 +1173,14 @@ where `j = floor(n*p + m)`, `m = alpha + p*(1 - alpha - beta)` and `γ = n*p + m
 - `type=8`: `alpha=1/3`, `beta=1/3`
 - `type=9`: `alpha=3/8`, `beta=3/8`
 
+For all 9 definitions, `x[j]` refers to the minimum value when `j < 1` and
+to the maximum value when `j > length(x)`.
+
 Definitions 1 and 3 have the advantage that they work with types that do not support
 all arithmetic operations, such as `Date`.
 
 !!! note
-    An `ArgumentError` is thrown if `v` contains `NaN` or [`missing`](@ref) values.
+    An `ArgumentError` is thrown if `itr` contains `NaN` or [`missing`](@ref) values.
     Use the [`skipmissing`](@ref) function to omit `missing` entries and compute the
     quantiles of non-missing values.
 
