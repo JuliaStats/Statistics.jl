@@ -736,7 +736,10 @@ end
 
     # configurable alpha and beta arguments
     # tests against scipy.stats.mstats.mquantiles method
-    @test quantile(v, 0.0, alpha=0.0, beta=0.0) ≈ 2.0
+    @test quantile(v, 0.0, alpha=0.0, beta=0.0) === 2.0
+    @test quantile(v, 0, alpha=0.0, beta=0.0) === 2
+    @test quantile(v, false, alpha=0.0, beta=0.0) === 2
+    @test quantile(v, 0//1, alpha=0.0, beta=0.0) === 2//1
     @test quantile(v, 0.2, alpha=1.0, beta=1.0) ≈ 2.0
     @test quantile(v, 0.4, alpha=0.0, beta=0.0) ≈ 3.4
     @test quantile(v, 0.4, alpha=0.0, beta=0.2) ≈ 3.32
@@ -812,11 +815,20 @@ end
     @test quantile(v, 0.8, alpha=1.0, beta=0.6) ≈ 13.16
     @test quantile(v, 0.8, alpha=1.0, beta=0.8) ≈ 11.88
     @test quantile(v, 0.8, alpha=1.0, beta=1.0) ≈ 10.6
-    @test quantile(v, 1.0, alpha=0.0, beta=0.0) ≈ 21.0
-    @test quantile(v, 1.0, alpha=1.0, beta=1.0) ≈ 21.0
+    @test quantile(v, 1.0, alpha=0.0, beta=0.0) === 21.0
+    @test quantile(v, 1, alpha=1.0, beta=0.0) === 21
+    @test quantile(v, true, alpha=1.0, beta=0.0) === 21.0
+    @test quantile(v, 1//1, alpha=1.0, beta=0.0) === 21//1
+    @test quantile(v, 1.0, alpha=1.0, beta=1.0) === 21.0
+    @test quantile(v, 1, alpha=1.0, beta=1.0) === 21
+    @test quantile(v, true, alpha=1.0, beta=1.0) === 21
+    @test quantile(v, 1//1, alpha=1.0, beta=1.0) === 21//1
 
     # tests against R's quantile with type=1
     @test quantile(v, 0.0, type=1) === 2
+    @test quantile(v, 0, type=1) === 2
+    @test quantile(v, false, type=1) === 2
+    @test quantile(v, 0//1, type=1) === 2
     @test quantile(v, 0.2, type=1) === 2
     @test quantile(v, 0.4, type=1) === 3
     @test quantile(v, 0.45, type=1) === 4
@@ -825,10 +837,16 @@ end
     @test quantile(v, 0.6, type=1) === 6
     @test quantile(v, 0.8, type=1) === 9
     @test quantile(v, 1.0, type=1) === 21
+    @test quantile(v, 1, type=1) === 21
+    @test quantile(v, true, type=1) === 21
+    @test quantile(v, 1//1, type=1) === 21
     @test quantile([1], [0.0, 0.2, 0.4, 0.6, 0.8, 1.0], type=1) == fill(1, 6)
 
     # tests against R's quantile with type=2
     @test quantile(v, 0.0, type=2) === 2.0
+    @test quantile(v, 0, type=2) === 2.0
+    @test quantile(v, false, type=2) === 2.0
+    @test quantile(v, 0//1, type=2) === 2.0
     @test quantile(v, 0.2, type=2) === 2.0
     @test quantile(v, 0.3, type=2) === 2.5
     @test quantile(v, 0.4, type=2) === 3.5
@@ -838,10 +856,16 @@ end
     @test quantile(v, 0.6, type=2) === 6.0
     @test quantile(v, 0.8, type=2) === 13.0
     @test quantile(v, 1.0, type=2) === 21.0
+    @test quantile(v, 1, type=2) === 21.0
+    @test quantile(v, true, type=2) === 21.0
+    @test quantile(v, 1//1, type=2) === 21.0
     @test quantile([1], [0.0, 0.2, 0.4, 0.6, 0.8, 1.0], type=2) == fill(1, 6)
 
     # tests against R's quantile with type=3
     @test quantile(v, 0.0, type=3) === 2
+    @test quantile(v, 0, type=3) === 2
+    @test quantile(v, false, type=3) === 2
+    @test quantile(v, 0//1, type=3) === 2
     @test quantile(v, 0.2, type=3) === 2
     @test quantile(v, 0.3, type=3) === 2
     @test quantile(v, 0.4, type=3) === 3
@@ -853,6 +877,9 @@ end
     @test quantile(v, 0.6, type=3) === 6
     @test quantile(v, 0.8, type=3) === 9
     @test quantile(v, 1.0, type=3) === 21
+    @test quantile(v, 1, type=3) === 21
+    @test quantile(v, true, type=3) === 21
+    @test quantile(v, 1//1, type=3) === 21
     @test quantile([1], [0.0, 0.2, 0.4, 0.6, 0.8, 1.0], type=3) == fill(1, 6)
 
     @testset "avoid some rounding" begin
