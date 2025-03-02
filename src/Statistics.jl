@@ -43,6 +43,18 @@ julia> mean(skipmissing([1, missing, 3]))
 """
 mean(itr) = mean(identity, itr)
 
+struct Counter{F} <: Function
+    f::F
+    n::Base.RefValue{Int}
+end
+Counter(f::F) where {F} = Counter{F}(f, Ref(0))
+(f::Counter)(x) = (f.n[] += 1; f.f(x))
+
+struct DivOne{F} <: Function
+    f::F
+end
+(f::DivOne)(x) = f.f(x)/1
+
 """
     mean(f, itr)
 
@@ -59,23 +71,13 @@ julia> mean([√1, √2, √3])
 ```
 """
 function mean(f, itr)
-    y = iterate(itr)
-    if y === nothing
-        return Base.mapreduce_empty_iter(f, +, itr,
-                                         Base.IteratorEltype(itr)) / 0
+    if Base.IteratorSize(itr) === Base.SizeUnknown()
+        g = Counter(DivOne(f))
+        result = mapfoldl(g, add_mean, itr)
+        return result/g.n[]
+    else
+        return mapfoldl(DivOne(f), add_mean, itr)/length(itr)
     end
-    count = 1
-    value, state = y
-    f_value = f(value)/1
-    total = Base.reduce_first(+, f_value)
-    y = iterate(itr, state)
-    while y !== nothing
-        value, state = y
-        total += _mean_promote(total, f(value))
-        count += 1
-        y = iterate(itr, state)
-    end
-    return total/count
 end
 
 """
@@ -180,20 +182,24 @@ mean(A::AbstractArray; dims=:) = _mean(identity, A, dims)
 
 _mean_promote(x::T, y::S) where {T,S} = convert(promote_type(T, S), y)
 
+add_mean(x, y) = Base.add_sum(x, _mean_promote(x, y))
+
+Base.reduce_empty(::typeof(add_mean), T) = Base.reduce_empty(Base.add_sum, T)
+Base.mapreduce_empty(g::DivOne, ::typeof(add_mean), T) = Base.mapreduce_empty(g.f, Base.add_sum, T)/1
+Base.mapreduce_empty(g::Counter{<:DivOne}, ::typeof(add_mean), T) = Base.mapreduce_empty(g.f.f, Base.add_sum, T)/1
+
+
 # ::Dims is there to force specializing on Colon (as it is a Function)
 function _mean(f, A::AbstractArray, dims::Dims=:) where Dims
-    isempty(A) && return sum(f, A, dims=dims)/0
     if dims === (:)
+        result = mapreduce(DivOne(f), add_mean, A, dims=dims)
         n = length(A)
-    else
-        n = mapreduce(i -> size(A, i), *, unique(dims); init=1)
-    end
-    x1 = f(first(A)) / 1
-    result = sum(x -> _mean_promote(x1, f(x)), A, dims=dims)
-    if dims === (:)
         return result / n
     else
-        return result ./= n
+        result = mapreduce(DivOne(f), add_mean, A, dims=dims)
+        n = prod(i -> size(A, i), unique(dims); init=1)
+        result ./= n
+        return result
     end
 end
 
@@ -211,6 +217,7 @@ realXcY(x::Complex, y::Complex) = real(x)*real(y) + imag(x)*imag(y)
 var(iterable; corrected::Bool=true, mean=nothing) = _var(iterable, corrected, mean)
 
 function _var(iterable, corrected::Bool, mean)
+    ismissing(mean) && return missing
     y = iterate(iterable)
     if y === nothing
         T = eltype(iterable)
@@ -252,61 +259,36 @@ function _var(iterable, corrected::Bool, mean)
     end
 end
 
-centralizedabs2fun(m) = x -> abs2.(x - m)
-centralize_sumabs2(A::AbstractArray, m) =
-    mapreduce(centralizedabs2fun(m), +, A)
-centralize_sumabs2(A::AbstractArray, m, ifirst::Int, ilast::Int) =
-    Base.mapreduce_impl(centralizedabs2fun(m), +, A, ifirst, ilast)
-
-function centralize_sumabs2!(R::AbstractArray{S}, A::AbstractArray, means::AbstractArray) where S
-    # following the implementation of _mapreducedim! at base/reducedim.jl
-    lsiz = Base.check_reducedims(R,A)
-    for i in 1:max(ndims(R), ndims(means))
-        if axes(means, i) != axes(R, i)
-            throw(DimensionMismatch("dimension $i of `mean` should have indices $(axes(R, i)), but got $(axes(means, i))"))
-        end
-    end
-    isempty(R) || fill!(R, zero(S))
-    isempty(A) && return R
-
-    if Base.has_fast_linear_indexing(A) && lsiz > 16 && !has_offset_axes(R, means)
-        nslices = div(length(A), lsiz)
-        ibase = first(LinearIndices(A))-1
-        for i = 1:nslices
-            @inbounds R[i] = centralize_sumabs2(A, means[i], ibase+1, ibase+lsiz)
-            ibase += lsiz
-        end
-        return R
-    end
-    indsAt, indsRt = Base.safe_tail(axes(A)), Base.safe_tail(axes(R)) # handle d=1 manually
-    keep, Idefault = Broadcast.shapeindexer(indsRt)
-    if Base.reducedim1(R, A)
-        i1 = first(Base.axes1(R))
-        @inbounds for IA in CartesianIndices(indsAt)
-            IR = Broadcast.newindex(IA, keep, Idefault)
-            r = R[i1,IR]
-            m = means[i1,IR]
-            @simd for i in axes(A, 1)
-                r += abs2(A[i,IA] - m)
-            end
-            R[i1,IR] = r
-        end
-    else
-        @inbounds for IA in CartesianIndices(indsAt)
-            IR = Broadcast.newindex(IA, keep, Idefault)
-            @simd for i in axes(A, 1)
-                R[i,IR] += abs2(A[i,IA] - means[i,IR])
-            end
-        end
-    end
-    return R
+struct CentralizedAbs2Fun{T,S} <: Function
+    mean::S
 end
+CentralizedAbs2Fun{T}(means) where {T} = CentralizedAbs2Fun{T,typeof(means)}(means)
+CentralizedAbs2Fun(means) = CentralizedAbs2Fun{typeof(means)}(means)
+CentralizedAbs2Fun(means, extrude) = CentralizedAbs2Fun{eltype(means)}(Broadcast.extrude(means))
+# Division is generally costly, but Julia is typically able to constant propagate a /1
+# and simply ensure we get the type right at no cost, allowing the division in-place later
+(f::CentralizedAbs2Fun)(x) = abs2.(x - f.mean)/1
+(f::CentralizedAbs2Fun{<:Any,<:Broadcast.Extruded})((i, x),) = abs2.(x - Broadcast._broadcast_getindex(f.mean, i))/1
+_doubled(x) = x+x
+Base.mapreduce_empty(::CentralizedAbs2Fun{T,<:Broadcast.Extruded}, ::typeof(Base.add_sum), ::Type{Tuple{_Any,S}}) where {T<:Number, S<:Number, _Any} = _doubled(abs2(zero(T)-zero(S)))/1
+Base.mapreduce_empty(::CentralizedAbs2Fun{T,<:Broadcast.Extruded}, ::typeof(Base.add_sum), ::Type{Tuple{_Any, Union{Missing, S}}}) where {T<:Number, S<:Number, _Any} = _doubled(abs2(zero(T)-zero(S)))/1
+Base.mapreduce_empty(::CentralizedAbs2Fun{T}, ::typeof(Base.add_sum), ::Type{S}) where {T<:Number, S<:Number} = _doubled(abs2(zero(T)-zero(S)))/1
+Base.mapreduce_empty(::CentralizedAbs2Fun{T}, ::typeof(Base.add_sum), ::Type{Union{Missing, S}}) where {T<:Number, S<:Number} = _doubled(abs2(zero(T)-zero(S)))/1
+
+centralize_sumabs2(A::AbstractArray, m) =
+    sum(CentralizedAbs2Fun(m), A)
+centralize_sumabs2(A::AbstractArray, m::AbstractArray, region) =
+    sum(CentralizedAbs2Fun(m, true), Base.PairsArray(A), dims=region)
+centralize_sumabs2!(R::AbstractArray, A::AbstractArray, means::AbstractArray) =
+    sum!(CentralizedAbs2Fun(means, true), R, Base.PairsArray(A))
+
 
 function varm!(R::AbstractArray{S}, A::AbstractArray, m::AbstractArray; corrected::Bool=true) where S
-    if isempty(A)
+    _checkm(R, m, ntuple(identity, Val(max(ndims(R), ndims(m)))))
+    if isempty(A) || length(A) == 1 && corrected
         fill!(R, convert(S, NaN))
     else
-        rn = div(length(A), length(R)) - Int(corrected)
+        rn = prod(ntuple(d->size(R, d) == 1 ? size(A, d) : 1, Val(max(ndims(A), ndims(R))))) - Int(corrected)
         centralize_sumabs2!(R, A, m)
         R .= R .* (1 // rn)
     end
@@ -339,15 +321,33 @@ over dimensions. In that case, `mean` must be an array with the same shape as
 """
 varm(A::AbstractArray, m::AbstractArray; corrected::Bool=true, dims=:) = _varm(A, m, corrected, dims)
 
-_varm(A::AbstractArray{T}, m, corrected::Bool, region) where {T} =
-    varm!(Base.reducedim_init(t -> abs2(t)/2, +, A, region), A, m; corrected=corrected)
+_throw_mean_mismatch(A, m, region) = throw(DimensionMismatch("axes of means ($(axes(m))) does not match reduction over $(region) of $(axes(A))"))
+function _checkm(A::AbstractArray, m::AbstractArray, region)
+    for d in 1:max(ndims(A), ndims(m))
+        if d in region
+            size(m, d) == 1 || _throw_mean_mismatch(A, m, region)
+        else
+            axes(m, d) == axes(A, d) || _throw_mean_mismatch(A, m, region)
+        end
+    end
+end
+function _varm(A::AbstractArray, m, corrected::Bool, region)
+    _checkm(A, m, region)
+    rn = prod(ntuple(d->d in region ? size(A, d) : 1, Val(ndims(A)))) - Int(corrected)
+    R = centralize_sumabs2(A, m, region)
+    if rn <= 0
+        R .= R ./ 0
+    else
+        R .= R .* 1//rn # why use Rational?
+    end
+    return R
+end
 
 varm(A::AbstractArray, m; corrected::Bool=true) = _varm(A, m, corrected, :)
 
 function _varm(A::AbstractArray{T}, m, corrected::Bool, ::Colon) where T
-    n = length(A)
-    n == 0 && return oftype((abs2(zero(T)) + abs2(zero(T)))/2, NaN)
-    return centralize_sumabs2(A, m) / (n - Int(corrected))
+    rn = max(length(A) - Int(corrected), 0)
+    centralize_sumabs2(A, m)/rn
 end
 
 
