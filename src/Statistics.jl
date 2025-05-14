@@ -43,18 +43,6 @@ julia> mean(skipmissing([1, missing, 3]))
 """
 mean(itr) = mean(identity, itr)
 
-struct Counter{F} <: Function
-    f::F
-    n::Base.RefValue{Int}
-end
-Counter(f::F) where {F} = Counter{F}(f, Ref(0))
-(f::Counter)(x) = (f.n[] += 1; f.f(x))
-
-struct DivOne{F} <: Function
-    f::F
-end
-(f::DivOne)(x) = f.f(x)/1
-
 """
     mean(f, itr)
 
@@ -71,13 +59,23 @@ julia> mean([√1, √2, √3])
 ```
 """
 function mean(f, itr)
-    if Base.IteratorSize(itr) === Base.SizeUnknown()
-        g = Counter(DivOne(f))
-        result = mapfoldl(g, add_mean, itr)
-        return result/g.n[]
-    else
-        return mapfoldl(DivOne(f), add_mean, itr)/length(itr)
+    y = iterate(itr)
+    if y === nothing
+        return Base.mapreduce_empty_iter(f, +, itr,
+                                         Base.IteratorEltype(itr)) / 0
     end
+    count = 1
+    value, state = y
+    f_value = f(value)/1
+    total = Base.reduce_first(+, f_value)
+    y = iterate(itr, state)
+    while y !== nothing
+        value, state = y
+        total += _mean_promote(total, f(value))
+        count += 1
+        y = iterate(itr, state)
+    end
+    return total/count
 end
 
 """
@@ -182,24 +180,20 @@ mean(A::AbstractArray; dims=:) = _mean(identity, A, dims)
 
 _mean_promote(x::T, y::S) where {T,S} = convert(promote_type(T, S), y)
 
-add_mean(x, y) = Base.add_sum(x, _mean_promote(x, y))
-
-Base.reduce_empty(::typeof(add_mean), T) = Base.reduce_empty(Base.add_sum, T)
-Base.mapreduce_empty(g::DivOne, ::typeof(add_mean), T) = Base.mapreduce_empty(g.f, Base.add_sum, T)/1
-Base.mapreduce_empty(g::Counter{<:DivOne}, ::typeof(add_mean), T) = Base.mapreduce_empty(g.f.f, Base.add_sum, T)/1
-
-
 # ::Dims is there to force specializing on Colon (as it is a Function)
 function _mean(f, A::AbstractArray, dims::Dims=:) where Dims
+    isempty(A) && return sum(f, A, dims=dims)/0
     if dims === (:)
-        result = mapreduce(DivOne(f), add_mean, A, dims=dims)
         n = length(A)
+    else
+        n = mapreduce(i -> size(A, i), *, unique(dims); init=1)
+    end
+    x1 = f(first(A)) / 1
+    result = sum(x -> _mean_promote(x1, f(x)), A, dims=dims)
+    if dims === (:)
         return result / n
     else
-        result = mapreduce(DivOne(f), add_mean, A, dims=dims)
-        n = prod(i -> size(A, i), unique(dims); init=1)
-        result ./= n
-        return result
+        return result ./= n
     end
 end
 
