@@ -1,6 +1,7 @@
 # Statistics.jl
 
 [![Build status](https://github.com/JuliaStats/Statistics.jl/workflows/CI/badge.svg)](https://github.com/JuliaStats/Statistics.jl/actions?query=workflow%3ACI+branch%3Amaster)
+[![codecov](https://codecov.io/github/JuliaStats/Statistics.jl/graph/badge.svg?token=kZDwAclAqh)](https://codecov.io/github/JuliaStats/Statistics.jl)
 
 Development repository for the Statistics standard library (stdlib) that ships with Julia. 
 

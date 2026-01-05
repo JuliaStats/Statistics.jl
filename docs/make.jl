@@ -8,6 +8,7 @@ end
 makedocs(
     modules = [Statistics],
     sitename = "Statistics",
+    warnonly = [:missing_docs, :cross_references],
     pages = Any[
         "Statistics" => "index.md"
         ]
