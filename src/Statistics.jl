@@ -201,6 +201,9 @@ function _var(iterable, corrected::Bool, mean)
     y = iterate(iterable)
     if y === nothing
         T = eltype(iterable)
+        # For truly empty iterables like `()`, the element type is `Union{}` and we
+        # intentionally throw (instead of returning NaN) for type-stability.
+        T === Union{} && throw(MethodError(var, (iterable,)))
         return oftype((abs2(zero(T)) + abs2(zero(T)))/2, NaN)
     end
     count = 1
@@ -400,7 +403,7 @@ function range_varm(v::AbstractRange, m)
     f  = first(v) - m
     s  = step(v)
     l  = length(v)
-    vv = f^2 * l / (l - 1) + f * s * l + s^2 * l * (2 * l - 1) / 6
+    vv = abs2(f) * l / (l - 1) + f * s * l + abs2(s) * l * (2 * l - 1) / 6
     if l == 0 || l == 1
         return typeof(vv)(NaN)
     end
