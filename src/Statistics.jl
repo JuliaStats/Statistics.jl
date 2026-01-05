@@ -385,8 +385,16 @@ varm(iterable, m; corrected::Bool=true) = _var(iterable, corrected, m)
 
 ## variances over ranges
 
-varm(v::AbstractRange, m::AbstractArray) = range_varm(v, m)
-varm(v::AbstractRange, m) = range_varm(v, m)
+function varm(v::AbstractRange, m; corrected::Bool=true)
+    l = length(v)
+    if l <= 1
+        m isa Number && return _var(v, corrected, m)
+        return range_varm(v, m)
+    end
+
+    vv = range_varm(v, m)
+    return corrected ? vv : vv * (l - 1) / l
+end
 
 function range_varm(v::AbstractRange, m)
     f  = first(v) - m
@@ -399,14 +407,20 @@ function range_varm(v::AbstractRange, m)
     return vv
 end
 
-function var(v::AbstractRange)
-    s  = step(v)
-    l  = length(v)
-    vv = abs2(s) * (l + 1) * l / 12
-    if l == 0 || l == 1
-        return typeof(vv)(NaN)
+function var(v::AbstractRange; corrected::Bool=true, mean=nothing)
+    l = length(v)
+    if l <= 1
+        return _var(v, corrected, mean)
     end
-    return vv
+
+    if mean === nothing
+        s = step(v)
+        vv = abs2(s) * (l + 1) * l / 12
+        return corrected ? vv : vv * (l - 1) / l
+    end
+
+    vv = range_varm(v, mean)
+    return corrected ? vv : vv * (l - 1) / l
 end
 
 

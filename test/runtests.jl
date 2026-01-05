@@ -818,6 +818,16 @@ Statistics.middle(x::Furlong{p}, y::Furlong{p}) where {p} = Furlong{p}(middle(x.
     @test var(r) == var(a) == Furlong{2}(0.5)
     @test std(r) == std(a) == Furlong{1}(sqrt(0.5))
 
+    @test var(r; mean=nothing) == var(a; mean=nothing)
+    @test var(r; corrected=false) == var(a; corrected=false)
+    @test var(r; mean=nothing, corrected=false) == var(a; mean=nothing, corrected=false)
+
+    m = Furlong(100)
+    @test var(r; mean=m) == var(a; mean=m)
+    @test var(r; mean=m, corrected=false) == var(a; mean=m, corrected=false)
+    @test std(r; mean=m) == std(a; mean=m)
+    @test std(r; mean=m, corrected=false) == std(a; mean=m, corrected=false)
+
     # Issue #21786
     A = [Furlong{1}(rand(-5:5)) for i in 1:2, j in 1:2]
     @test mean(mean(A, dims=1), dims=2)[1] === mean(A)
