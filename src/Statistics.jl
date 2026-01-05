@@ -7,7 +7,7 @@ Standard library module for basic statistics functionality.
 """
 module Statistics
 
-using LinearAlgebra, SparseArrays
+using LinearAlgebra
 
 using Base: has_offset_axes, require_one_based_indexing
 
@@ -103,10 +103,25 @@ julia> mean(√, [1 2 3; 4 5 6], dims=2)
 """
 mean(f, A::AbstractArray; dims=:) = _mean(f, A, dims)
 
+function mean(f::Number, itr::Number)
+    f_value = try
+        f(itr)
+    catch err
+        if err isa MethodError && err.f === f && err.args == (itr,)
+            rethrow(ArgumentError("""mean(f, itr) requires a function and an iterable.
+                                     Perhaps you meant mean((x, y))?"""))
+        else
+            rethrow(err)
+        end
+    end
+    Base.reduce_first(+, f_value)/1
+end
+
 """
     mean!(r, v)
 
 Compute the mean of `v` over the singleton dimensions of `r`, and write results to `r`.
+Note that the target must not alias with the source.
 
 # Examples
 ```jldoctest
@@ -182,12 +197,10 @@ function _mean(f, A::AbstractArray, dims::Dims=:) where Dims
     end
 end
 
-function mean(r::AbstractRange{<:Real})
-    isempty(r) && return oftype((first(r) + last(r)) / 2, NaN)
-    (first(r) + last(r)) / 2
+function mean(r::AbstractRange{T}) where T
+    isempty(r) && return zero(T)/0
+    return first(r)/2 + last(r)/2
 end
-
-median(r::AbstractRange{<:Real}) = mean(r)
 
 ##### variances #####
 
@@ -309,7 +322,7 @@ The algorithm returns an estimator of the generative distribution's variance
 under the assumption that each entry of `itr` is a sample drawn from the same
 unknown distribution, with the samples uncorrelated.
 For arrays, this computation is equivalent to calculating
-`sum((itr .- mean(itr)).^2) / (length(itr) - 1)`.
+`sum(abs2.(itr .- mean(itr))) / (length(itr) - 1)`.
 If `corrected` is `true`, then the sum is scaled with `n-1`,
 whereas the sum is scaled with `n` if `corrected` is
 `false` with `n` the number of elements in `itr`.
@@ -347,7 +360,7 @@ The algorithm returns an estimator of the generative distribution's variance
 under the assumption that each entry of `itr` is a sample drawn from the same
 unknown distribution, with the samples uncorrelated.
 For arrays, this computation is equivalent to calculating
-`sum((itr .- mean(itr)).^2) / (length(itr) - 1)`.
+`sum(abs2.(itr .- mean(itr))) / (length(itr) - 1)`.
 If `corrected` is `true`, then the sum is scaled with `n-1`,
 whereas the sum is scaled with `n` if `corrected` is
 `false` where `n` is the number of elements in `itr`.
@@ -442,7 +455,7 @@ The algorithm returns an estimator of the generative distribution's standard
 deviation under the assumption that each entry of `itr` is a sample drawn from
 the same unknown distribution, with the samples uncorrelated.
 For arrays, this computation is equivalent to calculating
-`sqrt(sum((itr .- mean(itr)).^2) / (length(itr) - 1))`.
+`sqrt.(sum(abs2.(itr .- mean(itr))) / (length(itr) - 1))`.
 If `corrected` is `true`, then the sum is scaled with `n-1`,
 whereas the sum is scaled with `n` if `corrected` is
 `false` with `n` the number of elements in `itr`.
@@ -486,7 +499,7 @@ The algorithm returns an estimator of the generative distribution's standard
 deviation under the assumption that each entry of `itr` is a sample drawn from
 the same unknown distribution, with the samples uncorrelated.
 For arrays, this computation is equivalent to calculating
-`sqrt(sum((itr .- mean(itr)).^2) / (length(itr) - 1))`.
+`sqrt.(sum(abs2.(itr .- mean(itr))) / (length(itr) - 1))`.
 If `corrected` is `true`, then the sum is scaled with `n-1`,
 whereas the sum is scaled with `n` if `corrected` is
 `false` with `n` the number of elements in `itr`.
@@ -606,8 +619,13 @@ default), computes ``\\frac{1}{n-1}\\sum_{i=1}^n (x_i-\\bar x) (y_i-\\bar y)^*``
 ``*`` denotes the complex conjugate and `n = length(x) = length(y)`. If `corrected` is
 `false`, computes ``\\frac{1}{n}\\sum_{i=1}^n (x_i-\\bar x) (y_i-\\bar y)^*``.
 """
-cov(x::AbstractVector, y::AbstractVector; corrected::Bool=true) =
-    covm(x, mean(x), y, mean(y); corrected=corrected)
+function cov(x::AbstractVector, y::AbstractVector; corrected::Bool=true)
+    if x === y
+        cov(x; corrected=corrected)
+    else
+        covm(x, mean(x), y, mean(y); corrected=corrected)
+    end
+end
 
 """
     cov(X::AbstractVecOrMat, Y::AbstractVecOrMat; dims::Int=1, corrected::Bool=true)
@@ -616,8 +634,13 @@ Compute the covariance between the vectors or matrices `X` and `Y` along the dim
 `dims`. If `corrected` is `true` (the default) then the sum is scaled with `n-1`, whereas
 the sum is scaled with `n` if `corrected` is `false` where `n = size(X, dims) = size(Y, dims)`.
 """
-cov(X::AbstractVecOrMat, Y::AbstractVecOrMat; dims::Int=1, corrected::Bool=true) =
-    covm(X, _vmean(X, dims), Y, _vmean(Y, dims), dims; corrected=corrected)
+function cov(X::AbstractVecOrMat, Y::AbstractVecOrMat; dims::Int=1, corrected::Bool=true)
+    if X === Y
+        cov(X; dims=dims, corrected=corrected)
+    else
+        covm(X, _vmean(X, dims), Y, _vmean(Y, dims), dims; corrected=corrected)
+    end
+end
 
 ##### correlation #####
 
@@ -631,7 +654,7 @@ clampcor(x) = x
 
 # cov2cor!
 
-function cov2cor!(C::AbstractMatrix{T}, xsd::AbstractArray) where T
+function cov2cor!(C::AbstractMatrix{T}, xsd::AbstractArray=sqrt.(view(C, diagind(C)))) where T
     require_one_based_indexing(C, xsd)
     nx = length(xsd)
     size(C) == (nx, nx) || throw(DimensionMismatch("inconsistent dimensions"))
@@ -687,7 +710,7 @@ corzm(x::AbstractVector{T}) where {T} =
     T === Missing ? missing : one(float(nonmissingtype(T)))
 function corzm(x::AbstractMatrix, vardim::Int=1)
     c = unscaled_covzm(x, vardim)
-    return cov2cor!(c, collect(sqrt(c[i,i]) for i in 1:min(size(c)...)))
+    return cov2cor!(c)
 end
 corzm(x::AbstractVector, y::AbstractMatrix, vardim::Int=1) =
     cov2cor!(unscaled_covzm(x, y, vardim), sqrt(sum(abs2, x)), sqrt!(sum(abs2, y, dims=vardim)))
@@ -748,15 +771,26 @@ cor(X::AbstractMatrix; dims::Int=1) = corm(X, _vmean(X, dims), dims)
 
 Compute the Pearson correlation between the vectors `x` and `y`.
 """
-cor(x::AbstractVector, y::AbstractVector) = corm(x, mean(x), y, mean(y))
+function cor(x::AbstractVector, y::AbstractVector)
+    if x === y
+        cor(x)
+    else
+        corm(x, mean(x), y, mean(y))
+    end
+end
 
 """
     cor(X::AbstractVecOrMat, Y::AbstractVecOrMat; dims=1)
 
 Compute the Pearson correlation between the vectors or matrices `X` and `Y` along the dimension `dims`.
 """
-cor(x::AbstractVecOrMat, y::AbstractVecOrMat; dims::Int=1) =
-    corm(x, _vmean(x, dims), y, _vmean(y, dims), dims)
+function cor(x::AbstractVecOrMat, y::AbstractVecOrMat; dims::Int=1)
+    if x === y
+        cor(x; dims=dims)
+    else
+        corm(x, _vmean(x, dims), y, _vmean(y, dims), dims)
+    end
+end
 
 ##### median & quantiles #####
 
@@ -816,7 +850,8 @@ Like [`median`](@ref), but may overwrite the input vector.
 function median!(v::AbstractVector)
     isempty(v) && throw(ArgumentError("median of an empty array is undefined, $(repr(v))"))
     eltype(v)>:Missing && any(ismissing, v) && return missing
-    any(x -> x isa Number && isnan(x), v) && return convert(eltype(v), NaN)
+    nanix = findfirst(x -> x isa Number && isnan(x), v)
+    isnothing(nanix) || return v[nanix]
     inds = axes(v, 1)
     n = length(inds)
     mid = div(first(inds)+last(inds),2)
@@ -881,6 +916,26 @@ _median(v::AbstractArray, dims) = mapslices(median!, v, dims = dims)
 
 _median(v::AbstractArray{T}, ::Colon) where {T} = median!(copyto!(Array{T,1}(undef, length(v)), v))
 
+median(r::AbstractRange{<:Real}) = mean(r)
+
+"""
+    median(f, v)
+
+Apply the function `f` to each element of collection `v`
+and then compute the median.
+
+```jldoctest
+julia> using Statistics
+
+julia> median(√, [1, 3, 2])
+1.4142135623730951
+
+julia> median([√1, √3, √2])
+1.4142135623730951
+```
+"""
+median(f::Function, v) = median!(f.(v))
+
 """
     quantile!([q::AbstractArray, ] v::AbstractVector, p; sorted=false, alpha::Real=1.0, beta::Real=alpha)
 
@@ -890,15 +945,19 @@ output array `q` may also be specified. (If not provided, a new output array is 
 The keyword argument `sorted` indicates whether `v` can be assumed to be sorted; if
 `false` (the default), then the elements of `v` will be partially sorted in-place.
 
+Samples quantile are defined by `Q(p) = (1-γ)*x[j] + γ*x[j+1]`,
+where `x[j]` is the j-th order statistic of `v`, `j = floor(n*p + m)`,
+`m = alpha + p*(1 - alpha - beta)` and `γ = n*p + m - j`.
+
 By default (`alpha = beta = 1`), quantiles are computed via linear interpolation between the points
-`((k-1)/(n-1), v[k])`, for `k = 1:n` where `n = length(v)`. This corresponds to Definition 7
+`((k-1)/(n-1), x[k])`, for `k = 1:n` where `n = length(v)`. This corresponds to Definition 7
 of Hyndman and Fan (1996), and is the same as the R and NumPy default.
 
 The keyword arguments `alpha` and `beta` correspond to the same parameters in Hyndman and Fan,
 setting them to different values allows to calculate quantiles with any of the methods 4-9
 defined in this paper:
 - Def. 4: `alpha=0`, `beta=1`
-- Def. 5: `alpha=0.5`, `beta=0.5`
+- Def. 5: `alpha=0.5`, `beta=0.5` (MATLAB default)
 - Def. 6: `alpha=0`, `beta=0` (Excel `PERCENTILE.EXC`, Python default, Stata `altdef`)
 - Def. 7: `alpha=1`, `beta=1` (Julia, R and NumPy default, Excel `PERCENTILE` and `PERCENTILE.INC`, Python `'inclusive'`)
 - Def. 8: `alpha=1/3`, `beta=1/3`
@@ -911,7 +970,7 @@ defined in this paper:
 - Hyndman, R.J and Fan, Y. (1996) "Sample Quantiles in Statistical Packages",
   *The American Statistician*, Vol. 50, No. 4, pp. 361-365
 
-- [Quantile on Wikipedia](https://en.m.wikipedia.org/wiki/Quantile) details the different quantile definitions
+- [Quantile on Wikipedia](https://en.wikipedia.org/wiki/Quantile) details the different quantile definitions
 
 # Examples
 ```jldoctest
@@ -935,9 +994,9 @@ true
 
 julia> y
 3-element Vector{Float64}:
- 1.2000000000000002
+ 1.2
  2.0
- 2.8000000000000003
+ 2.8
 ```
 """
 function quantile!(q::AbstractArray, v::AbstractVector, p::AbstractArray;
@@ -1008,8 +1067,10 @@ end
     @assert n > 0 # this case should never happen here
 
     m = alpha + p * (one(alpha) - alpha - beta)
-    aleph = n*p + oftype(p, m)
-    j = clamp(trunc(Int, aleph), 1, n-1)
+    # Using fma here avoids some rounding errors when aleph is an integer
+    # The use of oftype supresses the promotion caused by alpha and beta
+    aleph = fma(n, p, oftype(p, m))
+    j = clamp(trunc(Int, aleph), 1, n - 1)
     γ = clamp(aleph - j, 0, 1)
 
     if n == 1
@@ -1020,7 +1081,10 @@ end
         b = v[j + 1]
     end
 
-    if isfinite(a) && isfinite(b)
+    # When a ≉ b, b-a may overflow
+    # When a ≈ b, (1-γ)*a + γ*b may not be increasing with γ due to rounding
+    if isfinite(a) && isfinite(b) &&
+        (!(a isa Number) || !(b isa Number) || a ≈ b)
         return a + γ*(b-a)
     else
         return (1-γ)*a + γ*b
@@ -1035,19 +1099,18 @@ probabilities `p` on the interval [0,1]. The keyword argument `sorted` indicates
 `itr` can be assumed to be sorted.
 
 Samples quantile are defined by `Q(p) = (1-γ)*x[j] + γ*x[j+1]`,
-where ``x[j]`` is the j-th order statistic, and `γ` is a function of
-`j = floor(n*p + m)`, `m = alpha + p*(1 - alpha - beta)` and
-`g = n*p + m - j`.
+where `x[j]` is the j-th order statistic of `itr`, `j = floor(n*p + m)`,
+`m = alpha + p*(1 - alpha - beta)` and `γ = n*p + m - j`.
 
 By default (`alpha = beta = 1`), quantiles are computed via linear interpolation between the points
-`((k-1)/(n-1), v[k])`, for `k = 1:n` where `n = length(itr)`. This corresponds to Definition 7
+`((k-1)/(n-1), x[k])`, for `k = 1:n` where `n = length(itr)`. This corresponds to Definition 7
 of Hyndman and Fan (1996), and is the same as the R and NumPy default.
 
 The keyword arguments `alpha` and `beta` correspond to the same parameters in Hyndman and Fan,
 setting them to different values allows to calculate quantiles with any of the methods 4-9
 defined in this paper:
 - Def. 4: `alpha=0`, `beta=1`
-- Def. 5: `alpha=0.5`, `beta=0.5`
+- Def. 5: `alpha=0.5`, `beta=0.5` (MATLAB default)
 - Def. 6: `alpha=0`, `beta=0` (Excel `PERCENTILE.EXC`, Python default, Stata `altdef`)
 - Def. 7: `alpha=1`, `beta=1` (Julia, R and NumPy default, Excel `PERCENTILE` and `PERCENTILE.INC`, Python `'inclusive'`)
 - Def. 8: `alpha=1/3`, `beta=1/3`
@@ -1062,7 +1125,7 @@ defined in this paper:
 - Hyndman, R.J and Fan, Y. (1996) "Sample Quantiles in Statistical Packages",
   *The American Statistician*, Vol. 50, No. 4, pp. 361-365
 
-- [Quantile on Wikipedia](https://en.m.wikipedia.org/wiki/Quantile) details the different quantile definitions
+- [Quantile on Wikipedia](https://en.wikipedia.org/wiki/Quantile) details the different quantile definitions
 
 # Examples
 ```jldoctest
@@ -1075,7 +1138,7 @@ julia> quantile(0:20, [0.1, 0.5, 0.9])
 3-element Vector{Float64}:
   2.0
  10.0
- 18.000000000000004
+ 18.0
 
 julia> quantile(skipmissing([1, 10, missing]), 0.5)
 5.5
@@ -1084,97 +1147,34 @@ julia> quantile(skipmissing([1, 10, missing]), 0.5)
 quantile(itr, p; sorted::Bool=false, alpha::Real=1.0, beta::Real=alpha) =
     quantile!(collect(itr), p, sorted=sorted, alpha=alpha, beta=beta)
 
+
+"""
+    quantile(f, v)
+
+Apply the function `f` to each element of collection `v`
+and then compute the quantile(s) at a specified probability
+or vector or tuple of probabilities `p` on the interval [0,1].
+
+```jldoctest
+julia> using Statistics
+
+julia> quantile(√, [1, 3, 2], 0.3)
+1.248528137423857
+
+julia> quantile([√1, √3, √2], 0.3)
+1.248528137423857
+
+julia> quantile(√, [1, 3, 2], (0.3, 0.4, 0.5))
+(1.248528137423857, 1.3313708498984762, 1.4142135623730951)
+
+julia> quantile(.√[1, 3, 2], (0.3, 0.4, 0.5))
+(1.248528137423857, 1.3313708498984762, 1.4142135623730951)
+```
+"""
+quantile(f::Function, v, p; sorted::Bool=false, alpha::Real=1.0, beta::Real=alpha) =
+    quantile!(f.(v), p; sorted=sorted, alpha=alpha, beta=beta)
+
 quantile(v::AbstractVector, p; sorted::Bool=false, alpha::Real=1.0, beta::Real=alpha) =
     quantile!(sorted ? v : Base.copymutable(v), p; sorted=sorted, alpha=alpha, beta=beta)
-
-
-##### SparseArrays optimizations #####
-
-function cov(X::SparseMatrixCSC; dims::Int=1, corrected::Bool=true)
-    vardim = dims
-    a, b = size(X)
-    n, p = vardim == 1 ? (a, b) : (b, a)
-
-    # The covariance can be decomposed into two terms
-    # 1/(n - 1) ∑ (x_i - x̄)*(x_i - x̄)' = 1/(n - 1) (∑ x_i*x_i' - n*x̄*x̄')
-    # which can be evaluated via a sparse matrix-matrix product
-
-    # Compute ∑ x_i*x_i' = X'X using sparse matrix-matrix product
-    out = Matrix(unscaled_covzm(X, vardim))
-
-    # Compute x̄
-    x̄ᵀ = mean(X, dims=vardim)
-
-    # Subtract n*x̄*x̄' from X'X
-    @inbounds for j in 1:p, i in 1:p
-        out[i,j] -= x̄ᵀ[i] * x̄ᵀ[j]' * n
-    end
-
-    # scale with the sample size n or the corrected sample size n - 1
-    return rmul!(out, inv(n - corrected))
-end
-
-# This is the function that does the reduction underlying var/std
-function centralize_sumabs2!(R::AbstractArray{S}, A::SparseMatrixCSC{Tv,Ti}, means::AbstractArray) where {S,Tv,Ti}
-    require_one_based_indexing(R, A, means)
-    lsiz = Base.check_reducedims(R,A)
-    for i in 1:max(ndims(R), ndims(means))
-        if axes(means, i) != axes(R, i)
-            throw(DimensionMismatch("dimension $i of `mean` should have indices $(axes(R, i)), but got $(axes(means, i))"))
-        end
-    end
-    isempty(R) || fill!(R, zero(S))
-    isempty(A) && return R
-
-    rowval = rowvals(A)
-    nzval = nonzeros(A)
-    m = size(A, 1)
-    n = size(A, 2)
-
-    if size(R, 1) == size(R, 2) == 1
-        # Reduction along both columns and rows
-        R[1, 1] = centralize_sumabs2(A, means[1])
-    elseif size(R, 1) == 1
-        # Reduction along rows
-        @inbounds for col = 1:n
-            mu = means[col]
-            r = convert(S, (m - length(nzrange(A, col)))*abs2(mu))
-            @simd for j = nzrange(A, col)
-                r += abs2(nzval[j] - mu)
-            end
-            R[1, col] = r
-        end
-    elseif size(R, 2) == 1
-        # Reduction along columns
-        rownz = fill(convert(Ti, n), m)
-        @inbounds for col = 1:n
-            @simd for j = nzrange(A, col)
-                row = rowval[j]
-                R[row, 1] += abs2(nzval[j] - means[row])
-                rownz[row] -= 1
-            end
-        end
-        for i = 1:m
-            R[i, 1] += rownz[i]*abs2(means[i])
-        end
-    else
-        # Reduction along a dimension > 2
-        @inbounds for col = 1:n
-            lastrow = 0
-            @simd for j = nzrange(A, col)
-                row = rowval[j]
-                for i = lastrow+1:row-1
-                    R[i, col] = abs2(means[i, col])
-                end
-                R[row, col] = abs2(nzval[j] - means[row, col])
-                lastrow = row
-            end
-            for i = lastrow+1:m
-                R[i, col] = abs2(means[i, col])
-            end
-        end
-    end
-    return R
-end
 
 end # module
