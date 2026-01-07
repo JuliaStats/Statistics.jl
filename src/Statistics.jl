@@ -403,13 +403,9 @@ varm(iterable, m; corrected::Bool=true) = _var(iterable, corrected, m)
 
 function varm(v::AbstractRange, m; corrected::Bool=true)
     l = length(v)
-    if l <= 1
-        m isa Number && return _var(v, corrected, m)
-        return range_varm(v, m)
-    end
-
+    m isa Number && l <= 1 && return _var(v, corrected, m)
     vv = range_varm(v, m)
-    return corrected ? vv : vv * (l - 1) / l
+    return (corrected || l <= 1) ? vv : vv * (l - 1) / l
 end
 
 function range_varm(v::AbstractRange, m)
@@ -429,13 +425,12 @@ function var(v::AbstractRange; corrected::Bool=true, mean=nothing)
         return _var(v, corrected, mean)
     end
 
-    if mean === nothing
+    vv = if mean === nothing
         s = step(v)
-        vv = abs2(s) * (l + 1) * l / 12
-        return corrected ? vv : vv * (l - 1) / l
+        abs2(s) * (l + 1) * l / 12
+    else
+        range_varm(v, mean)
     end
-
-    vv = range_varm(v, mean)
     return corrected ? vv : vv * (l - 1) / l
 end
 

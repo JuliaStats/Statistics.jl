@@ -922,9 +922,7 @@ Statistics.middle(x::Furlong{p}, y::Furlong{p}) where {p} = Furlong{p}(middle(x.
     @test var(r) == var(a) == Furlong{2}(0.5)
     @test std(r) == std(a) == Furlong{1}(sqrt(0.5))
 
-    @test var(r; mean=nothing) == var(a; mean=nothing)
     @test var(r; corrected=false) == var(a; corrected=false)
-    @test var(r; mean=nothing, corrected=false) == var(a; mean=nothing, corrected=false)
 
     m = Furlong(100)
     @test var(r; mean=m) == var(a; mean=m)
