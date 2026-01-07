@@ -245,10 +245,10 @@ end
 @testset "var & std" begin
     # edge case: empty vector
     # iterable; this has to throw for type stability
-    @test_throws Exception var(())
-    @test_throws Exception var((); corrected=false)
-    @test_throws Exception var((); mean=2)
-    @test_throws Exception var((); mean=2, corrected=false)
+    @test_throws ArgumentError var(())
+    @test_throws ArgumentError var((); corrected=false)
+    @test_throws ArgumentError var((); mean=2)
+    @test_throws ArgumentError var((); mean=2, corrected=false)
     # reduction
     @test isnan(var(Int[]))
     @test isnan(var(Int[]; corrected=false))
