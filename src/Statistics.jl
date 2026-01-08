@@ -412,7 +412,7 @@ function range_varm(v::AbstractRange, m)
     f  = first(v) - m
     s  = step(v)
     l  = length(v)
-    vv = abs2(f) * l / (l - 1) + f * s * l + abs2(s) * l * (2 * l - 1) / 6
+    vv = f^2 * l / (l - 1) + f * s * l + s^2 * l * (2 * l - 1) / 6
     if l == 0 || l == 1
         return typeof(vv)(NaN)
     end
