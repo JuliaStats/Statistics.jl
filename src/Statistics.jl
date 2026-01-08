@@ -207,6 +207,7 @@ end
 # faster computation of real(conj(x)*y)
 realXcY(x::Real, y::Real) = x*y
 realXcY(x::Complex, y::Complex) = real(x)*real(y) + imag(x)*imag(y)
+realXcY(x::Number, y::Number) = real(conj(x) * y)
 
 var(iterable; corrected::Bool=true, mean=nothing) = _var(iterable, corrected, mean)
 
@@ -214,6 +215,9 @@ function _var(iterable, corrected::Bool, mean)
     y = iterate(iterable)
     if y === nothing
         T = eltype(iterable)
+        # For truly empty iterables like `()`, the element type is `Union{}` and we
+        # intentionally throw (instead of returning NaN) for type-stability.
+        T === Union{} && throw(ArgumentError("variance of an empty iterator is undefined"))
         return oftype((abs2(zero(T)) + abs2(zero(T)))/2, NaN)
     end
     count = 1
@@ -398,28 +402,42 @@ varm(iterable, m; corrected::Bool=true) = _var(iterable, corrected, m)
 
 ## variances over ranges
 
-varm(v::AbstractRange, m::AbstractArray) = range_varm(v, m)
-varm(v::AbstractRange, m) = range_varm(v, m)
+function varm(v::AbstractRange, m; corrected::Bool=true)
+    l = length(v)
+    m isa Number && l <= 1 && return _var(v, corrected, m)
+    vv = range_varm(v, m)
+    return (corrected || l <= 1) ? vv : vv * (l - 1) / l
+end
 
 function range_varm(v::AbstractRange, m)
     f  = first(v) - m
     s  = step(v)
     l  = length(v)
-    vv = f^2 * l / (l - 1) + f * s * l + s^2 * l * (2 * l - 1) / 6
     if l == 0 || l == 1
-        return typeof(vv)(NaN)
+        T = typeof((abs2(f) + abs2(s) + realXcY(f, s)) / 2)
+        return T(NaN)
     end
-    return vv
+
+    # For yᵢ = f + (i-1)s with i ∈ 1:l, we want sum(abs2(yᵢ)) / (l-1).
+    sum_t = l * (l - 1) / 2
+    sum_t2 = (l - 1) * l * (2 * l - 1) / 6
+    numer = abs2(f) * l + 2 * realXcY(f, s) * sum_t + abs2(s) * sum_t2
+    return numer / (l - 1)
 end
 
-function var(v::AbstractRange)
-    s  = step(v)
-    l  = length(v)
-    vv = abs2(s) * (l + 1) * l / 12
-    if l == 0 || l == 1
-        return typeof(vv)(NaN)
+function var(v::AbstractRange; corrected::Bool=true, mean=nothing)
+    l = length(v)
+    if l <= 1
+        return _var(v, corrected, mean)
     end
-    return vv
+
+    vv = if mean === nothing
+        s = step(v)
+        abs2(s) * (l + 1) * l / 12
+    else
+        range_varm(v, mean)
+    end
+    return corrected ? vv : vv * (l - 1) / l
 end
 
 
