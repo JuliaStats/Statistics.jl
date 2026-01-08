@@ -207,6 +207,7 @@ end
 # faster computation of real(conj(x)*y)
 realXcY(x::Real, y::Real) = x*y
 realXcY(x::Complex, y::Complex) = real(x)*real(y) + imag(x)*imag(y)
+realXcY(x::Number, y::Number) = real(conj(x) * y)
 
 var(iterable; corrected::Bool=true, mean=nothing) = _var(iterable, corrected, mean)
 
@@ -412,11 +413,16 @@ function range_varm(v::AbstractRange, m)
     f  = first(v) - m
     s  = step(v)
     l  = length(v)
-    vv = f^2 * l / (l - 1) + f * s * l + s^2 * l * (2 * l - 1) / 6
     if l == 0 || l == 1
-        return typeof(vv)(NaN)
+        T = typeof((abs2(f) + abs2(s) + realXcY(f, s)) / 2)
+        return T(NaN)
     end
-    return vv
+
+    # For yᵢ = f + (i-1)s with i ∈ 1:l, we want sum(abs2(yᵢ)) / (l-1).
+    sum_t = l * (l - 1) / 2
+    sum_t2 = (l - 1) * l * (2 * l - 1) / 6
+    numer = abs2(f) * l + 2 * realXcY(f, s) * sum_t + abs2(s) * sum_t2
+    return numer / (l - 1)
 end
 
 function var(v::AbstractRange; corrected::Bool=true, mean=nothing)

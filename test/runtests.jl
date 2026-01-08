@@ -283,6 +283,12 @@ end
     @test isnan(var(1:1))
     @test isnan(var(1:-1))
 
+    let r = LinRange(1 + 2im, 3 + 4im, 11), m = mean(r)
+        @test (@inferred var(r))::Float64 ≈ var(r; mean=m)
+        @test (@inferred var(r; mean=m))::Float64 ≈ var(r)
+        @test (@inferred varm(r, m))::Float64 ≈ varm(collect(r), m)
+    end
+
     @test @inferred(var(1.0:8.0)) == 6.
     @test varm(1.0:8.0,1.0) == varm(Vector(1.0:8.0),1)
     @test isnan(varm(1.0:1.0,1.0))
