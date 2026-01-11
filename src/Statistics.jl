@@ -404,20 +404,15 @@ varm(iterable, m; corrected::Bool=true) = _var(iterable, corrected, m)
 
 function varm(v::AbstractRange, m; corrected::Bool=true)
     l = length(v)
-    m isa Number && l <= 1 && return _var(v, corrected, m)
+    l <= 1 && return _var(v, corrected, m)
     vv = range_varm(v, m)
-    return (corrected || l <= 1) ? vv : vv * (l - 1) / l
+    return corrected ? vv : vv * (l - 1) / l
 end
 
 function range_varm(v::AbstractRange, m)
     f  = first(v) - m
     s  = step(v)
     l  = length(v)
-    if l == 0 || l == 1
-        T = typeof((abs2(f) + abs2(s) + realXcY(f, s)) / 2)
-        return T(NaN)
-    end
-
     # For yᵢ = f + (i-1)s with i ∈ 1:l, we want sum(abs2(yᵢ)) / (l-1).
     sum_t = l * (l - 1) / 2
     sum_t2 = (l - 1) * l * (2 * l - 1) / 6
