@@ -405,7 +405,12 @@ varm(iterable, m; corrected::Bool=true) = _var(iterable, corrected, m)
 function varm(v::AbstractRange, m; corrected::Bool=true)
     l = length(v)
     l <= 1 && return _var(v, corrected, m)
-    vv = range_varm(v, m)
+    vv = if m === nothing
+        s = step(v)
+        abs2(s) * (l + 1) * l / 12
+     else
+         range_varm(v, m)
+     end
     return corrected ? vv : vv * (l - 1) / l
 end
 
