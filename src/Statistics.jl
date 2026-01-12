@@ -422,18 +422,7 @@ function range_varm(v::AbstractRange, m)
 end
 
 function var(v::AbstractRange; corrected::Bool=true, mean=nothing)
-    l = length(v)
-    if l <= 1
-        return _var(v, corrected, mean)
-    end
-
-    vv = if mean === nothing
-        s = step(v)
-        abs2(s) * (l + 1) * l / 12
-    else
-        range_varm(v, mean)
-    end
-    return corrected ? vv : vv * (l - 1) / l
+    return varm(v, mean; corrected=corrected)
 end
 
 
