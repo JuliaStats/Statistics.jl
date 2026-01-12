@@ -413,11 +413,7 @@ function range_varm(v::AbstractRange, m)
     f  = first(v) - m
     s  = step(v)
     l  = length(v)
-    # For yᵢ = f + (i-1)s with i ∈ 1:l, we want sum(abs2(yᵢ)) / (l-1).
-    sum_t = l * (l - 1) / 2
-    sum_t2 = (l - 1) * l * (2 * l - 1) / 6
-    numer = abs2(f) * l + 2 * realXcY(f, s) * sum_t + abs2(s) * sum_t2
-    return numer / (l - 1)
+    return abs2(f) * l / (l - 1) + realXcY(f, s) * l + abs2(s) * l * (2 * l - 1) / 6
 end
 
 function var(v::AbstractRange; corrected::Bool=true, mean=nothing)
