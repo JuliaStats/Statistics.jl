@@ -422,9 +422,6 @@ function range_varm(v::AbstractRange, m)
     return abs2(f) * l / (l - 1) + realXcY(f, s) * l + abs2(s) * l * (2 * l - 1) / 6
 end
 
-function var(v::AbstractRange; corrected::Bool=true, mean=nothing)
-    return varm(v, mean; corrected=corrected)
-end
 
 
 ##### standard deviation #####
