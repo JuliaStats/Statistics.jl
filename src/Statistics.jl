@@ -207,6 +207,7 @@ end
 # faster computation of real(conj(x)*y)
 realXcY(x::Real, y::Real) = x*y
 realXcY(x::Complex, y::Complex) = real(x)*real(y) + imag(x)*imag(y)
+realXcY(x::Number, y::Number) = real(conj(x) * y)
 
 var(iterable; corrected::Bool=true, mean=nothing) = _var(iterable, corrected, mean)
 
@@ -214,6 +215,10 @@ function _var(iterable, corrected::Bool, mean)
     y = iterate(iterable)
     if y === nothing
         T = eltype(iterable)
+        # When `zero` cannot be called we throw an error
+        if T === Union{} || !(T <: Number)
+            throw(ArgumentError("cannot compute variance of an empty iterator with eltype $T"))
+        end
         return oftype((abs2(zero(T)) + abs2(zero(T)))/2, NaN)
     end
     count = 1
@@ -398,29 +403,25 @@ varm(iterable, m; corrected::Bool=true) = _var(iterable, corrected, m)
 
 ## variances over ranges
 
-varm(v::AbstractRange, m::AbstractArray) = range_varm(v, m)
-varm(v::AbstractRange, m) = range_varm(v, m)
+function varm(v::AbstractRange, m; corrected::Bool=true)
+    l = length(v)
+    l <= 1 && return _var(v, corrected, m)
+    vv = if m === nothing
+        s = step(v)
+        abs2(s) * (l + 1) * l / 12
+     else
+         range_varm(v, m)
+     end
+    return corrected ? vv : vv * (l - 1) / l
+end
 
 function range_varm(v::AbstractRange, m)
     f  = first(v) - m
     s  = step(v)
     l  = length(v)
-    vv = f^2 * l / (l - 1) + f * s * l + s^2 * l * (2 * l - 1) / 6
-    if l == 0 || l == 1
-        return typeof(vv)(NaN)
-    end
-    return vv
+    return abs2(f) * l / (l - 1) + realXcY(f, s) * l + abs2(s) * l * (2 * l - 1) / 6
 end
 
-function var(v::AbstractRange)
-    s  = step(v)
-    l  = length(v)
-    vv = abs2(s) * (l + 1) * l / 12
-    if l == 0 || l == 1
-        return typeof(vv)(NaN)
-    end
-    return vv
-end
 
 
 ##### standard deviation #####

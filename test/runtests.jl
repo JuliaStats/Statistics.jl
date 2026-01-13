@@ -245,10 +245,10 @@ end
 @testset "var & std" begin
     # edge case: empty vector
     # iterable; this has to throw for type stability
-    @test_throws Exception var(())
-    @test_throws Exception var((); corrected=false)
-    @test_throws Exception var((); mean=2)
-    @test_throws Exception var((); mean=2, corrected=false)
+    @test_throws ArgumentError var(())
+    @test_throws ArgumentError var((); corrected=false)
+    @test_throws ArgumentError var((); mean=2)
+    @test_throws ArgumentError var((); mean=2, corrected=false)
     # reduction
     @test isnan(var(Int[]))
     @test isnan(var(Int[]; corrected=false))
@@ -278,10 +278,29 @@ end
     @test var([1], dims=1; mean=[2], corrected=false) ≈ [1.0]
 
     @test var(1:8) == 6.
-    @test varm(1:8,1) == varm(Vector(1:8),1)
+    @test varm(1:8, 1) == varm(Vector(1:8), 1)
+    @test var(1:8; mean=1) == var(Vector(1:8); mean=1)
+    @test var(1:8; corrected=false) == var(Vector(1:8); corrected=false)
+    @test varm(1:8, 1; corrected=false) == varm(Vector(1:8), 1; corrected=false)
+    @test var(1:8; mean=1, corrected=false) == var(Vector(1:8); mean=1, corrected=false)
     @test isnan(varm(1:1,1))
     @test isnan(var(1:1))
+    @test isnan(var(1:1; mean=1))
+    @test !isnan(var(1:1; corrected=false))
+    @test isnan(var(1:0; corrected=false))
+    @test !isnan(varm(1:1, 1; corrected=false))
+    @test isnan(varm(1:0, 1; corrected=false))
     @test isnan(var(1:-1))
+    @test isnan(varm(1:-1,1))
+    @test isnan(var(1:-1; mean=1))
+    @test isnan(var(1:-1; corrected=false))
+    @test isnan(varm(1:-1, 1; corrected=false))
+
+    let r = LinRange(1 + 2im, 3 + 4im, 11), m = mean(r)
+        @test (@inferred var(r))::Float64 ≈ var(r; mean=m)
+        @test (@inferred var(r; mean=m))::Float64 ≈ var(r)
+        @test (@inferred varm(r, m))::Float64 ≈ varm(collect(r), m)
+    end
 
     @test @inferred(var(1.0:8.0)) == 6.
     @test varm(1.0:8.0,1.0) == varm(Vector(1.0:8.0),1)
@@ -921,6 +940,14 @@ Statistics.middle(x::Furlong{p}, y::Furlong{p}) where {p} = Furlong{p}(middle(x.
     @test mean(r) == mean(a) == median(a) == median(r) == Furlong(1.5)
     @test var(r) == var(a) == Furlong{2}(0.5)
     @test std(r) == std(a) == Furlong{1}(sqrt(0.5))
+
+    @test var(r; corrected=false) == var(a; corrected=false)
+
+    m = Furlong(100)
+    @test var(r; mean=m) == var(a; mean=m)
+    @test var(r; mean=m, corrected=false) == var(a; mean=m, corrected=false)
+    @test std(r; mean=m) == std(a; mean=m)
+    @test std(r; mean=m, corrected=false) == std(a; mean=m, corrected=false)
 
     # Issue #21786
     A = [Furlong{1}(rand(-5:5)) for i in 1:2, j in 1:2]
