@@ -215,9 +215,10 @@ function _var(iterable, corrected::Bool, mean)
     y = iterate(iterable)
     if y === nothing
         T = eltype(iterable)
-        # For truly empty iterables like `()`, the element type is `Union{}` and we
-        # intentionally throw (instead of returning NaN) for type-stability.
-        T === Union{} && throw(ArgumentError("variance of an empty iterator is undefined"))
+        # When `zero` cannot be called we throw an error
+        if T === Union{} || !(T <: Number)
+            throw(ArgumentError("cannot compute variance of an empty iterator with eltype $T"))
+        end
         return oftype((abs2(zero(T)) + abs2(zero(T)))/2, NaN)
     end
     count = 1
