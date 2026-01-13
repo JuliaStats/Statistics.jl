@@ -278,7 +278,11 @@ end
     @test var([1], dims=1; mean=[2], corrected=false) ≈ [1.0]
 
     @test var(1:8) == 6.
-    @test varm(1:8,1) == varm(Vector(1:8),1)
+    @test varm(1:8, 1) == varm(Vector(1:8), 1)
+    @test var(1:8; mean=1) == var(Vector(1:8); mean=1)
+    @test var(1:8; corrected=false) == var(Vector(1:8); corrected=false)
+    @test varm(1:8, 1; corrected=false) == varm(Vector(1:8), 1; corrected=false)
+    @test var(1:8; mean=1, corrected=false) == var(Vector(1:8); mean=1, corrected=false)
     @test isnan(varm(1:1,1))
     @test isnan(var(1:1))
     @test isnan(var(1:-1))
