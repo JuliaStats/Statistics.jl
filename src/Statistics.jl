@@ -1019,23 +1019,24 @@ function quantile!(q::AbstractArray, v::AbstractVector, p::AbstractArray;
     _quantilesort!(v, sorted, minp, maxp)
 
     for (i, j) in zip(eachindex(p), eachindex(q))
-        @inbounds q[j] = _quantile(v,p[i], type=type, alpha=alpha, beta=beta)
+        @inbounds q[j] = _quantile(v, p[i], Val(type), alpha, beta)
     end
     return q
 end
 
-function quantile!(v::AbstractVector, p::Union{AbstractArray, Tuple{Vararg{Real}}};
-                   sorted::Bool=false, type::Union{Integer, Nothing}=nothing,
-                   alpha::Union{Real, Nothing}=nothing, beta::Union{Real, Nothing}=alpha)
+@inline function quantile!(v::AbstractVector, p::Union{AbstractArray, Tuple{Vararg{Real}}};
+                           sorted::Bool=false, type::Union{Integer, Nothing}=nothing,
+                           alpha::Union{Real, Nothing}=nothing, beta::Union{Real, Nothing}=alpha)
     if !isempty(p)
         minp, maxp = extrema(p)
         _quantilesort!(v, sorted, minp, maxp)
     end
-    return map(x->_quantile(v, x, type=type, alpha=alpha, beta=beta), p)
+    typeval = Val(type)
+    return map(x->_quantile(v, x, typeval, alpha, beta), p)
 end
-quantile!(a::AbstractArray, p::Union{AbstractArray,Tuple{Vararg{Real}}};
-          sorted::Bool=false, type::Union{Integer, Nothing}=nothing,
-          alpha::Union{Real, Nothing}=nothing, beta::Union{Real, Nothing}=alpha) =
+@inline quantile!(a::AbstractArray, p::Union{AbstractArray,Tuple{Vararg{Real}}};
+                  sorted::Bool=false, type::Union{Integer, Nothing}=nothing,
+                  alpha::Union{Real, Nothing}=nothing, beta::Union{Real, Nothing}=alpha) =
     quantile!(vec(a), p, sorted=sorted, type=type, alpha=alpha, beta=alpha)
 
 quantile!(q::AbstractArray, a::AbstractArray, p::Union{AbstractArray,Tuple{Vararg{Real}}};
@@ -1043,10 +1044,10 @@ quantile!(q::AbstractArray, a::AbstractArray, p::Union{AbstractArray,Tuple{Varar
           alpha::Union{Real, Nothing}=nothing, beta::Union{Real, Nothing}=alpha) =
     quantile!(q, vec(a), p, sorted=sorted, type=type, alpha=alpha, beta=alpha)
 
-quantile!(v::AbstractVector, p::Real;
-          sorted::Bool=false, type::Union{Integer, Nothing}=nothing,
-          alpha::Union{Real, Nothing}=nothing, beta::Union{Real, Nothing}=alpha) =
-    _quantile(_quantilesort!(v, sorted, p, p), p, type=type, alpha=alpha, beta=beta)
+@inline quantile!(v::AbstractVector, p::Real;
+                  sorted::Bool=false, type::Union{Integer, Nothing}=nothing,
+                  alpha::Union{Real, Nothing}=nothing, beta::Union{Real, Nothing}=alpha) =
+    _quantile(_quantilesort!(v, sorted, p, p), p, Val(type), alpha, beta)
 
 # Function to perform partial sort of v for quantiles in given range
 function _quantilesort!(v::AbstractVector, sorted::Bool, minp::Real, maxp::Real)
@@ -1069,9 +1070,9 @@ function _quantilesort!(v::AbstractVector, sorted::Bool, minp::Real, maxp::Real)
 end
 
 # Core quantile lookup function: assumes `v` sorted
-@inline function _quantile(v::AbstractVector, p::Real;
-                           type::Union{Integer, Nothing},
-                           alpha::Union{Real, Nothing}, beta::Union{Real, Nothing})
+# `type` is a `Val` so that return type is inferred even though it depends on `type`'s value
+function _quantile(v::AbstractVector, p::Real, ::Val{type},
+                   alpha::Union{Real, Nothing}, beta::Union{Real, Nothing}) where {type}
     0 <= p <= 1 || throw(ArgumentError("input probability out of [0,1] range"))
     require_one_based_indexing(v)
 
@@ -1208,9 +1209,9 @@ julia> quantile(skipmissing([1, 10, missing]), 0.5)
 5.5
 ```
 """
-quantile(itr, p; sorted::Bool=false,
-         type::Union{Integer, Nothing}=nothing,
-         alpha::Union{Real, Nothing}=nothing, beta::Union{Real, Nothing}=alpha) =
+@inline quantile(itr, p; sorted::Bool=false,
+                 type::Union{Integer, Nothing}=nothing,
+                 alpha::Union{Real, Nothing}=nothing, beta::Union{Real, Nothing}=alpha) =
     quantile!(collect(itr), p, sorted=sorted, type=type, alpha=alpha, beta=beta)
 
 
@@ -1240,14 +1241,14 @@ julia> quantile(.√[1, 3, 2], (0.3, 0.4, 0.5))
 (1.248528137423857, 1.3313708498984762, 1.4142135623730951)
 ```
 """
-quantile(f::Function, v, p;
-         sorted::Bool=false, type::Union{Integer, Nothing}=nothing,
-         alpha::Union{Real, Nothing}=nothing, beta::Union{Real, Nothing}=alpha) =
+@inline quantile(f::Function, v, p;
+                 sorted::Bool=false, type::Union{Integer, Nothing}=nothing,
+                 alpha::Union{Real, Nothing}=nothing, beta::Union{Real, Nothing}=alpha) =
     quantile!(f.(v), p; sorted=sorted, type=type, alpha=alpha, beta=beta)
 
-quantile(v::AbstractVector, p;
-         sorted::Bool=false, type::Union{Integer, Nothing}=nothing,
-         alpha::Union{Real, Nothing}=nothing, beta::Union{Real, Nothing}=alpha) =
+@inline quantile(v::AbstractVector, p;
+                 sorted::Bool=false, type::Union{Integer, Nothing}=nothing,
+                 alpha::Union{Real, Nothing}=nothing, beta::Union{Real, Nothing}=alpha) =
     quantile!(sorted ? v : Base.copymutable(v), p;
               sorted=sorted, type=type, alpha=alpha, beta=beta)
 

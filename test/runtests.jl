@@ -886,6 +886,28 @@ end
         @test [quantile(1:10, i/9) for i in 0:9] == 1:10
         @test [quantile(1:14, i/13) for i in 0:13] == 1:14
     end
+
+    # Check that return type is inferred when `type` is known statically
+    typed_quantile!(x, p, ::Val{type}) where {type} = quantile!(x, p, type=type)
+    typed_quantile(x, p, ::Val{type}) where {type} = quantile(x, p, type=type)
+    typed_quantile(f, x, p, ::Val{type}) where {type} = quantile(f, x, p, type=type)
+    for type in 1:9
+        @inferred typed_quantile!(v, 0.5, Val(type))
+        @inferred typed_quantile(v, 0.5, Val(type))
+        @inferred typed_quantile(x -> x, v, 0.5, Val(type))
+        @inferred typed_quantile((x for x in v), 0.5, Val(type))
+        @inferred typed_quantile(x -> x, (x for x in v), 0.5, Val(type))
+        @inferred typed_quantile!(v, [0.5], Val(type))
+        @inferred typed_quantile!([v v], [0.5], Val(type))
+
+        @inferred quantile!(v, 0.5)
+        @inferred quantile(v, 0.5)
+        @inferred quantile(x -> x, v, 0.5)
+        @inferred quantile((x for x in v), 0.5)
+        @inferred quantile(x -> x, (x for x in v), 0.5)
+        @inferred quantile!(v, [0.5])
+        @inferred quantile!([v v], [0.5])
+    end
 end
 
 # StatsBase issue 164
