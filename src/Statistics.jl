@@ -855,8 +855,12 @@ median!(v::AbstractArray) = median!(vec(v))
     median(itr)
 
 Compute the median of all elements in a collection.
-For an even number of elements no exact median element exists, so the result is
-equivalent to calculating mean of two median elements.
+
+For an even number of elements no exact median element exists, so the
+mean of two median elements is returned.
+This is equivalent to [`quantile(itr, 0.5, type=2)`](@ref).
+Use `quantile` with `type=1` or `type=3` to compute median of types
+with limited or no support for arithmetic operations, such as `Date`.
 
 !!! note
     If `itr` contains `NaN` or [`missing`](@ref) values, the result is also
@@ -924,7 +928,8 @@ julia> median([√1, √3, √2])
 median(f::Function, v) = median!(f.(v))
 
 """
-    quantile!([q::AbstractArray, ] v::AbstractVector, p; sorted=false, alpha::Real=1.0, beta::Real=alpha)
+    quantile!([q::AbstractArray, ] v::AbstractVector, p;
+              sorted=false, type::Integer=7, alpha::Real=1.0, beta::Real=alpha)
 
 Compute the quantile(s) of a vector `v` at a specified probability or vector or tuple of
 probabilities `p` on the interval [0,1]. If `p` is a vector, an optional
@@ -932,23 +937,38 @@ output array `q` may also be specified. (If not provided, a new output array is 
 The keyword argument `sorted` indicates whether `v` can be assumed to be sorted; if
 `false` (the default), then the elements of `v` will be partially sorted in-place.
 
-Samples quantile are defined by `Q(p) = (1-γ)*x[j] + γ*x[j+1]`,
-where `x[j]` is the j-th order statistic of `v`, `j = floor(n*p + m)`,
-`m = alpha + p*(1 - alpha - beta)` and `γ = n*p + m - j`.
-
-By default (`alpha = beta = 1`), quantiles are computed via linear interpolation between the points
-`((k-1)/(n-1), x[k])`, for `k = 1:n` where `n = length(v)`. This corresponds to Definition 7
+By default (`type=7`, or equivalently `alpha = beta = 1`),
+quantiles are computed via linear interpolation between the points
+`((k-1)/(n-1), x[k])`, for `k = 1:n` where `x[j]` is the j-th order statistic of `v`
+and `n = length(v)`. This corresponds to Definition 7
 of Hyndman and Fan (1996), and is the same as the R and NumPy default.
 
-The keyword arguments `alpha` and `beta` correspond to the same parameters in Hyndman and Fan,
-setting them to different values allows to calculate quantiles with any of the methods 4-9
-defined in this paper:
-- Def. 4: `alpha=0`, `beta=1`
-- Def. 5: `alpha=0.5`, `beta=0.5` (MATLAB default)
-- Def. 6: `alpha=0`, `beta=0` (Excel `PERCENTILE.EXC`, Python default, Stata `altdef`)
-- Def. 7: `alpha=1`, `beta=1` (Julia, R and NumPy default, Excel `PERCENTILE` and `PERCENTILE.INC`, Python `'inclusive'`)
-- Def. 8: `alpha=1/3`, `beta=1/3`
-- Def. 9: `alpha=3/8`, `beta=3/8`
+The keyword argument `type` can be used to choose among the 9 definitions
+in Hyndman and Fan (1996). Alternatively, `alpha` and `beta` allow reproducing
+any of the definitions 4-9 of this paper. It is not allowed to specify both
+kinds of arguments at the same time.
+
+Definitions 1 to 3 are discontinuous:
+- `type=1`: `Q(p) = x[ceil(n*p)]` (SAS-3)
+- `type=2`: `Q(p) = middle(x[ceil(n*p)], x[floor(n*p + 1)])` (SAS-5, Stata)
+- `type=3`: `Q(p) = x[round(n*p)]` (SAS-2)
+
+Definitions 4 to 9 use linear interpolation between consecutive order statistics.
+Samples quantiles are defined by `Q(p) = (1-γ)*x[j] + γ*x[j+1]`,
+where `j = floor(n*p + m)`, `m = alpha + p*(1 - alpha - beta)` and `γ = n*p + m - j`.
+- `type=4`: `alpha=0`, `beta=1` (SAS-1)
+- `type=5`: `alpha=1/2`, `beta=1/2` (MATLAB default)
+- `type=6`: `alpha=0`, `beta=0` (Excel `PERCENTILE.EXC`, Python default, Stata `altdef`)
+- `type=7`: `alpha=1`, `beta=1` (Julia, R and NumPy default, Excel `PERCENTILE` and
+  `PERCENTILE.INC`, Python `'inclusive'`)
+- `type=8`: `alpha=1/3`, `beta=1/3`
+- `type=9`: `alpha=3/8`, `beta=3/8`
+
+For all 9 definitions, `x[j]` refers to the minimum value when `j < 1` and
+to the maximum value when `j > length(x)`.
+
+Definitions 1 and 3 have the advantage that they work with types that do not support
+all arithmetic operations, such as `Date`.
 
 !!! note
     An `ArgumentError` is thrown if `v` contains `NaN` or [`missing`](@ref) values.
@@ -957,7 +977,8 @@ defined in this paper:
 - Hyndman, R.J and Fan, Y. (1996) "Sample Quantiles in Statistical Packages",
   *The American Statistician*, Vol. 50, No. 4, pp. 361-365
 
-- [Quantile on Wikipedia](https://en.wikipedia.org/wiki/Quantile) details the different quantile definitions
+- [Quantile on Wikipedia](https://en.wikipedia.org/wiki/Quantile) details
+  the different quantile definitions
 
 # Examples
 ```jldoctest
@@ -987,7 +1008,8 @@ julia> y
 ```
 """
 function quantile!(q::AbstractArray, v::AbstractVector, p::AbstractArray;
-                   sorted::Bool=false, alpha::Real=1.0, beta::Real=alpha)
+                   sorted::Bool=false, type::Union{Integer, Nothing}=nothing,
+                   alpha::Union{Real, Nothing}=nothing, beta::Union{Real, Nothing}=alpha)
     require_one_based_indexing(q, v, p)
     if size(p) != size(q)
         throw(DimensionMismatch("size of p, $(size(p)), must equal size of q, $(size(q))"))
@@ -998,29 +1020,35 @@ function quantile!(q::AbstractArray, v::AbstractVector, p::AbstractArray;
     _quantilesort!(v, sorted, minp, maxp)
 
     for (i, j) in zip(eachindex(p), eachindex(q))
-        @inbounds q[j] = _quantile(v,p[i], alpha=alpha, beta=beta)
+        @inbounds q[j] = _quantile(v, p[i], Val(type), alpha, beta)
     end
     return q
 end
 
-function quantile!(v::AbstractVector, p::Union{AbstractArray, Tuple{Vararg{Real}}};
-                   sorted::Bool=false, alpha::Real=1., beta::Real=alpha)
+@inline function quantile!(v::AbstractVector, p::Union{AbstractArray, Tuple{Vararg{Real}}};
+                           sorted::Bool=false, type::Union{Integer, Nothing}=nothing,
+                           alpha::Union{Real, Nothing}=nothing, beta::Union{Real, Nothing}=alpha)
     if !isempty(p)
         minp, maxp = extrema(p)
         _quantilesort!(v, sorted, minp, maxp)
     end
-    return map(x->_quantile(v, x, alpha=alpha, beta=beta), p)
+    typeval = Val(type)
+    return map(x->_quantile(v, x, typeval, alpha, beta), p)
 end
-quantile!(a::AbstractArray, p::Union{AbstractArray,Tuple{Vararg{Real}}};
-          sorted::Bool=false, alpha::Real=1.0, beta::Real=alpha) =
-    quantile!(vec(a), p, sorted=sorted, alpha=alpha, beta=alpha)
+@inline quantile!(a::AbstractArray, p::Union{AbstractArray,Tuple{Vararg{Real}}};
+                  sorted::Bool=false, type::Union{Integer, Nothing}=nothing,
+                  alpha::Union{Real, Nothing}=nothing, beta::Union{Real, Nothing}=alpha) =
+    quantile!(vec(a), p, sorted=sorted, type=type, alpha=alpha, beta=alpha)
 
 quantile!(q::AbstractArray, a::AbstractArray, p::Union{AbstractArray,Tuple{Vararg{Real}}};
-          sorted::Bool=false, alpha::Real=1.0, beta::Real=alpha) =
-    quantile!(q, vec(a), p, sorted=sorted, alpha=alpha, beta=alpha)
+          sorted::Bool=false, type::Union{Integer, Nothing}=nothing,
+          alpha::Union{Real, Nothing}=nothing, beta::Union{Real, Nothing}=alpha) =
+    quantile!(q, vec(a), p, sorted=sorted, type=type, alpha=alpha, beta=alpha)
 
-quantile!(v::AbstractVector, p::Real; sorted::Bool=false, alpha::Real=1.0, beta::Real=alpha) =
-    _quantile(_quantilesort!(v, sorted, p, p), p, alpha=alpha, beta=beta)
+@inline quantile!(v::AbstractVector, p::Real;
+                  sorted::Bool=false, type::Union{Integer, Nothing}=nothing,
+                  alpha::Union{Real, Nothing}=nothing, beta::Union{Real, Nothing}=alpha) =
+    _quantile(_quantilesort!(v, sorted, p, p), p, Val(type), alpha, beta)
 
 # Function to perform partial sort of v for quantiles in given range
 function _quantilesort!(v::AbstractVector, sorted::Bool, minp::Real, maxp::Real)
@@ -1043,68 +1071,118 @@ function _quantilesort!(v::AbstractVector, sorted::Bool, minp::Real, maxp::Real)
 end
 
 # Core quantile lookup function: assumes `v` sorted
-@inline function _quantile(v::AbstractVector, p::Real; alpha::Real=1.0, beta::Real=alpha)
+# `type` is a `Val` so that return type is inferred even though it depends on `type`'s value
+function _quantile(v::AbstractVector, p::Real, ::Val{type},
+                   alpha::Union{Real, Nothing}, beta::Union{Real, Nothing}) where {type}
     0 <= p <= 1 || throw(ArgumentError("input probability out of [0,1] range"))
-    0 <= alpha <= 1 || throw(ArgumentError("alpha parameter out of [0,1] range"))
-    0 <= beta <= 1 || throw(ArgumentError("beta parameter out of [0,1] range"))
     require_one_based_indexing(v)
+
+    if alpha !== nothing || beta !== nothing
+        type === nothing ||
+            throw(ArgumentError("it is not allowed to pass both `type` and `alpha` or `beta`"))
+
+        alpha === nothing && (alpha = 1)
+        beta === nothing && (beta = alpha)
+
+        0 <= alpha <= 1 || throw(ArgumentError("alpha parameter out of [0,1] range"))
+        0 <= beta <= 1 || throw(ArgumentError("beta parameter out of [0,1] range"))
+    elseif type === nothing
+        alpha = beta = 1
+    elseif 4 <= type <= 9
+        alpha = oftype(p, (0, 1//2, 0, 1, 1//3, 3//8)[type-3])
+        beta  = oftype(p, (1, 1//2, 0, 1, 1//3, 3//8)[type-3])
+    elseif !(1 <= type <= 3)
+        throw(ArgumentError("`type` must be between 1 and 9"))
+    end
 
     n = length(v)
 
     @assert n > 0 # this case should never happen here
 
-    m = alpha + p * (one(alpha) - alpha - beta)
-    # Using fma here avoids some rounding errors when aleph is an integer
-    # The use of oftype supresses the promotion caused by alpha and beta
-    aleph = fma(n, p, oftype(p, m))
-    j = clamp(trunc(Int, aleph), 1, n - 1)
-    γ = clamp(aleph - j, 0, 1)
-
-    if n == 1
-        a = v[1]
-        b = v[1]
+    if type == 1
+        return v[clamp(ceil(Int, n*p), 1, n)]
+    elseif type == 2
+        i = clamp(ceil(Int, n*p), 1, n)
+        j = clamp(floor(Int, n*p + 1), 1, n)
+        return middle(v[i], v[j])
+    elseif type == 3
+        return v[clamp(round(Int, n*p), 1, n)]
     else
-        a = v[j]
-        b = v[j + 1]
-    end
+        m = alpha + p * (one(alpha) - alpha - beta)
+        # Using fma here avoids some rounding errors when aleph is an integer
+        # The use of oftype supresses the promotion caused by alpha and beta
+        aleph = fma(n, p, oftype(p, m))
+        j = clamp(trunc(Int, aleph), 1, n - 1)
+        γ = clamp(aleph - j, 0, 1)
 
-    # When a ≉ b, b-a may overflow
-    # When a ≈ b, (1-γ)*a + γ*b may not be increasing with γ due to rounding
-    if isfinite(a) && isfinite(b) &&
-        (!(a isa Number) || !(b isa Number) || a ≈ b)
-        return a + γ*(b-a)
-    else
-        return (1-γ)*a + γ*b
+        if n == 1
+            a = v[1]
+            b = v[1]
+        else
+            a = v[j]
+            b = v[j + 1]
+        end
+
+        try
+            # When a ≉ b, b-a may overflow
+            # When a ≈ b, (1-γ)*a + γ*b may not be increasing with γ due to rounding
+            if isfinite(a) && isfinite(b) &&
+                (!(a isa Number) || !(b isa Number) || a ≈ b)
+                return a + γ*(b-a)
+            else
+                return (1-γ)*a + γ*b
+            end
+        catch e
+            throw(ArgumentError("error when computing quantile between two data values. " *
+                                "Pass `type=1` or `type=3` to compute quantiles on types with " *
+                                "no or limited support for arithmetic operations."))
+        end
     end
 end
 
 """
-    quantile(itr, p; sorted=false, alpha::Real=1.0, beta::Real=alpha)
+    quantile(itr, p;
+             sorted=false, type::Integer=7, alpha::Real=1.0, beta::Real=alpha)
 
-Compute the quantile(s) of a collection `itr` at a specified probability or vector or tuple of
+Compute the quantile(s) of a collection `qitr` at a specified probability or vector or tuple of
 probabilities `p` on the interval [0,1]. The keyword argument `sorted` indicates whether
 `itr` can be assumed to be sorted.
 
-Samples quantile are defined by `Q(p) = (1-γ)*x[j] + γ*x[j+1]`,
-where `x[j]` is the j-th order statistic of `itr`, `j = floor(n*p + m)`,
-`m = alpha + p*(1 - alpha - beta)` and `γ = n*p + m - j`.
-
-By default (`alpha = beta = 1`), quantiles are computed via linear interpolation between the points
-`((k-1)/(n-1), x[k])`, for `k = 1:n` where `n = length(itr)`. This corresponds to Definition 7
+By default (`type=7`, or equivalently `alpha = beta = 1`),
+quantiles are computed via linear interpolation between the points
+`((k-1)/(n-1), x[k])`, for `k = 1:n` where `x[j]` is the j-th order statistic of `itr`
+and `n = length(itr)`. This corresponds to Definition 7
 of Hyndman and Fan (1996), and is the same as the R and NumPy default.
 
-The keyword arguments `alpha` and `beta` correspond to the same parameters in Hyndman and Fan,
-setting them to different values allows to calculate quantiles with any of the methods 4-9
-defined in this paper:
-- Def. 4: `alpha=0`, `beta=1`
-- Def. 5: `alpha=0.5`, `beta=0.5` (MATLAB default)
-- Def. 6: `alpha=0`, `beta=0` (Excel `PERCENTILE.EXC`, Python default, Stata `altdef`)
-- Def. 7: `alpha=1`, `beta=1` (Julia, R and NumPy default, Excel `PERCENTILE` and `PERCENTILE.INC`, Python `'inclusive'`)
-- Def. 8: `alpha=1/3`, `beta=1/3`
-- Def. 9: `alpha=3/8`, `beta=3/8`
+The keyword argument `type` can be used to choose among the 9 definitions
+in Hyndman and Fan (1996). Alternatively, `alpha` and `beta` allow reproducing
+any of the methods 4-9 defined in this paper. It is not allowed to specify both
+kinds of arguments at the same time.
+
+Definitions 1 to 3 are discontinuous:
+- `type=1`: `Q(p) = x[ceil(n*p)]` (SAS-3)
+- `type=2`: `Q(p) = middle(x[ceil(n*p)], x[floor(n*p + 1)])` (SAS-5, Stata)
+- `type=3`: `Q(p) = x[round(n*p)]` (SAS-2)
+
+Definitions 4 to 9 use linear interpolation between consecutive order statistics.
+Samples quantiles are defined by `Q(p) = (1-γ)*x[j] + γ*x[j+1]`,
+where `j = floor(n*p + m)`, `m = alpha + p*(1 - alpha - beta)` and `γ = n*p + m - j`.
+- `type=4`: `alpha=0`, `beta=1` (SAS-1)
+- `type=5`: `alpha=0.5`, `beta=0.5` (MATLAB default)
+- `type=6`: `alpha=0`, `beta=0` (Excel `PERCENTILE.EXC`, Python default, Stata `altdef`)
+- `type=7`: `alpha=1`, `beta=1` (Julia, R and NumPy default, Excel `PERCENTILE` and
+  `PERCENTILE.INC`, Python `'inclusive'`)
+- `type=8`: `alpha=1/3`, `beta=1/3`
+- `type=9`: `alpha=3/8`, `beta=3/8`
+
+For all 9 definitions, `x[j]` refers to the minimum value when `j < 1` and
+to the maximum value when `j > length(x)`.
+
+Definitions 1 and 3 have the advantage that they work with types that do not support
+all arithmetic operations, such as `Date`.
 
 !!! note
-    An `ArgumentError` is thrown if `v` contains `NaN` or [`missing`](@ref) values.
+    An `ArgumentError` is thrown if `itr` contains `NaN` or [`missing`](@ref) values.
     Use the [`skipmissing`](@ref) function to omit `missing` entries and compute the
     quantiles of non-missing values.
 
@@ -1112,7 +1190,8 @@ defined in this paper:
 - Hyndman, R.J and Fan, Y. (1996) "Sample Quantiles in Statistical Packages",
   *The American Statistician*, Vol. 50, No. 4, pp. 361-365
 
-- [Quantile on Wikipedia](https://en.wikipedia.org/wiki/Quantile) details the different quantile definitions
+- [Quantile on Wikipedia](https://en.wikipedia.org/wiki/Quantile) details
+  the different quantile definitions
 
 # Examples
 ```jldoctest
@@ -1131,16 +1210,21 @@ julia> quantile(skipmissing([1, 10, missing]), 0.5)
 5.5
 ```
 """
-quantile(itr, p; sorted::Bool=false, alpha::Real=1.0, beta::Real=alpha) =
-    quantile!(collect(itr), p, sorted=sorted, alpha=alpha, beta=beta)
+@inline quantile(itr, p; sorted::Bool=false,
+                 type::Union{Integer, Nothing}=nothing,
+                 alpha::Union{Real, Nothing}=nothing, beta::Union{Real, Nothing}=alpha) =
+    quantile!(collect(itr), p, sorted=sorted, type=type, alpha=alpha, beta=beta)
 
 
 """
-    quantile(f, v)
+    quantile(f, v;
+             sorted=false, type::Integer=7, alpha::Real=1.0, beta::Real=alpha)
 
 Apply the function `f` to each element of collection `v`
 and then compute the quantile(s) at a specified probability
 or vector or tuple of probabilities `p` on the interval [0,1].
+
+See the other method for documentation on keyword arguments.
 
 ```jldoctest
 julia> using Statistics
@@ -1158,10 +1242,15 @@ julia> quantile(.√[1, 3, 2], (0.3, 0.4, 0.5))
 (1.248528137423857, 1.3313708498984762, 1.4142135623730951)
 ```
 """
-quantile(f::Function, v, p; sorted::Bool=false, alpha::Real=1.0, beta::Real=alpha) =
-    quantile!(f.(v), p; sorted=sorted, alpha=alpha, beta=beta)
+@inline quantile(f::Function, v, p;
+                 sorted::Bool=false, type::Union{Integer, Nothing}=nothing,
+                 alpha::Union{Real, Nothing}=nothing, beta::Union{Real, Nothing}=alpha) =
+    quantile!(f.(v), p; sorted=sorted, type=type, alpha=alpha, beta=beta)
 
-quantile(v::AbstractVector, p; sorted::Bool=false, alpha::Real=1.0, beta::Real=alpha) =
-    quantile!(sorted ? v : Base.copymutable(v), p; sorted=sorted, alpha=alpha, beta=beta)
+@inline quantile(v::AbstractVector, p;
+                 sorted::Bool=false, type::Union{Integer, Nothing}=nothing,
+                 alpha::Union{Real, Nothing}=nothing, beta::Union{Real, Nothing}=alpha) =
+    quantile!(sorted ? v : Base.copymutable(v), p;
+              sorted=sorted, type=type, alpha=alpha, beta=beta)
 
 end # module

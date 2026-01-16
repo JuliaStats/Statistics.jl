@@ -661,8 +661,8 @@ end
 end
 
 @testset "quantile" begin
-    @test quantile([1,2,3,4],0.5) ≈ 2.5
-    @test quantile([1,2,3,4],[0.5]) ≈ [2.5]
+    @test @inferred(quantile([1,2,3,4],0.5)) ≈ 2.5
+    @test @inferred(quantile([1,2,3,4],[0.5])) ≈ [2.5]
     @test quantile([1., 3],[.25,.5,.75])[2] ≈ median([1., 3])
     @test quantile(100.0:-1.0:0.0, 0.0:0.1:1.0) ≈ 0.0:10.0:100.0
     @test quantile(0.0:100.0, 0.0:0.1:1.0, sorted=true) ≈ 0.0:10.0:100.0
@@ -733,11 +733,29 @@ end
     @test quantile!(y, x, [0.00, 0.25, 0.50, 0.75, 1.00]) === y
     @test y ≈ [1.0, 25.75, 50.5, 75.25, 100.0]
 
-    #tests for quantile calculation with configurable alpha and beta parameters
+    # tests for non default quantile calculation methods
     v = [2, 3, 4, 6, 9, 2, 6, 2, 21, 17]
 
+    @test_throws ArgumentError quantile(v, 0.5, type=1, alpha=1.0, beta=1.0)
+    @test_throws ArgumentError quantile(v, 0.5, type=7, alpha=1.0, beta=1.0)
+    @test_throws ArgumentError quantile(v, 0.5, type=7, alpha=1.0)
+    @test_throws ArgumentError quantile(v, 0.5, type=7, beta=1.0)
+    @test_throws ArgumentError quantile(v, 0.5, type=0)
+    @test_throws ArgumentError quantile(v, 0.5, type=10)
+    @test quantile(v, 0.3, alpha=1.0) == quantile(v, 0.3, beta=1.0) ==
+        quantile(v, 0.3, alpha=1.0, beta=1.0)
+    @test quantile(v, 0.3, alpha=0.2) == quantile(v, 0.3, alpha=0.2, beta=0.2)
+
+    for (type, alpha, beta) in zip(4:9,
+                                   (0.0, 1/2, 0.0, 1.0, 1/3, 3/8),
+                                   (1.0, 1/2, 0.0, 1.0, 1/3, 3/8))
+        @test quantile(v, 0.3, type=type) ==
+            quantile(v, 0.3, alpha=alpha, beta=beta)
+    end
+
+    # configurable alpha and beta arguments
     # tests against scipy.stats.mstats.mquantiles method
-    @test quantile(v, 0.0, alpha=0.0, beta=0.0) ≈ 2.0
+    @test quantile(v, 0.0, alpha=0.0, beta=0.0) == 2.0
     @test quantile(v, 0.2, alpha=1.0, beta=1.0) ≈ 2.0
     @test quantile(v, 0.4, alpha=0.0, beta=0.0) ≈ 3.4
     @test quantile(v, 0.4, alpha=0.0, beta=0.2) ≈ 3.32
@@ -813,12 +831,103 @@ end
     @test quantile(v, 0.8, alpha=1.0, beta=0.6) ≈ 13.16
     @test quantile(v, 0.8, alpha=1.0, beta=0.8) ≈ 11.88
     @test quantile(v, 0.8, alpha=1.0, beta=1.0) ≈ 10.6
-    @test quantile(v, 1.0, alpha=0.0, beta=0.0) ≈ 21.0
-    @test quantile(v, 1.0, alpha=1.0, beta=1.0) ≈ 21.0
+    @test quantile(v, 1.0, alpha=0.0, beta=0.0) == 21.0
+
+    @test quantile(v, 0.0, alpha=0.0, beta=0.0) === 2.0
+    @test quantile(v, 0, alpha=0.0, beta=0.0) === 2
+    @test quantile(v, false, alpha=0.0, beta=0.0) === 2
+    @test quantile(v, 0//1, alpha=0.0, beta=0.0) === 2//1
+    @test quantile(v, 1, alpha=1.0, beta=0.0) === 21
+    @test quantile(v, true, alpha=1.0, beta=0.0) === 21
+    @test quantile(v, 1//1, alpha=1.0, beta=0.0) === 21//1
+    @test quantile(v, 1.0, alpha=1.0, beta=1.0) === 21.0
+    @test quantile(v, 1, alpha=1.0, beta=1.0) === 21
+    @test quantile(v, true, alpha=1.0, beta=1.0) === 21
+    @test quantile(v, 1//1, alpha=1.0, beta=1.0) === 21//1
+
+    # tests against R's quantile with type=1
+    @test quantile(v, 0.0, type=1) === 2
+    @test quantile(v, 0, type=1) === 2
+    @test quantile(v, false, type=1) === 2
+    @test quantile(v, 0//1, type=1) === 2
+    @test quantile(v, 0.2, type=1) === 2
+    @test quantile(v, 0.4, type=1) === 3
+    @test quantile(v, 0.45, type=1) === 4
+    @test quantile(v, 0.5, type=1) === 4
+    @test quantile(v, nextfloat(0.5), type=1) === 6
+    @test quantile(v, 0.6, type=1) === 6
+    @test quantile(v, 0.8, type=1) === 9
+    @test quantile(v, 1.0, type=1) === 21
+    @test quantile(v, 1, type=1) === 21
+    @test quantile(v, true, type=1) === 21
+    @test quantile(v, 1//1, type=1) === 21
+    @test quantile([1], [0.0, 0.2, 0.4, 0.6, 0.8, 1.0], type=1) == fill(1, 6)
+
+    # tests against R's quantile with type=2
+    @test quantile(v, 0.0, type=2) === 2.0
+    @test quantile(v, 0, type=2) === 2.0
+    @test quantile(v, false, type=2) === 2.0
+    @test quantile(v, 0//1, type=2) === 2.0
+    @test quantile(v, 0.2, type=2) === 2.0
+    @test quantile(v, 0.3, type=2) === 2.5
+    @test quantile(v, 0.4, type=2) === 3.5
+    @test quantile(v, nextfloat(0.4), type=2) === 4.0
+    @test quantile(v, 0.45, type=2) === 4.0
+    @test quantile(v, 0.5, type=2) === 5.0
+    @test quantile(v, 0.6, type=2) === 6.0
+    @test quantile(v, 0.8, type=2) === 13.0
+    @test quantile(v, 1.0, type=2) === 21.0
+    @test quantile(v, 1, type=2) === 21.0
+    @test quantile(v, true, type=2) === 21.0
+    @test quantile(v, 1//1, type=2) === 21.0
+    @test quantile([1], [0.0, 0.2, 0.4, 0.6, 0.8, 1.0], type=2) == fill(1, 6)
+
+    # tests against R's quantile with type=3
+    @test quantile(v, 0.0, type=3) === 2
+    @test quantile(v, 0, type=3) === 2
+    @test quantile(v, false, type=3) === 2
+    @test quantile(v, 0//1, type=3) === 2
+    @test quantile(v, 0.2, type=3) === 2
+    @test quantile(v, 0.3, type=3) === 2
+    @test quantile(v, 0.4, type=3) === 3
+    @test quantile(v, 0.45, type=3) === 3
+    @test quantile(v, nextfloat(0.45), type=3) === 4
+    @test quantile(v, 0.5, type=3) === 4
+    @test quantile(v, prevfloat(0.55), type=3) === 4
+    @test quantile(v, 0.55, type=3) === 6
+    @test quantile(v, 0.6, type=3) === 6
+    @test quantile(v, 0.8, type=3) === 9
+    @test quantile(v, 1.0, type=3) === 21
+    @test quantile(v, 1, type=3) === 21
+    @test quantile(v, true, type=3) === 21
+    @test quantile(v, 1//1, type=3) === 21
+    @test quantile([1], [0.0, 0.2, 0.4, 0.6, 0.8, 1.0], type=3) == fill(1, 6)
 
     @testset "avoid some rounding" begin
         @test [quantile(1:10, i/9) for i in 0:9] == 1:10
         @test [quantile(1:14, i/13) for i in 0:13] == 1:14
+    end
+
+    # Check that return type is inferred when `type` is known statically
+    typed_quantile!(x, p, ::Val{type}) where {type} = quantile!(x, p, type=type)
+    typed_quantile(x, p, ::Val{type}) where {type} = quantile(x, p, type=type)
+    typed_quantile(f, x, p, ::Val{type}) where {type} = quantile(f, x, p, type=type)
+    for type in 1:9
+        @inferred typed_quantile!(v, 0.5, Val(type))
+        @inferred typed_quantile(v, 0.5, Val(type))
+        @inferred typed_quantile(x -> x, v, 0.5, Val(type))
+        @inferred typed_quantile((x for x in v), 0.5, Val(type))
+        @inferred typed_quantile(x -> x, (x for x in v), 0.5, Val(type))
+        @inferred typed_quantile!(v, [0.5], Val(type))
+        @inferred typed_quantile!([v v], [0.5], Val(type))
+
+        @inferred quantile!(v, 0.5)
+        @inferred quantile(v, 0.5)
+        @inferred quantile(x -> x, v, 0.5)
+        @inferred quantile((x for x in v), 0.5)
+        @inferred quantile(x -> x, (x for x in v), 0.5)
+        @inferred quantile!(v, [0.5])
+        @inferred quantile!([v v], [0.5])
     end
 end
 
@@ -848,11 +957,19 @@ end
     # this is the historical behavior
     @test quantile([Date(2023, 09, 02)], .1) == Date(2023, 09, 02)
     @test quantile([Date(2023, 09, 02), Date(2023, 09, 02)], .1) == Date(2023, 09, 02)
-    @test_throws InexactError quantile([Date(2023, 09, 02), Date(2023, 09, 03)], .1)
+    @test_throws ArgumentError quantile([Date(2023, 09, 02), Date(2023, 09, 03)], .1)
+    @test quantile([Date(2023, 09, 02), Date(2023, 09, 03)], .1, type=1) ==
+        Date(2023, 09, 02)
+    @test quantile([Date(2023, 09, 02), Date(2023, 09, 03)], .1, type=3) ==
+        Date(2023, 09, 02)
 
     @test quantile([DateTime(2023, 09, 02)], .1) == DateTime(2023, 09, 02)
     @test quantile([DateTime(2023, 09, 02), DateTime(2023, 09, 02)], .1) == DateTime(2023, 09, 02)
-    @test_throws InexactError quantile([DateTime(2023, 09, 02), DateTime(2023, 09, 03)], .1)
+    @test_throws ArgumentError quantile([DateTime(2023, 09, 02), DateTime(2023, 09, 03)], .1)
+    @test quantile([DateTime(2023, 09, 02), DateTime(2023, 09, 03)], .1, type=1) ==
+        DateTime(2023, 09, 02)
+    @test quantile([DateTime(2023, 09, 02), DateTime(2023, 09, 03)], .1, type=3) ==
+        DateTime(2023, 09, 02)
 end
 
 @testset "quantile and median with functions (issue #141, PR #186)" begin
@@ -866,6 +983,37 @@ end
 
     y = rand(4)
     @test all(quantile(√, y, (0.3, 0.4, 0.5)) .≈ quantile(.√y, (0.3, 0.4, 0.5)))
+end
+
+@testset "quantile return type matches that of p for types 4 to 9" begin
+    @test quantile([1, 2, 3], 0.0, alpha=0.0, beta=0.0)::Float64 == 1
+    @test quantile([1, 2, 3], 0, alpha=0.0, beta=0.0)::Int == 1
+    @test quantile([1, 2, 3], false, alpha=0.0, beta=0.0)::Int == 1
+    @test quantile([1, 2, 3], 0//1, alpha=0.0, beta=0.0)::Rational{Int} == 1
+
+    @test quantile([1, 2, 3], 3//5)::Rational{Int} == 2 + 1//5
+    @test quantile([1, 2, 3], BigFloat("0.6"))::BigFloat ≈ 2 + 1//5
+    @test quantile([1, 2, 3], Float32(0.6))::Float32 ≈ 2 + 1//5
+    @test quantile([1, 2, 3], Float16(0.6))::Float16 ≈ 2 + 1//5
+
+    @test quantile([1.0, 2.0, 3.0], BigFloat("0.6"))::BigFloat ≈ 2 + 1//5
+    @test quantile([1.0, 2.0, 3.0], Float32(0.6))::Float64 ≈ Float32(2 + 1//5)
+    @test quantile([1.0, 2.0, 3.0], Float16(0.6))::Float64 ≈ Float16(2 + 1//5)
+    @test quantile(Float16[1.0, 2.0, 3.0], 0.6)::Float64 ≈ 2 + 1//5
+    @test quantile(Float16[1.0, 2.0, 3.0], Float32(0.6))::Float32 ≈ 2 + 1//5
+    @test quantile(Float32[1.0, 2.0, 3.0], Float16(0.6))::Float32 ≈ Float16(2 + 1//5)
+
+    @test quantile([1, 2, 3], 3//5, type=8)::Rational{Int} == 2 + 1//3
+    @test quantile([1, 2, 3], BigFloat("0.6"), type=8)::BigFloat ≈ 2 + 1//3
+    @test quantile([1, 2, 3], Float32(0.6), type=8)::Float32 ≈ 2 + 1//3
+    @test quantile([1, 2, 3], Float16(0.6), type=8)::Float16 ≈ 2 + 1//3
+
+    @test quantile([1.0, 2.0, 3.0], BigFloat("0.6"), type=8)::BigFloat ≈ 2 + 1//3
+    @test quantile([1.0, 2.0, 3.0], Float32(0.6), type=8)::Float64 ≈ Float32(2 + 1//3)
+    @test quantile([1.0, 2.0, 3.0], Float16(0.6), type=8)::Float64 ≈ Float16(2 + 1//3)
+    @test quantile(Float16[1.0, 2.0, 3.0], 0.6, type=8)::Float64 ≈ 2 + 1//3
+    @test quantile(Float16[1.0, 2.0, 3.0], Float32(0.6), type=8)::Float32 ≈ 2 + 1//3
+    @test quantile(Float32[1.0, 2.0, 3.0], Float16(0.6), type=8)::Float32 ≈ Float16(2 + 1//3)
 end
 
 @testset "variance of complex arrays (#13309)" begin
