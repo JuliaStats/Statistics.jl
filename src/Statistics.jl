@@ -944,7 +944,7 @@ of Hyndman and Fan (1996), and is the same as the R and NumPy default.
 
 The keyword argument `type` can be used to choose among the 9 definitions
 in Hyndman and Fan (1996). Alternatively, `alpha` and `beta` allow reproducing
-any of the methods 4-9 defined in this paper. It is not allowed to specify both
+any of the definitions 4-9 of this paper. It is not allowed to specify both
 kinds of arguments at the same time.
 
 Definitions 1 to 3 are discontinuous:
