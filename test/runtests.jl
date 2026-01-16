@@ -736,10 +736,7 @@ end
 
     # configurable alpha and beta arguments
     # tests against scipy.stats.mstats.mquantiles method
-    @test quantile(v, 0.0, alpha=0.0, beta=0.0) === 2.0
-    @test quantile(v, 0, alpha=0.0, beta=0.0) === 2
-    @test quantile(v, false, alpha=0.0, beta=0.0) === 2
-    @test quantile(v, 0//1, alpha=0.0, beta=0.0) === 2//1
+    @test quantile(v, 0.0, alpha=0.0, beta=0.0) == 2.0
     @test quantile(v, 0.2, alpha=1.0, beta=1.0) ≈ 2.0
     @test quantile(v, 0.4, alpha=0.0, beta=0.0) ≈ 3.4
     @test quantile(v, 0.4, alpha=0.0, beta=0.2) ≈ 3.32
@@ -815,7 +812,12 @@ end
     @test quantile(v, 0.8, alpha=1.0, beta=0.6) ≈ 13.16
     @test quantile(v, 0.8, alpha=1.0, beta=0.8) ≈ 11.88
     @test quantile(v, 0.8, alpha=1.0, beta=1.0) ≈ 10.6
-    @test quantile(v, 1.0, alpha=0.0, beta=0.0) === 21.0
+    @test quantile(v, 1.0, alpha=0.0, beta=0.0) == 21.0
+
+    @test quantile(v, 0.0, alpha=0.0, beta=0.0) === 2.0
+    @test quantile(v, 0, alpha=0.0, beta=0.0) === 2
+    @test quantile(v, false, alpha=0.0, beta=0.0) === 2
+    @test quantile(v, 0//1, alpha=0.0, beta=0.0) === 2//1
     @test quantile(v, 1, alpha=1.0, beta=0.0) === 21
     @test quantile(v, true, alpha=1.0, beta=0.0) === 21
     @test quantile(v, 1//1, alpha=1.0, beta=0.0) === 21//1
@@ -962,6 +964,37 @@ end
 
     y = rand(4)
     @test all(quantile(√, y, (0.3, 0.4, 0.5)) .≈ quantile(.√y, (0.3, 0.4, 0.5)))
+end
+
+@testset "quantile return type matches that of p for types 4 to 9" begin
+    @test quantile([1, 2, 3], 0.0, alpha=0.0, beta=0.0)::Float64 == 1
+    @test quantile([1, 2, 3], 0, alpha=0.0, beta=0.0)::Int == 1
+    @test quantile([1, 2, 3], false, alpha=0.0, beta=0.0)::Int == 1
+    @test quantile([1, 2, 3], 0//1, alpha=0.0, beta=0.0)::Rational{Int} == 1
+
+    @test quantile([1, 2, 3], 3//5)::Rational{Int} == 2 + 1//5
+    @test quantile([1, 2, 3], BigFloat("0.6"))::BigFloat ≈ 2 + 1//5
+    @test quantile([1, 2, 3], Float32(0.6))::Float32 ≈ 2 + 1//5
+    @test quantile([1, 2, 3], Float16(0.6))::Float16 ≈ 2 + 1//5
+
+    @test quantile([1.0, 2.0, 3.0], BigFloat("0.6"))::BigFloat ≈ 2 + 1//5
+    @test quantile([1.0, 2.0, 3.0], Float32(0.6))::Float64 ≈ Float32(2 + 1//5)
+    @test quantile([1.0, 2.0, 3.0], Float16(0.6))::Float64 ≈ Float16(2 + 1//5)
+    @test quantile(Float16[1.0, 2.0, 3.0], 0.6)::Float64 ≈ 2 + 1//5
+    @test quantile(Float16[1.0, 2.0, 3.0], Float32(0.6))::Float32 ≈ 2 + 1//5
+    @test quantile(Float32[1.0, 2.0, 3.0], Float16(0.6))::Float32 ≈ Float16(2 + 1//5)
+
+    @test quantile([1, 2, 3], 3//5, type=8)::Rational{Int} == 2 + 1//3
+    @test quantile([1, 2, 3], BigFloat("0.6"), type=8)::BigFloat ≈ 2 + 1//3
+    @test quantile([1, 2, 3], Float32(0.6), type=8)::Float32 ≈ 2 + 1//3
+    @test quantile([1, 2, 3], Float16(0.6), type=8)::Float16 ≈ 2 + 1//3
+
+    @test quantile([1.0, 2.0, 3.0], BigFloat("0.6"), type=8)::BigFloat ≈ 2 + 1//3
+    @test quantile([1.0, 2.0, 3.0], Float32(0.6), type=8)::Float64 ≈ Float32(2 + 1//3)
+    @test quantile([1.0, 2.0, 3.0], Float16(0.6), type=8)::Float64 ≈ Float16(2 + 1//3)
+    @test quantile(Float16[1.0, 2.0, 3.0], 0.6, type=8)::Float64 ≈ 2 + 1//3
+    @test quantile(Float16[1.0, 2.0, 3.0], Float32(0.6), type=8)::Float32 ≈ 2 + 1//3
+    @test quantile(Float32[1.0, 2.0, 3.0], Float16(0.6), type=8)::Float32 ≈ Float16(2 + 1//3)
 end
 
 @testset "variance of complex arrays (#13309)" begin

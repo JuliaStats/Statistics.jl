@@ -956,7 +956,7 @@ Definitions 4 to 9 use linear interpolation between consecutive order statistics
 Samples quantiles are defined by `Q(p) = (1-γ)*x[j] + γ*x[j+1]`,
 where `j = floor(n*p + m)`, `m = alpha + p*(1 - alpha - beta)` and `γ = n*p + m - j`.
 - `type=4`: `alpha=0`, `beta=1` (SAS-1)
-- `type=5`: `alpha=0.5`, `beta=0.5` (MATLAB default)
+- `type=5`: `alpha=1/2`, `beta=1/2` (MATLAB default)
 - `type=6`: `alpha=0`, `beta=0` (Excel `PERCENTILE.EXC`, Python default, Stata `altdef`)
 - `type=7`: `alpha=1`, `beta=1` (Julia, R and NumPy default, Excel `PERCENTILE` and
   `PERCENTILE.INC`, Python `'inclusive'`)
@@ -1080,16 +1080,16 @@ function _quantile(v::AbstractVector, p::Real, ::Val{type},
         type === nothing ||
             throw(ArgumentError("it is not allowed to pass both `type` and `alpha` or `beta`"))
 
-        alpha === nothing && (alpha = 1.0)
+        alpha === nothing && (alpha = 1)
         beta === nothing && (beta = alpha)
 
         0 <= alpha <= 1 || throw(ArgumentError("alpha parameter out of [0,1] range"))
         0 <= beta <= 1 || throw(ArgumentError("beta parameter out of [0,1] range"))
     elseif type === nothing
-        alpha = beta = 1.0
+        alpha = beta = 1
     elseif 4 <= type <= 9
-        alpha = (0.0, 1/2, 0.0, 1.0, 1/3, 3/8)[type-3]
-        beta  = (1.0, 1/2, 0.0, 1.0, 1/3, 3/8)[type-3]
+        alpha = oftype(p, (0, 1//2, 0, 1, 1//3, 3//8)[type-3])
+        beta  = oftype(p, (1, 1//2, 0, 1, 1//3, 3//8)[type-3])
     elseif !(1 <= type <= 3)
         throw(ArgumentError("`type` must be between 1 and 9"))
     end
