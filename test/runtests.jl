@@ -2,6 +2,7 @@
 
 using Statistics, Test, Random, LinearAlgebra, SparseArrays, Dates
 using Test: guardseed
+using Dates
 
 Random.seed!(123)
 
@@ -713,6 +714,8 @@ end
     end
     @test quantile(skipmissing([1, missing, 2]), 0.5) === 1.5
     @test quantile([1], 0.5) === 1.0
+
+    @test quantile(Millisecond.(1:10), 0.5) == Millisecond(5)
 
     # make sure that type inference works correctly in normal cases
     for T in [Int, BigInt, Float64, Float16, BigFloat, Rational{Int}, Rational{BigInt}]

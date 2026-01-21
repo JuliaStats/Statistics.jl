@@ -1036,7 +1036,7 @@ function _quantilesort!(v::AbstractVector, sorted::Bool, minp::Real, maxp::Real)
         sort!(v, 1, lv, Base.Sort.PartialQuickSort(lo:hi), Base.Sort.Forward)
     end
     if (sorted && (ismissing(v[end]) || (v[end] isa Number && isnan(v[end])))) ||
-        any(x -> ismissing(x) || (x isa Number && isnan(x)), v)
+        any(x -> ismissing(x) || (applicable(isnan, v[end]) && isnan(x)), v)
         throw(ArgumentError("quantiles are undefined in presence of NaNs or missing values"))
     end
     return v
@@ -1070,7 +1070,7 @@ end
 
     # When a ≉ b, b-a may overflow
     # When a ≈ b, (1-γ)*a + γ*b may not be increasing with γ due to rounding
-    if isfinite(a) && isfinite(b) &&
+    if applicable(isfinite, a) && isfinite(a) && isfinite(b) &&
         (!(a isa Number) || !(b isa Number) || a ≈ b)
         return a + γ*(b-a)
     else
