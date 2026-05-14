@@ -820,6 +820,10 @@ end
         @test [quantile(1:10, i/9) for i in 0:9] == 1:10
         @test [quantile(1:14, i/13) for i in 0:13] == 1:14
     end
+    # Statistics issue 204
+    @testset "vector and abstract array methods should agree" begin
+        @test quantile!(reshape([1.,2,3,4,5],5,1), [.25,.5,.75]; alpha=0, beta=1) ≈ [1.25, 2.5, 3.75]
+    end
 end
 
 # StatsBase issue 164
