@@ -1013,11 +1013,11 @@ function quantile!(v::AbstractVector, p::Union{AbstractArray, Tuple{Vararg{Real}
 end
 quantile!(a::AbstractArray, p::Union{AbstractArray,Tuple{Vararg{Real}}};
           sorted::Bool=false, alpha::Real=1.0, beta::Real=alpha) =
-    quantile!(vec(a), p, sorted=sorted, alpha=alpha, beta=alpha)
+    quantile!(vec(a), p, sorted=sorted, alpha=alpha, beta=beta)
 
 quantile!(q::AbstractArray, a::AbstractArray, p::Union{AbstractArray,Tuple{Vararg{Real}}};
           sorted::Bool=false, alpha::Real=1.0, beta::Real=alpha) =
-    quantile!(q, vec(a), p, sorted=sorted, alpha=alpha, beta=alpha)
+    quantile!(q, vec(a), p, sorted=sorted, alpha=alpha, beta=beta)
 
 quantile!(v::AbstractVector, p::Real; sorted::Bool=false, alpha::Real=1.0, beta::Real=alpha) =
     _quantile(_quantilesort!(v, sorted, p, p), p, alpha=alpha, beta=beta)
