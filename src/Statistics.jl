@@ -994,22 +994,33 @@ function quantile!(q::AbstractArray, v::AbstractVector, p::AbstractArray;
     end
     isempty(q) && return q
 
-    minp, maxp = extrema(p)
-    _quantilesort!(v, sorted, minp, maxp)
+    if length(p) == 2
+        for (i, j) in zip(eachindex(p), eachindex(q))
+            @inbounds q[j] = quantile!(v, p[i], sorted=sorted, alpha=alpha, beta=beta)
+        end
+    else
+        minp, maxp = extrema(p)
+        _quantilesort!(v, sorted, minp, maxp)
 
-    for (i, j) in zip(eachindex(p), eachindex(q))
-        @inbounds q[j] = _quantile(v,p[i], alpha=alpha, beta=beta)
+        for (i, j) in zip(eachindex(p), eachindex(q))
+            @inbounds q[j] = _quantile(v, p[i], alpha=alpha, beta=beta)
+        end
     end
+
     return q
 end
 
 function quantile!(v::AbstractVector, p::Union{AbstractArray, Tuple{Vararg{Real}}};
                    sorted::Bool=false, alpha::Real=1., beta::Real=alpha)
+    if length(p) == 2
+        return map(x -> quantile!(v, x, sorted=sorted, alpha=alpha, beta=beta), p)
+    end
+
     if !isempty(p)
         minp, maxp = extrema(p)
         _quantilesort!(v, sorted, minp, maxp)
     end
-    return map(x->_quantile(v, x, alpha=alpha, beta=beta), p)
+    return map(x -> _quantile(v, x, alpha=alpha, beta=beta), p)
 end
 quantile!(a::AbstractArray, p::Union{AbstractArray,Tuple{Vararg{Real}}};
           sorted::Bool=false, alpha::Real=1.0, beta::Real=alpha) =
@@ -1029,10 +1040,10 @@ function _quantilesort!(v::AbstractVector, sorted::Bool, minp::Real, maxp::Real)
 
     if !sorted
         lv = length(v)
+        # only need to perform partial sort
         lo = floor(Int,minp*(lv))
         hi = ceil(Int,1+maxp*(lv))
 
-        # only need to perform partial sort
         sort!(v, 1, lv, Base.Sort.PartialQuickSort(lo:hi), Base.Sort.Forward)
     end
     if (sorted && (ismissing(v[end]) || (v[end] isa Number && isnan(v[end])))) ||
