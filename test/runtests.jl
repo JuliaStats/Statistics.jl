@@ -714,6 +714,17 @@ end
     @test quantile(skipmissing([1, missing, 2]), 0.5) === 1.5
     @test quantile([1], 0.5) === 1.0
 
+    # A range whose length overflows reports length 0 while being non-empty,
+    # which slips past the isempty guard. Such input gets a clear ArgumentError
+    # instead of an internal AssertionError (issue #121).
+    let r = typemin(Int):typemax(Int)
+        @test length(r) == 0
+        @test !isempty(r)
+        @test_throws ArgumentError quantile!([0], r, [1])
+        @test_throws ArgumentError quantile(r, 0.5; sorted=true)
+    end
+    @test_throws ArgumentError quantile(Int[], 0.5)
+
     # make sure that type inference works correctly in normal cases
     for T in [Int, BigInt, Float64, Float16, BigFloat, Rational{Int}, Rational{BigInt}]
         for S in [Float64, Float16, BigFloat, Rational{Int}, Rational{BigInt}]
