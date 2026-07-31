@@ -3,6 +3,11 @@
 using Statistics, Test, Random, LinearAlgebra, SparseArrays, Dates
 using Test: guardseed
 
+# The pairwise reduction machinery (JuliaLang/julia#58418) supports
+# heterogeneous eltypes in dimensional reductions, which lets cov/cor
+# propagate `missing` instead of throwing
+const NEW_REDUCTION_MACHINERY = isdefined(Base, :mapreduce_similar)
+
 Random.seed!(123)
 
 @testset "middle" begin
@@ -375,7 +380,7 @@ end
 
     @testset "var: empty cases" begin
         A = Matrix{Int}(undef, 0,1)
-        @test isnan(var(A))
+        @test var(A) === NaN
 
         @test isequal(var(A, dims=1), fill(NaN, 1, 1))
         @test isequal(var(A, dims=2), fill(NaN, 0, 1))
@@ -561,15 +566,9 @@ Y = [6.0  2.0;
     @testset "cov with missing" begin
         @test cov([missing]) === cov([1, missing]) === missing
         @test cov([1, missing], [2, 3]) === cov([1, 3], [2, missing]) === missing
-        if isdefined(Base, :_reducedim_init)
-            @test_broken isequal(coalesce.(cov([1 missing; 2 3]), NaN), cov([1 NaN; 2 3]))
-            @test_broken isequal(coalesce.(cov([1 missing; 2 3], [1, 2]), NaN), cov([1 NaN; 2 3], [1, 2]))
-            @test_broken isequal(coalesce.(cov([1, 2], [1 missing; 2 3]), NaN), cov([1, 2], [1 NaN; 2 3]))
-        else
-            @test isequal(coalesce.(cov([1 missing; 2 3]), NaN), cov([1 NaN; 2 3]))
-            @test isequal(coalesce.(cov([1 missing; 2 3], [1, 2]), NaN), cov([1 NaN; 2 3], [1, 2]))
-            @test isequal(coalesce.(cov([1, 2], [1 missing; 2 3]), NaN), cov([1, 2], [1 NaN; 2 3]))
-        end
+        @test isequal(coalesce.(cov([1 missing; 2 3]), NaN), cov([1 NaN; 2 3])) broken=!NEW_REDUCTION_MACHINERY
+        @test isequal(coalesce.(cov([1 missing; 2 3], [1, 2]), NaN), cov([1 NaN; 2 3], [1, 2])) broken=!NEW_REDUCTION_MACHINERY
+        @test isequal(coalesce.(cov([1, 2], [1 missing; 2 3]), NaN), cov([1, 2], [1 NaN; 2 3])) broken=!NEW_REDUCTION_MACHINERY
         @test isequal(cov([1 2; 2 3], [1, missing]), [missing missing]')
         @test isequal(cov([1, missing], [1 2; 2 3]), [missing missing])
     end
@@ -678,15 +677,9 @@ end
         @test cor([missing]) === missing
         @test cor([1, missing]) == 1
         @test cor([1, missing], [2, 3]) === cor([1, 3], [2, missing]) === missing
-        if isdefined(Base, :_reducedim_init)
-            @test_broken isequal(coalesce.(cor([1 missing; 2 3]), NaN), cor([1 NaN; 2 3]))
-            @test_broken isequal(coalesce.(cor([1 missing; 2 3], [1, 2]), NaN), cor([1 NaN; 2 3], [1, 2]))
-            @test_broken isequal(coalesce.(cor([1, 2], [1 missing; 2 3]), NaN), cor([1, 2], [1 NaN; 2 3]))
-        else
-            @test isequal(coalesce.(cor([1 missing; 2 3]), NaN), cor([1 NaN; 2 3]))
-            @test isequal(coalesce.(cor([1 missing; 2 3], [1, 2]), NaN), cor([1 NaN; 2 3], [1, 2]))
-            @test isequal(coalesce.(cor([1, 2], [1 missing; 2 3]), NaN), cor([1, 2], [1 NaN; 2 3]))
-        end
+        @test isequal(coalesce.(cor([1 missing; 2 3]), NaN), cor([1 NaN; 2 3])) broken=!NEW_REDUCTION_MACHINERY
+        @test isequal(coalesce.(cor([1 missing; 2 3], [1, 2]), NaN), cor([1 NaN; 2 3], [1, 2])) broken=!NEW_REDUCTION_MACHINERY
+        @test isequal(coalesce.(cor([1, 2], [1 missing; 2 3]), NaN), cor([1, 2], [1 NaN; 2 3])) broken=!NEW_REDUCTION_MACHINERY
         @test isequal(cor([1 2; 2 3], [1, missing]), [missing missing]')
         @test isequal(cor([1, missing], [1 2; 2 3]), [missing missing])
     end
@@ -1166,4 +1159,31 @@ end
     m = mean(Float64.(x))
     @test mean(x) ≈ m rtol=1e-6
     @test varm(x, Float32(m)) ≈ v rtol=1e-5
+end
+
+@testset "mean and var of general iterators" begin
+    g = (x^2 for x in 1:4)
+    @test mean(g) === mean([1, 4, 9, 16]) === 7.5
+    @test mean(sqrt, x^2 for x in 1:3) === mean([1.0, 2.0, 3.0])
+    @test var(g) === var([1, 4, 9, 16])
+    @test var(g; corrected=false) === var([1, 4, 9, 16]; corrected=false)
+    @test var(g; mean=7.5) === var([1, 4, 9, 16]; mean=7.5)
+    @test std(g) === std([1, 4, 9, 16])
+    s = skipmissing([1.0, missing, 2.0, 3.0])
+    @test mean(s) === 2.0
+    @test var(s) === var([1.0, 2.0, 3.0])
+    @test var(s; mean=2.0) === var([1.0, 2.0, 3.0]; mean=2.0)
+    @test varm(s, missing) === missing
+end
+
+@testset "var over multiple dims matches the naive computation" begin
+    B = randn(MersenneTwister(3), 3, 4, 5)
+    for d in (1, 2, 3, (1, 2), (1, 3), (2, 3), (1, 2, 3))
+        m = mean(B, dims=d)
+        n = prod(size(B, i) for i in d)
+        @test var(B; dims=d) ≈ sum(abs2, B .- m; dims=d) ./ (n - 1)
+        @test var(B; dims=d, corrected=false) ≈ sum(abs2, B .- m; dims=d) ./ n
+        @test var(B; dims=d, mean=m) ≈ var(B; dims=d)
+        @test std(B; dims=d) ≈ sqrt.(var(B; dims=d))
+    end
 end
