@@ -283,13 +283,22 @@ centralize_sumabs2!(R::AbstractArray, A::AbstractArray, means::AbstractArray) =
 
 
 function varm!(R::AbstractArray{S}, A::AbstractArray, m::AbstractArray; corrected::Bool=true) where S
-    _checkm(R, m, ntuple(identity, Val(max(ndims(R), ndims(m)))))
-    if isempty(A) || length(A) == 1 && corrected
+    for d in 1:max(ndims(R), ndims(m))
+        axes(m, d) == axes(R, d) || throw(DimensionMismatch(
+            "dimension $d of `mean` should have indices $(axes(R, d)), but got $(axes(m, d))"))
+    end
+    if isempty(A)
         fill!(R, convert(S, NaN))
     else
         rn = prod(ntuple(d->size(R, d) == 1 ? size(A, d) : 1, Val(max(ndims(A), ndims(R))))) - Int(corrected)
         centralize_sumabs2!(R, A, m)
-        R .= R .* (1 // rn)
+        if rn <= 0
+            # Like the out-of-place `_varm` path: a corrected variance over a
+            # single element is 0/0 = NaN (or Inf if `m` is not that element)
+            R .= R ./ 0
+        else
+            R .= R .* (1 // rn)
+        end
     end
     return R
 end

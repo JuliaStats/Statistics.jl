@@ -383,6 +383,26 @@ end
         @test isequal(var(A, dims=3), fill(NaN, 0, 1))
     end
 
+    @testset "varm! with array means" begin
+        A = [1.0 2.0; 3.0 4.0]
+        @test Statistics.varm!(zeros(1, 2), A, mean(A, dims=1)) ≈ var(A, dims=1)
+        @test Statistics.varm!(zeros(2, 1), A, mean(A, dims=2)) ≈ var(A, dims=2)
+        @test Statistics.varm!(zeros(2), A, vec(mean(A, dims=2))) ≈ vec(var(A, dims=2))
+        @test Statistics.varm!(zeros(1, 2), A, mean(A, dims=1); corrected=false) ≈
+            var(A, dims=1, corrected=false)
+        # means must have the same shape as the result
+        @test_throws DimensionMismatch Statistics.varm!(zeros(1, 2), A, mean(A, dims=2))
+        @test_throws DimensionMismatch Statistics.varm!(zeros(2, 1), A, mean(A, dims=1))
+        @test_throws DimensionMismatch Statistics.varm!(zeros(2, 1), A, [1.0 2.0 3.0])
+        # single-element slices match the out-of-place dims path: 0/0 = NaN
+        # for a matching mean and Inf otherwise (NaN sign/payload is
+        # platform-dependent, so compare with isequal, not ===)
+        B = [2.0; 4.0;;]
+        @test isequal(Statistics.varm!(zeros(2, 1), B, [2.0; 5.0;;]),
+                      varm(B, [2.0; 5.0;;]; dims=2))
+        @test isequal(Statistics.varm!(zeros(2, 1), B, [2.0; 5.0;;]), [NaN; Inf;;])
+    end
+
     # issue #6672
     @test std(AbstractFloat[1,2,3], dims=1) == [1.0]
 
