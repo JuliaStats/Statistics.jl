@@ -1152,3 +1152,18 @@ end
     @test isequal(mean(x; dims=1), [2. 4. missing 8.])
     @test isequal(mean(x; dims=2), [2.5; 5.0; missing;;])
 end
+
+@testset "pairwise accuracy of var and mean" begin
+    # The reduction-based implementation is pairwise: accumulating the
+    # centralized squares of 10^6 Float32 values centered on 1f4 in a naive
+    # left-to-right loop loses three to four digits of the variance, while
+    # the pairwise reduction stays within a few eps
+    x = randn(MersenneTwister(1), Float32, 10^6) .+ 1f4
+    v = var(Float64.(x))
+    @test var(x) ≈ v rtol=1e-5
+    @test var(reshape(x, :, 1); dims=1)[1] ≈ v rtol=1e-5
+    @test var(reshape(x, 1, :); dims=2)[1] ≈ v rtol=1e-5
+    m = mean(Float64.(x))
+    @test mean(x) ≈ m rtol=1e-6
+    @test varm(x, Float32(m)) ≈ v rtol=1e-5
+end

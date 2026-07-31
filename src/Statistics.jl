@@ -263,11 +263,19 @@ struct CentralizedAbs2Fun{T,S} <: Function
 end
 CentralizedAbs2Fun{T}(means) where {T} = CentralizedAbs2Fun{T,typeof(means)}(means)
 CentralizedAbs2Fun(means) = CentralizedAbs2Fun{typeof(means)}(means)
-CentralizedAbs2Fun(means, extrude) = CentralizedAbs2Fun{eltype(means)}(Broadcast.extrude(means))
+# An extruded means array pairs with `Base.PairsArray`: each element's mean is
+# looked up by the element's index with broadcasting semantics
+CentralizedAbs2Fun(means::Broadcast.Extruded) = CentralizedAbs2Fun{eltype(means.x)}(means)
 # Division is generally costly, but Julia is typically able to constant propagate a /1
 # and simply ensure we get the type right at no cost, allowing the division in-place later
 (f::CentralizedAbs2Fun)(x) = abs2.(x - f.mean)/1
-(f::CentralizedAbs2Fun{<:Any,<:Broadcast.Extruded})((i, x),) = abs2.(x - Broadcast._broadcast_getindex(f.mean, i))/1
+function (f::CentralizedAbs2Fun{<:Any,<:Broadcast.Extruded})((i, x),)
+    # The means' axes are checked to match the kept axes of `A` before any
+    # reduction begins (in `varm!` and `_varm`), so the lookup is inbounds
+    j = Broadcast.newindex(i, f.mean.keeps, f.mean.defaults)
+    m = @inbounds f.mean.x[j]
+    return abs2.(x - m)/1
+end
 _doubled(x) = x+x
 Base.mapreduce_empty(::CentralizedAbs2Fun{T,<:Broadcast.Extruded}, ::typeof(Base.add_sum), ::Type{Tuple{_Any,S}}) where {T<:Number, S<:Number, _Any} = _doubled(abs2(zero(T)-zero(S)))/1
 Base.mapreduce_empty(::CentralizedAbs2Fun{T,<:Broadcast.Extruded}, ::typeof(Base.add_sum), ::Type{Tuple{_Any, Union{Missing, S}}}) where {T<:Number, S<:Number, _Any} = _doubled(abs2(zero(T)-zero(S)))/1
@@ -277,9 +285,9 @@ Base.mapreduce_empty(::CentralizedAbs2Fun{T}, ::typeof(Base.add_sum), ::Type{Uni
 centralize_sumabs2(A::AbstractArray, m) =
     sum(CentralizedAbs2Fun(m), A)
 centralize_sumabs2(A::AbstractArray, m::AbstractArray, region) =
-    sum(CentralizedAbs2Fun(m, true), Base.PairsArray(A), dims=region)
+    sum(CentralizedAbs2Fun(Broadcast.extrude(m)), Base.PairsArray(A), dims=region)
 centralize_sumabs2!(R::AbstractArray, A::AbstractArray, means::AbstractArray) =
-    sum!(CentralizedAbs2Fun(means, true), R, Base.PairsArray(A))
+    sum!(CentralizedAbs2Fun(Broadcast.extrude(means)), R, Base.PairsArray(A))
 
 
 function varm!(R::AbstractArray{S}, A::AbstractArray, m::AbstractArray; corrected::Bool=true) where S
@@ -346,7 +354,9 @@ function _varm(A::AbstractArray, m, corrected::Bool, region)
     if rn <= 0
         R .= R ./ 0
     else
-        R .= R .* 1//rn # why use Rational?
+        # Scaling by a Rational rounds only once for floating point eltypes
+        # and stays exact for Rational and Integer ones
+        R .= R .* (1 // rn)
     end
     return R
 end
