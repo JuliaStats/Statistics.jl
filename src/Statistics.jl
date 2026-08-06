@@ -270,8 +270,7 @@ CentralizedAbs2Fun(means::Broadcast.Extruded) = CentralizedAbs2Fun{eltype(means.
 # and simply ensure we get the type right at no cost, allowing the division in-place later
 (f::CentralizedAbs2Fun)(x) = abs2.(x - f.mean)/1
 function (f::CentralizedAbs2Fun{<:Any,<:Broadcast.Extruded})((i, x),)
-    # The means' axes are checked to match the kept axes of `A` before any
-    # reduction begins (in `varm!` and `_varm`), so the lookup is inbounds
+    # The means' axes are checked in `centralize_sumabs2` and `centralize_sumabs2!`
     j = Broadcast.newindex(i, f.mean.keeps, f.mean.defaults)
     m = @inbounds f.mean.x[j]
     return abs2.(x - m)/1
@@ -284,17 +283,16 @@ Base.mapreduce_empty(::CentralizedAbs2Fun{T}, ::typeof(Base.add_sum), ::Type{Uni
 
 centralize_sumabs2(A::AbstractArray, m) =
     sum(CentralizedAbs2Fun(m), A)
-centralize_sumabs2(A::AbstractArray, m::AbstractArray, region) =
-    sum(CentralizedAbs2Fun(Broadcast.extrude(m)), Base.PairsArray(A), dims=region)
-centralize_sumabs2!(R::AbstractArray, A::AbstractArray, means::AbstractArray) =
-    sum!(CentralizedAbs2Fun(Broadcast.extrude(means)), R, Base.PairsArray(A))
-
+function centralize_sumabs2(A::AbstractArray, means::AbstractArray, region)
+    _checkm(A, means, region)
+    return sum(CentralizedAbs2Fun(Broadcast.extrude(means)), Base.PairsArray(A), dims=region)
+end
+function centralize_sumabs2!(R::AbstractArray, A::AbstractArray, means::AbstractArray)
+    _checkm(R, means)
+    return sum!(CentralizedAbs2Fun(Broadcast.extrude(means)), R, Base.PairsArray(A))
+end
 
 function varm!(R::AbstractArray{S}, A::AbstractArray, m::AbstractArray; corrected::Bool=true) where S
-    for d in 1:max(ndims(R), ndims(m))
-        axes(m, d) == axes(R, d) || throw(DimensionMismatch(
-            "dimension $d of `mean` should have indices $(axes(R, d)), but got $(axes(m, d))"))
-    end
     if isempty(A)
         fill!(R, convert(S, NaN))
     else
@@ -337,7 +335,7 @@ over dimensions. In that case, `mean` must be an array with the same shape as
 """
 varm(A::AbstractArray, m::AbstractArray; corrected::Bool=true, dims=:) = _varm(A, m, corrected, dims)
 
-_throw_mean_mismatch(A, m, region) = throw(DimensionMismatch("axes of means ($(axes(m))) does not match reduction over $(region) of $(axes(A))"))
+_throw_mean_mismatch(A, m, region) = throw(DimensionMismatch("axes of means ($(axes(m))) do not match reduction over $(region) of $(axes(A))"))
 function _checkm(A::AbstractArray, m::AbstractArray, region)
     for d in 1:max(ndims(A), ndims(m))
         if d in region
@@ -347,8 +345,14 @@ function _checkm(A::AbstractArray, m::AbstractArray, region)
         end
     end
 end
+_throw_mean_mismatch(R, m) = throw(DimensionMismatch("axes of means ($(axes(m))) do not match reduction into $(axes(R))"))
+function _checkm(R::AbstractArray, m::AbstractArray)
+    for d in 1:max(ndims(R), ndims(m))
+        axes(m, d) == axes(R, d) || _throw_mean_mismatch(R, m)
+    end
+end
+
 function _varm(A::AbstractArray, m, corrected::Bool, region)
-    _checkm(A, m, region)
     rn = prod(ntuple(d->d in region ? size(A, d) : 1, Val(ndims(A)))) - Int(corrected)
     R = centralize_sumabs2(A, m, region)
     if rn <= 0
