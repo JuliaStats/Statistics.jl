@@ -16,6 +16,7 @@ jobs:
           - '1' # latest v1 version of Julia
           - 'lts' # latest LTS build of Julia
           - 'pre' # latest prerelease build (RCs, betas, and alphas) of Julia
+          - 'nightly' # nightly build of Julia
         os:
           - ubuntu-latest
           - macOS-latest
