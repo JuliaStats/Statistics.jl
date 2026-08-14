@@ -257,10 +257,6 @@ function _var(iterable, corrected::Bool, mean)
     end
 end
 
-# Whether R has a single element along its first dimension. Defined here instead
-# of using the internal Base.reducedim1 whose signature changed in Julia 1.14
-reducedim1(R) = length(Base.axes1(R)) == 1
-
 centralizedabs2fun(m) = x -> abs2.(x - m)
 centralize_sumabs2(A::AbstractArray, m) =
     mapreduce(centralizedabs2fun(m), +, A)
@@ -289,7 +285,7 @@ function centralize_sumabs2!(R::AbstractArray{S}, A::AbstractArray, means::Abstr
     end
     indsAt, indsRt = Base.safe_tail(axes(A)), Base.safe_tail(axes(R)) # handle d=1 manually
     keep, Idefault = Broadcast.shapeindexer(indsRt)
-    if reducedim1(R)
+    if length(Base.axes1(R)) == 1
         i1 = first(Base.axes1(R))
         @inbounds for IA in CartesianIndices(indsAt)
             IR = Broadcast.newindex(IA, keep, Idefault)
