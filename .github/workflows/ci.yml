@@ -26,7 +26,7 @@ jobs:
         with:
           version: ${{ matrix.version }}
           show-versioninfo: true
-      - uses: julia-actions/cache@v2
+      - uses: julia-actions/cache@v3
       - run: julia --color=yes .ci/test_and_change_uuid.jl
       - uses: julia-actions/julia-buildpkg@v1
       - uses: julia-actions/julia-runtest@v1
