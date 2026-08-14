@@ -3,6 +3,11 @@
 using Statistics, Test, Random, LinearAlgebra, SparseArrays, Dates
 using Test: guardseed
 
+# The pairwise reduction machinery (JuliaLang/julia#58418) supports
+# heterogeneous eltypes in dimensional reductions, which lets cov/cor
+# propagate `missing` instead of throwing
+const NEW_REDUCTION_MACHINERY = isdefined(Base, :mapreduce_similar)
+
 Random.seed!(123)
 
 @testset "middle" begin
@@ -383,6 +388,26 @@ end
         @test isequal(var(A, dims=3), fill(NaN, 0, 1))
     end
 
+    @testset "varm! with array means" begin
+        A = [1.0 2.0; 3.0 4.0]
+        @test Statistics.varm!(zeros(1, 2), A, mean(A, dims=1)) ≈ var(A, dims=1)
+        @test Statistics.varm!(zeros(2, 1), A, mean(A, dims=2)) ≈ var(A, dims=2)
+        @test Statistics.varm!(zeros(2), A, vec(mean(A, dims=2))) ≈ vec(var(A, dims=2))
+        @test Statistics.varm!(zeros(1, 2), A, mean(A, dims=1); corrected=false) ≈
+            var(A, dims=1, corrected=false)
+        # means must have the same shape as the result
+        @test_throws DimensionMismatch Statistics.varm!(zeros(1, 2), A, mean(A, dims=2))
+        @test_throws DimensionMismatch Statistics.varm!(zeros(2, 1), A, mean(A, dims=1))
+        @test_throws DimensionMismatch Statistics.varm!(zeros(2, 1), A, [1.0 2.0 3.0])
+        # single-element slices match the out-of-place dims path: 0/0 = NaN
+        # for a matching mean and Inf otherwise (NaN sign/payload is
+        # platform-dependent, so compare with isequal, not ===)
+        B = [2.0; 4.0;;]
+        @test isequal(Statistics.varm!(zeros(2, 1), B, [2.0; 5.0;;]),
+                      varm(B, [2.0; 5.0;;]; dims=2))
+        @test isequal(Statistics.varm!(zeros(2, 1), B, [2.0; 5.0;;]), [NaN; Inf;;])
+    end
+
     # issue #6672
     @test std(AbstractFloat[1,2,3], dims=1) == [1.0]
 
@@ -541,9 +566,9 @@ Y = [6.0  2.0;
     @testset "cov with missing" begin
         @test cov([missing]) === cov([1, missing]) === missing
         @test cov([1, missing], [2, 3]) === cov([1, 3], [2, missing]) === missing
-        @test_throws Exception cov([1 missing; 2 3])
-        @test_throws Exception cov([1 missing; 2 3], [1, 2])
-        @test_throws Exception cov([1, 2], [1 missing; 2 3])
+        @test isequal(coalesce.(cov([1 missing; 2 3]), NaN), cov([1 NaN; 2 3])) broken=!NEW_REDUCTION_MACHINERY
+        @test isequal(coalesce.(cov([1 missing; 2 3], [1, 2]), NaN), cov([1 NaN; 2 3], [1, 2])) broken=!NEW_REDUCTION_MACHINERY
+        @test isequal(coalesce.(cov([1, 2], [1 missing; 2 3]), NaN), cov([1, 2], [1 NaN; 2 3])) broken=!NEW_REDUCTION_MACHINERY
         @test isequal(cov([1 2; 2 3], [1, missing]), [missing missing]')
         @test isequal(cov([1, missing], [1 2; 2 3]), [missing missing])
     end
@@ -652,9 +677,9 @@ end
         @test cor([missing]) === missing
         @test cor([1, missing]) == 1
         @test cor([1, missing], [2, 3]) === cor([1, 3], [2, missing]) === missing
-        @test_throws Exception cor([1 missing; 2 3])
-        @test_throws Exception cor([1 missing; 2 3], [1, 2])
-        @test_throws Exception cor([1, 2], [1 missing; 2 3])
+        @test isequal(coalesce.(cor([1 missing; 2 3]), NaN), cor([1 NaN; 2 3])) broken=!NEW_REDUCTION_MACHINERY
+        @test isequal(coalesce.(cor([1 missing; 2 3], [1, 2]), NaN), cor([1 NaN; 2 3], [1, 2])) broken=!NEW_REDUCTION_MACHINERY
+        @test isequal(coalesce.(cor([1, 2], [1 missing; 2 3]), NaN), cor([1, 2], [1 NaN; 2 3])) broken=!NEW_REDUCTION_MACHINERY
         @test isequal(cor([1 2; 2 3], [1, missing]), [missing missing]')
         @test isequal(cor([1, missing], [1 2; 2 3]), [missing missing])
     end
@@ -1103,4 +1128,62 @@ end
     @test isequal(cor(mx, Int[]), fill(NaN, 2, 1))
     @test isequal(cov(Int[], my), fill(-0.0, 1, 3))
     @test isequal(cor(Int[], my), fill(NaN, 1, 3))
+end
+
+@testset "mean, var, std type stability with Missings; Issue #160" begin
+    @test (@inferred Missing mean(view([1, 2, missing], 1:2))) == (@inferred mean([1,2]))
+    @test (@inferred Missing var(view([1, 2, missing], 1:2))) == (@inferred var([1,2]))
+    @test (@inferred Missing std(view([1, 2, missing], 1:2))) == (@inferred std([1,2]))
+end
+
+@testset "inexact errors; Issues #7 and #126" begin
+    a = [missing missing; 0 1]
+    @test_broken isequal(mean(a;dims=2), [missing; 0.5;;])
+
+    x = [(i==3 && j==3) ? missing : i*j for i in 1:3, j in 1:4]
+    @test ismissing(@inferred Float64 mean(x))
+    @test isequal(mean(x; dims=1), [2. 4. missing 8.])
+    @test isequal(mean(x; dims=2), [2.5; 5.0; missing;;])
+end
+
+@testset "pairwise accuracy of var and mean" begin
+    # The reduction-based implementation is pairwise: accumulating the
+    # centralized squares of 10^6 Float32 values centered on 1f4 in a naive
+    # left-to-right loop loses three to four digits of the variance, while
+    # the pairwise reduction stays within a few eps
+    x = randn(MersenneTwister(1), Float32, 10^6) .+ 1f4
+    v = var(Float64.(x))
+    @test var(x) ≈ v rtol=1e-5
+    @test var(reshape(x, :, 1); dims=1)[1] ≈ v rtol=1e-5
+    @test var(reshape(x, 1, :); dims=2)[1] ≈ v rtol=1e-5
+    m = mean(Float64.(x))
+    @test mean(x) ≈ m rtol=1e-6
+    @test varm(x, Float32(m)) ≈ v rtol=1e-5
+end
+
+@testset "mean and var of general iterators" begin
+    g = (x^2 for x in 1:4)
+    @test mean(g) === mean([1, 4, 9, 16]) === 7.5
+    @test mean(sqrt, x^2 for x in 1:3) === mean([1.0, 2.0, 3.0])
+    @test var(g) === var([1, 4, 9, 16])
+    @test var(g; corrected=false) === var([1, 4, 9, 16]; corrected=false)
+    @test var(g; mean=7.5) === var([1, 4, 9, 16]; mean=7.5)
+    @test std(g) === std([1, 4, 9, 16])
+    s = skipmissing([1.0, missing, 2.0, 3.0])
+    @test mean(s) === 2.0
+    @test var(s) === var([1.0, 2.0, 3.0])
+    @test var(s; mean=2.0) === var([1.0, 2.0, 3.0]; mean=2.0)
+    @test varm(s, missing) === missing
+end
+
+@testset "var over multiple dims matches the naive computation" begin
+    B = randn(MersenneTwister(3), 3, 4, 5)
+    for d in (1, 2, 3, (1, 2), (1, 3), (2, 3), (1, 2, 3))
+        m = mean(B, dims=d)
+        n = prod(size(B, i) for i in d)
+        @test var(B; dims=d) ≈ sum(abs2, B .- m; dims=d) ./ (n - 1)
+        @test var(B; dims=d, corrected=false) ≈ sum(abs2, B .- m; dims=d) ./ n
+        @test var(B; dims=d, mean=m) ≈ var(B; dims=d)
+        @test std(B; dims=d) ≈ sqrt.(var(B; dims=d))
+    end
 end
