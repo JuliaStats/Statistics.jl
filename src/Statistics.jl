@@ -1026,6 +1026,10 @@ quantile!(v::AbstractVector, p::Real; sorted::Bool=false, alpha::Real=1.0, beta:
 function _quantilesort!(v::AbstractVector, sorted::Bool, minp::Real, maxp::Real)
     isempty(v) && throw(ArgumentError("empty data vector"))
     require_one_based_indexing(v)
+    length(v) == 0 && throw(ArgumentError(
+        "data vector reports length 0 but is not empty; this can happen for an " *
+        "integer range whose length overflows (e.g. `typemin(Int):typemax(Int)`) — " *
+        "collect it to a concrete vector first"))
 
     if !sorted
         lv = length(v)
@@ -1051,7 +1055,7 @@ end
 
     n = length(v)
 
-    @assert n > 0 # this case should never happen here
+    n > 0 || throw(ArgumentError("quantile is undefined for a length-0 data vector"))
 
     m = alpha + p * (one(alpha) - alpha - beta)
     # Using fma here avoids some rounding errors when aleph is an integer
