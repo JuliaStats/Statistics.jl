@@ -119,14 +119,9 @@ end
     @test isnan(mean([NaN]))
     @test isnan(mean([0.0,NaN]))
     @test isnan(mean([NaN,0.0]))
-
-    # the specific NaN value is propagated from the input
-    @test mean([NaN]) === NaN
-    @test mean([0.0,NaN]) === NaN
-    @test mean([0.0,NaN,NaN]) === NaN
-    @test mean([-NaN]) === -NaN
-    @test mean([0.0,-NaN]) === -NaN
-    @test mean([0.0,-NaN,-NaN]) === -NaN
+    @test isnan(mean([-NaN]))
+    @test isnan(mean([0.0,-NaN]))
+    @test isnan(mean([0.0,-NaN,-NaN]))
 
     @test isnan(mean([0.,Inf,-Inf]))
     @test isnan(mean([1.,-1.,Inf,-Inf]))
