@@ -1024,7 +1024,7 @@ quantile!(v::AbstractVector, p::Real; sorted::Bool=false, alpha::Real=1.0, beta:
 
 # Function to perform partial sort of v for quantiles in given range
 function _quantilesort!(v::AbstractVector, sorted::Bool, minp::Real, maxp::Real)
-    isempty(v) && throw(ArgumentError("empty data vector"))
+    length(v) == 0 && throw(ArgumentError("empty data vector"))
     require_one_based_indexing(v)
 
     if !sorted
@@ -1051,7 +1051,7 @@ end
 
     n = length(v)
 
-    @assert n > 0 # this case should never happen here
+    n > 0 || throw(ArgumentError("quantile is undefined for a length-0 data vector"))
 
     m = alpha + p * (one(alpha) - alpha - beta)
     # Using fma here avoids some rounding errors when aleph is an integer
