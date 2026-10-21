@@ -835,7 +835,7 @@ end
 Like [`median`](@ref), but may overwrite the input vector.
 """
 function median!(v::AbstractVector)
-    isempty(v) && throw(ArgumentError("median of an empty array is undefined, $(repr(v))"))
+    isempty(v) && throw(ArgumentError("median of an empty array is undefined"))
     eltype(v)>:Missing && any(ismissing, v) && return missing
     nanix = findfirst(x -> x isa Number && isnan(x), v)
     isnothing(nanix) || return v[nanix]
