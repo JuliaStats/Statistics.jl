@@ -1022,6 +1022,10 @@ quantile!(q::AbstractArray, a::AbstractArray, p::Union{AbstractArray,Tuple{Varar
 quantile!(v::AbstractVector, p::Real; sorted::Bool=false, alpha::Real=1.0, beta::Real=alpha) =
     _quantile(_quantilesort!(v, sorted, p, p), p, alpha=alpha, beta=beta)
 
+# Float16 and Float32 cannot represent the rank in long vectors exactly
+_widenprob(p::Union{Float16,Float32}) = Float64(p)
+_widenprob(p::Real) = p
+
 # Function to perform partial sort of v for quantiles in given range
 function _quantilesort!(v::AbstractVector, sorted::Bool, minp::Real, maxp::Real)
     length(v) == 0 && throw(ArgumentError("empty data vector"))
@@ -1029,8 +1033,8 @@ function _quantilesort!(v::AbstractVector, sorted::Bool, minp::Real, maxp::Real)
 
     if !sorted
         lv = length(v)
-        lo = floor(Int,minp*(lv))
-        hi = ceil(Int,1+maxp*(lv))
+        lo = floor(Int,_widenprob(minp)*(lv))
+        hi = ceil(Int,1+_widenprob(maxp)*(lv))
 
         # only need to perform partial sort
         sort!(v, 1, lv, Base.Sort.PartialQuickSort(lo:hi), Base.Sort.Forward)
@@ -1053,10 +1057,11 @@ end
 
     n > 0 || throw(ArgumentError("quantile is undefined for a length-0 data vector"))
 
-    m = alpha + p * (one(alpha) - alpha - beta)
+    pw = _widenprob(p)
+    m = alpha + pw * (one(alpha) - alpha - beta)
     # Using fma here avoids some rounding errors when aleph is an integer
     # The use of oftype supresses the promotion caused by alpha and beta
-    aleph = fma(n, p, oftype(p, m))
+    aleph = fma(n, pw, oftype(pw, m))
     j = clamp(trunc(Int, aleph), 1, n - 1)
     γ = clamp(aleph - j, 0, 1)
 
@@ -1066,6 +1071,11 @@ end
     else
         a = v[j]
         b = v[j + 1]
+    end
+
+    # Interpolate in the result type, which depends on the types of p and of the data
+    if p isa Union{Float16,Float32}
+        γ = convert(a isa Real && b isa Real ? promote_type(typeof(p), typeof(a), typeof(b)) : typeof(p), γ)
     end
 
     # When a ≉ b, b-a may overflow
