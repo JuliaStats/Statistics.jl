@@ -1073,6 +1073,10 @@ end
     if isfinite(a) && isfinite(b) &&
         (!(a isa Number) || !(b isa Number) || a ≈ b)
         return a + γ*(b-a)
+    elseif iszero(γ) && !isfinite(b)
+        return (1-γ)*a
+    elseif isone(γ) && !isfinite(a)
+        return γ*b
     else
         return (1-γ)*a + γ*b
     end
