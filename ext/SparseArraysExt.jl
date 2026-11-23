@@ -38,7 +38,7 @@ end
 # This is the function that does the reduction underlying var/std
 function centralize_sumabs2!(R::AbstractArray{S}, A::SparseMatrixCSC{Tv,Ti}, means::AbstractArray) where {S,Tv,Ti}
     require_one_based_indexing(R, A, means)
-    lsiz = Base.check_reducedims(R,A)
+    lsiz = Base._linear_reduction_length(A, axes(R))
     for i in 1:max(ndims(R), ndims(means))
         if axes(means, i) != axes(R, i)
             throw(DimensionMismatch("dimension $i of `mean` should have indices $(axes(R, i)), but got $(axes(means, i))"))

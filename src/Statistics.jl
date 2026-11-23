@@ -265,7 +265,7 @@ centralize_sumabs2(A::AbstractArray, m, ifirst::Int, ilast::Int) =
 
 function centralize_sumabs2!(R::AbstractArray{S}, A::AbstractArray, means::AbstractArray) where S
     # following the implementation of _mapreducedim! at base/reducedim.jl
-    lsiz = Base.check_reducedims(R,A)
+    lsiz = Base._linear_reduction_length(A, axes(R))
     for i in 1:max(ndims(R), ndims(means))
         if axes(means, i) != axes(R, i)
             throw(DimensionMismatch("dimension $i of `mean` should have indices $(axes(R, i)), but got $(axes(means, i))"))
@@ -344,9 +344,15 @@ over dimensions. In that case, `mean` must be an array with the same shape as
 """
 varm(A::AbstractArray, m::AbstractArray; corrected::Bool=true, dims=:) = _varm(A, m, corrected, dims)
 
-_varm(A::AbstractArray{T}, m, corrected::Bool, region) where {T} =
-    varm!(Base.reducedim_init(t -> abs2(t)/2, +, A, region), A, m; corrected=corrected)
-
+function _varm(A::AbstractArray{T}, m, corrected::Bool, region) where {T}
+    outaxes = Base.reduced_indices(A, region)
+    nmT = Base.nonmissingtype(T)
+    base = typeof(abs2(zero(nmT)) / 2)
+    elT = (T == nmT) ? base : Union{Missing, base}
+    R = Base.mapreduce_similar(A, elT, outaxes)
+    fill!(R, zero(base))
+    return varm!(R, A, m; corrected=corrected)
+end
 varm(A::AbstractArray, m; corrected::Bool=true) = _varm(A, m, corrected, :)
 
 function _varm(A::AbstractArray{T}, m, corrected::Bool, ::Colon) where T
