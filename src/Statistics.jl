@@ -22,9 +22,9 @@ export cor, cov, std, stdm, var, varm, mean!, mean,
 Compute the mean of all elements in a collection.
 
 !!! note
-    If `itr` contains `NaN` or [`missing`](@ref) values, the result is also
+    If `itr` contains `NaN` or `missing` values, the result is also
     `NaN` or `missing` (`missing` takes precedence if array contains both).
-    Use the [`skipmissing`](@ref) function to omit `missing` entries and compute the
+    Use the `skipmissing` function to omit `missing` entries and compute the
     mean of non-missing values.
 
 # Examples
@@ -337,9 +337,9 @@ over dimensions. In that case, `mean` must be an array with the same shape as
 `mean(itr, dims=dims)` (additional trailing singleton dimensions are allowed).
 
 !!! note
-    If array contains `NaN` or [`missing`](@ref) values, the result is also
+    If array contains `NaN` or `missing` values, the result is also
     `NaN` or `missing` (`missing` takes precedence if array contains both).
-    Use the [`skipmissing`](@ref) function to omit `missing` entries and compute the
+    Use the `skipmissing` function to omit `missing` entries and compute the
     variance of non-missing values.
 """
 varm(A::AbstractArray, m::AbstractArray; corrected::Bool=true, dims=:) = _varm(A, m, corrected, dims)
@@ -378,9 +378,9 @@ an array with the same shape as `mean(itr, dims=dims)` (additional trailing
 singleton dimensions are allowed).
 
 !!! note
-    If array contains `NaN` or [`missing`](@ref) values, the result is also
+    If array contains `NaN` or `missing` values, the result is also
     `NaN` or `missing` (`missing` takes precedence if array contains both).
-    Use the [`skipmissing`](@ref) function to omit `missing` entries and compute the
+    Use the `skipmissing` function to omit `missing` entries and compute the
     variance of non-missing values.
 """
 var(A::AbstractArray; corrected::Bool=true, mean=nothing, dims=:) = _var(A, corrected, mean, dims)
@@ -455,9 +455,9 @@ an array with the same shape as `mean(itr, dims=dims)` (additional trailing
 singleton dimensions are allowed).
 
 !!! note
-    If array contains `NaN` or [`missing`](@ref) values, the result is also
+    If array contains `NaN` or `missing` values, the result is also
     `NaN` or `missing` (`missing` takes precedence if array contains both).
-    Use the [`skipmissing`](@ref) function to omit `missing` entries and compute the
+    Use the `skipmissing` function to omit `missing` entries and compute the
     standard deviation of non-missing values.
 """
 std(A::AbstractArray; corrected::Bool=true, mean=nothing, dims=:) = _std(A, corrected, mean, dims)
@@ -496,9 +496,9 @@ over dimensions. In that case, `mean` must be an array with the same shape as
 `mean(itr, dims=dims)` (additional trailing singleton dimensions are allowed).
 
 !!! note
-    If array contains `NaN` or [`missing`](@ref) values, the result is also
+    If array contains `NaN` or `missing` values, the result is also
     `NaN` or `missing` (`missing` takes precedence if array contains both).
-    Use the [`skipmissing`](@ref) function to omit `missing` entries and compute the
+    Use the `skipmissing` function to omit `missing` entries and compute the
     standard deviation of non-missing values.
 """
 stdm(A::AbstractArray, m::AbstractArray; corrected::Bool=true, dims=:) =
@@ -859,9 +859,9 @@ For an even number of elements no exact median element exists, so the result is
 equivalent to calculating mean of two median elements.
 
 !!! note
-    If `itr` contains `NaN` or [`missing`](@ref) values, the result is also
+    If `itr` contains `NaN` or `missing` values, the result is also
     `NaN` or `missing` (`missing` takes precedence if `itr` contains both).
-    Use the [`skipmissing`](@ref) function to omit `missing` entries and compute the
+    Use the `skipmissing` function to omit `missing` entries and compute the
     median of non-missing values.
 
 # Examples
@@ -951,7 +951,7 @@ defined in this paper:
 - Def. 9: `alpha=3/8`, `beta=3/8`
 
 !!! note
-    An `ArgumentError` is thrown if `v` contains `NaN` or [`missing`](@ref) values.
+    An `ArgumentError` is thrown if `v` contains `NaN` or `missing` values.
 
 # References
 - Hyndman, R.J and Fan, Y. (1996) "Sample Quantiles in Statistical Packages",
@@ -1104,8 +1104,8 @@ defined in this paper:
 - Def. 9: `alpha=3/8`, `beta=3/8`
 
 !!! note
-    An `ArgumentError` is thrown if `v` contains `NaN` or [`missing`](@ref) values.
-    Use the [`skipmissing`](@ref) function to omit `missing` entries and compute the
+    An `ArgumentError` is thrown if `v` contains `NaN` or `missing` values.
+    Use the `skipmissing` function to omit `missing` entries and compute the
     quantiles of non-missing values.
 
 # References
