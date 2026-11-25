@@ -664,6 +664,12 @@ end
     @test quantile(100f0:-1f0:0.0, 0.0:0.1:1.0) ≈ 0f0:10f0:100f0
     @test quantile([Inf,Inf],0.5) == Inf
     @test quantile([-Inf,1],0.5) == -Inf
+    @test quantile([1.0, 2.0, Inf], 0.5) === 2.0
+    @test quantile([-Inf, 1.0, Inf], 0.5) === 1.0
+    @test quantile([1.0, Inf], 0) === 1.0
+    @test quantile([-Inf, 1.0], 1) === 1.0
+    @test quantile([Inf], 0.5) === Inf
+    @test quantile([Inf, Inf], 0) === Inf
     # here it is required to introduce an absolute tolerance because the calculated value is 0
     @test quantile([0,1],1e-18) ≈ 1e-18 atol=1e-18
     @test quantile([1, 2, 3, 4],[]) == []
@@ -708,6 +714,11 @@ end
     end
     @test quantile(skipmissing([1, missing, 2]), 0.5) === 1.5
     @test quantile([1], 0.5) === 1.0
+    let x = shuffle!(Float64.(1:50000))
+        @test quantile(x, Float16(1/3)) === quantile(x, Float64(Float16(1/3))) === 16663.264404296875
+    end
+    @test quantile(1.0:100_000.0, Float16(0.5)) === 50000.5
+    @test quantile([1e7, 1e7+1], 0.3f0) === quantile([1e7, 1e7+1], Float64(0.3f0))
 
     # length overflows to 0. Same error as an empty vector.
     let r = typemin(Int):typemax(Int)
