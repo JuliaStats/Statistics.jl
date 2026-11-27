@@ -547,10 +547,17 @@ unscaled_covzm(x::AbstractMatrix, y::AbstractMatrix, vardim::Int) =
 
 # covzm (with centered data)
 
+# The type of `first(C) / 1`, inferred when that gives a concrete type, so that it is also
+# available for an empty `C` and without indexing into `C` (which GPU arrays do not support)
+function _eltype_div1(C::AbstractArray)
+    T = Base.promote_op(x -> x / 1, eltype(C))
+    return isconcretetype(T) || isempty(C) ? T : typeof(first(C) / 1)
+end
+
 covzm(x::AbstractVector; corrected::Bool=true) = unscaled_covzm(x) / (length(x) - Int(corrected))
 function covzm(x::AbstractMatrix, vardim::Int=1; corrected::Bool=true)
     C = unscaled_covzm(x, vardim)
-    T = promote_type(typeof(first(C) / 1), eltype(C))
+    T = promote_type(_eltype_div1(C), eltype(C))
     A = convert(AbstractMatrix{T}, C)
     b = 1//(size(x, vardim) - corrected)
     A .= A .* b
@@ -560,7 +567,7 @@ covzm(x::AbstractVector, y::AbstractVector; corrected::Bool=true) =
     unscaled_covzm(x, y) / (length(x) - Int(corrected))
 function covzm(x::AbstractVecOrMat, y::AbstractVecOrMat, vardim::Int=1; corrected::Bool=true)
     C = unscaled_covzm(x, y, vardim)
-    T = promote_type(typeof(first(C) / 1), eltype(C))
+    T = promote_type(_eltype_div1(C), eltype(C))
     A = convert(AbstractArray{T}, C)
     b = 1//(_getnobs(x, y, vardim) - corrected)
     A .= A .* b
