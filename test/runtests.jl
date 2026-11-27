@@ -1103,6 +1103,16 @@ end
     @test isequal(cov(my, mx, dims=1), fill(-0.0, 3, 2))
     @test isequal(cor(my, mx, dims=1), fill(NaN, 3, 2))
 
+    # no variables
+    m0 = Matrix{Int}(undef, 3, 0)
+    m2 = [1 2; 3 4; 5 7]
+    @test cov(m0) == cov(m0', dims=2) == Matrix{Float64}(undef, 0, 0)
+    @test cov(m0, corrected=false) isa Matrix{Float64}
+    @test cov(m0, m2) == cov(m0', m2', dims=2) == Matrix{Float64}(undef, 0, 2)
+    @test cov(m2, m0) == cov(m2', m0', dims=2) == Matrix{Float64}(undef, 2, 0)
+    @test cov(m0, [1, 2, 3]) == Matrix{Float64}(undef, 0, 1)
+    @test cov([1, 2, 3], m0) == Matrix{Float64}(undef, 1, 0)
+
     @test isequal(cov(mx, Int[]), fill(-0.0, 2, 1))
     @test isequal(cor(mx, Int[]), fill(NaN, 2, 1))
     @test isequal(cov(Int[], my), fill(-0.0, 1, 3))
