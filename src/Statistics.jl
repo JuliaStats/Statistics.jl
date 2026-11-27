@@ -178,24 +178,38 @@ julia> mean(A, dims=2)
 """
 mean(A::AbstractArray; dims=:) = _mean(identity, A, dims)
 
-_mean_promote(x::T, y::S) where {T,S} = convert(promote_type(T, S), y)
+_mean_promote(x::T, y) where {T} = _mean_promote_to(T, y)
+_mean_promote_to(::Type{T}, y::S) where {T,S} = convert(promote_type(T, S), y)
 
-# ::Dims is there to force specializing on Colon (as it is a Function)
-function _mean(f, A::AbstractArray, dims::Dims=:) where Dims
+# ::F and ::Dims are there to force specializing on `f` and on Colon (as it is a Function)
+function _mean(f::F, A::AbstractArray, dims::Dims=:) where {F,Dims}
     isempty(A) && return sum(f, A, dims=dims)/0
     if dims === (:)
         n = length(A)
     else
         n = mapreduce(i -> size(A, i), *, unique(dims); init=1)
     end
-    x1 = f(first(A)) / 1
-    result = sum(x -> _mean_promote(x1, f(x)), A, dims=dims)
+    result = sum(_mean_term(f, A), A, dims=dims)
     if dims === (:)
         return result / n
     else
         return result ./= n
     end
 end
+
+# The terms of the sum are promoted to the type of `f(first(A)) / 1`. When that type can be
+# inferred to be concrete, it is the type `f(first(A)) / 1` has, so use it instead of calling `f`
+# an extra time and indexing `A` (which arrays such as GPU arrays do not support).
+function _mean_term(f::F, A::AbstractArray) where F
+    T = Base.promote_op(/, Base.promote_op(f, eltype(A)), Int)
+    isconcretetype(T) && return _mean_term_inferred(f, T)
+    x1 = f(first(A)) / 1
+    return x -> _mean_promote(x1, f(x))
+end
+# (`T` is a static parameter, and so is `F` when `f` is a type, so that the closure has no
+# fields of type `DataType`: that would keep it from being passed to a GPU kernel)
+_mean_term_inferred(f::F, ::Type{T}) where {F,T} = x -> _mean_promote_to(T, f(x))
+_mean_term_inferred(::Type{F}, ::Type{T}) where {F,T} = x -> _mean_promote_to(T, F(x))
 
 function mean(r::AbstractRange{T}) where T
     isempty(r) && return zero(T)/0

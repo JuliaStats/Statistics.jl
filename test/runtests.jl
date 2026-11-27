@@ -192,6 +192,26 @@ end
     end
     (t::U)(y) = t.x == 0 ? throw(MethodError(T)) : t.x * y
     @test @inferred mean(U(2), 3) === 6.0
+
+    # `f` is called once per element (#49)
+    let n = Ref(0), f = x -> (n[] += 1; 2x)
+        @test mean(f, [1, 2, 3]) === 4.0
+        @test n[] == 3
+    end
+
+    # arrays without scalar indexing, as GPU arrays, need no more than `mapreduce`
+    struct NoScalarArray{T,N} <: AbstractArray{T,N}
+        data::Array{T,N}
+    end
+    Base.size(A::NoScalarArray) = size(A.data)
+    Base.getindex(::NoScalarArray, I...) = error("scalar indexing")
+    Base.mapreduce(f, op, A::NoScalarArray; kw...) = mapreduce(f, op, A.data; kw...)
+    let A = rand(Int8, 3, 4)
+        @test mean(NoScalarArray(A)) === mean(A)
+        @test mean(abs2, NoScalarArray(A)) === mean(abs2, A)
+        @test mean(Float32, NoScalarArray(A)) === mean(Float32, A)
+        @test mean(NoScalarArray(A), dims=2) == mean(A, dims=2)
+    end
 end
 
 @testset "mean/median for ranges" begin
