@@ -643,6 +643,37 @@ end
     @test Statistics.corzm([true]) === 1.0
     @test_throws Exception Statistics.corzm(Any[0.0, 1.0])
 
+    @testset "rectangular cor and cov2cor!" begin
+        x = randn(10, 3)
+        y = randn(10, 4)
+        C = cor(x, y)
+        @test size(C) == (3, 4)
+        @test C ≈ [cor(x[:, i], y[:, j]) for i in 1:3, j in 1:4]
+        @test cor(x', y', dims=2) ≈ C
+        @test vec(cor(x[:, 1], y)) ≈ C[1, :]
+        @test vec(cor(x, y[:, 1])) ≈ C[:, 1]
+
+        M = [0.5 -3.0 2.0; 1.0 4.0 -0.25]
+        xsd = [1.0 2.0]
+        ysd = [1.0 0.5 4.0]
+        clamped(M, xsd, ysd) = [clamp(M[i, j] / (xsd[i] * ysd[j]), -1, 1) for i in axes(M, 1), j in axes(M, 2)]
+        @test Statistics.cov2cor!(copy(M), xsd, ysd) == clamped(M, xsd, ysd)
+        @test Statistics.cov2cor!(copy(M), xsd', vec(ysd)) == clamped(M, xsd, ysd)
+        @test Statistics.cov2cor!(copy(M), 2.0, ysd) == clamped(M, [2.0, 2.0], ysd)
+        @test Statistics.cov2cor!(copy(M), xsd, 2.0) == clamped(M, xsd, [2.0, 2.0, 2.0])
+        @test_throws DimensionMismatch Statistics.cov2cor!(copy(M), [1.0], ysd)
+        @test_throws DimensionMismatch Statistics.cov2cor!(copy(M), xsd, [1.0, 2.0])
+        @test_throws DimensionMismatch Statistics.cov2cor!(copy(M), 2.0, [1.0, 2.0])
+        @test_throws DimensionMismatch Statistics.cov2cor!(copy(M), [1.0], 2.0)
+
+        # sparse matrices keep their structure
+        S = sparse([1, 2], [1, 3], [0.5, -0.25], 2, 3)
+        @test nnz(Statistics.cov2cor!(copy(S), xsd, ysd)) == 2
+        @test Statistics.cov2cor!(copy(S), xsd, ysd) == clamped(Matrix(S), xsd, ysd)
+        @test nnz(Statistics.cov2cor!(copy(S), 2.0, ysd)) == 2
+        @test nnz(Statistics.cov2cor!(copy(S), xsd, 2.0)) == 2
+    end
+
     @testset "cor with missing" begin
         @test cor([missing]) === missing
         @test cor([1, missing]) == 1

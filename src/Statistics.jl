@@ -432,6 +432,7 @@ function sqrt!(A::AbstractArray)
     end
     A
 end
+sqrt!(A::DenseArray) = (A .= sqrt.(A))
 
 """
     std(itr; corrected::Bool=true, mean=nothing[, dims])
@@ -660,9 +661,13 @@ function cov2cor!(C::AbstractMatrix, xsd, ysd::AbstractArray)
     require_one_based_indexing(C, ysd)
     nx, ny = size(C)
     length(ysd) == ny || throw(DimensionMismatch("inconsistent dimensions"))
-    for (j, y) in enumerate(ysd)   # fixme (iter): here and in all `cov2cor!` we assume that `C` is efficiently indexed by integers
-        for i in 1:nx
-            C[i,j] = clampcor(C[i, j] / (xsd * y))
+    if C isa DenseMatrix
+        C .= clampcor.(C ./ (xsd .* _cor_row(ysd)))
+    else
+        for (j, y) in enumerate(ysd)   # fixme (iter): here and in all `cov2cor!` we assume that `C` is efficiently indexed by integers
+            for i in 1:nx
+                C[i,j] = clampcor(C[i, j] / (xsd * y))
+            end
         end
     end
     return C
@@ -671,9 +676,13 @@ function cov2cor!(C::AbstractMatrix, xsd::AbstractArray, ysd)
     require_one_based_indexing(C, xsd)
     nx, ny = size(C)
     length(xsd) == nx || throw(DimensionMismatch("inconsistent dimensions"))
-    for j in 1:ny
-        for (i, x) in enumerate(xsd)
-            C[i,j] = clampcor(C[i,j] / (x * ysd))
+    if C isa DenseMatrix
+        C .= clampcor.(C ./ (vec(xsd) .* ysd))
+    else
+        for j in 1:ny
+            for (i, x) in enumerate(xsd)
+                C[i,j] = clampcor(C[i,j] / (x * ysd))
+            end
         end
     end
     return C
@@ -683,13 +692,25 @@ function cov2cor!(C::AbstractMatrix, xsd::AbstractArray, ysd::AbstractArray)
     nx, ny = size(C)
     (length(xsd) == nx && length(ysd) == ny) ||
         throw(DimensionMismatch("inconsistent dimensions"))
-    for (i, x) in enumerate(xsd)
-        for (j, y) in enumerate(ysd)
-            C[i,j] = clampcor(C[i,j] / (x * y))
+    if C isa DenseMatrix
+        C .= clampcor.(C ./ (vec(xsd) .* _cor_row(ysd)))
+    else
+        for (i, x) in enumerate(xsd)
+            for (j, y) in enumerate(ysd)
+                C[i,j] = clampcor(C[i,j] / (x * y))
+            end
         end
     end
     return C
 end
+# The `cov2cor!` and `sqrt!` broadcasts give the same values as the loops, and are faster and
+# work for GPU arrays. They are only used for dense arrays, as broadcasting would make other
+# arrays, e.g. sparse ones, store every element.
+#
+# (a transposed vector broadcasts faster than a 1×n matrix, as its first dimension is known to
+# be a singleton, but `transpose` only leaves elements unchanged for some types)
+_cor_row(y::AbstractArray{<:Base.IEEEFloat}) = transpose(vec(y))
+_cor_row(y::AbstractArray) = reshape(y, 1, :)
 
 # corzm (non-exported, with centered data)
 
